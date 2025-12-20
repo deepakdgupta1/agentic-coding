@@ -547,7 +547,7 @@ export const initFunnel = (): FunnelData => {
   const params = new URLSearchParams(window.location.search);
 
   const funnelData: FunnelData = {
-    sessionId: `funnel_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    sessionId: `funnel_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     startedAt: new Date().toISOString(),
     currentStep: 0,
     maxStepReached: 0,
@@ -820,11 +820,11 @@ export const trackLandingEngagement = (
  * Enable debug mode for development
  */
 export const enableDebugMode = (): void => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !GA_MEASUREMENT_ID) return;
 
   // GA4 debug mode
   if (window.gtag) {
-    window.gtag('config', GA_MEASUREMENT_ID!, {
+    window.gtag('config', GA_MEASUREMENT_ID, {
       debug_mode: true,
     });
   }

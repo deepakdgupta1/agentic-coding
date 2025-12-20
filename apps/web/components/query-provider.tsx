@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -21,21 +21,23 @@ function makeQueryClient() {
   });
 }
 
-// Create persister only on client
-function createPersister() {
-  if (typeof window === "undefined") return undefined;
-  return createSyncStoragePersister({
-    storage: window.localStorage,
-    key: "acfs-query-cache",
-  });
-}
-
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => makeQueryClient());
-  const [persister] = useState(() => createPersister());
+  const [persister, setPersister] = useState<ReturnType<typeof createSyncStoragePersister> | null>(null);
 
-  // If we have a persister (client-side), use PersistQueryClientProvider
-  // Otherwise (SSR), use regular QueryClientProvider
+  // Create persister only after mount to avoid hydration mismatch
+  // Server and client both render QueryClientProvider initially,
+  // then we upgrade to PersistQueryClientProvider on client after mount
+  useEffect(() => {
+    const storagePersister = createSyncStoragePersister({
+      storage: window.localStorage,
+      key: "acfs-query-cache",
+    });
+    setPersister(storagePersister);
+  }, []);
+
+  // Always render PersistQueryClientProvider once we have a persister,
+  // but start with QueryClientProvider for SSR/hydration consistency
   if (persister) {
     return (
       <PersistQueryClientProvider
@@ -47,6 +49,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Initial render (SSR + first client render before useEffect)
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
