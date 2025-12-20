@@ -118,6 +118,7 @@ export function getCompletedSteps(): number[] {
 export function setCompletedSteps(steps: number[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(COMPLETED_STEPS_KEY, JSON.stringify(steps));
+  emitStepsChange();
 }
 
 /** Mark a step as completed */
@@ -127,7 +128,6 @@ export function markStepComplete(stepId: number): number[] {
     completed.push(stepId);
     completed.sort((a, b) => a - b);
     setCompletedSteps(completed);
-    emitStepsChange();
   }
   return completed;
 }
