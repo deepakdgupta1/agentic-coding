@@ -141,19 +141,12 @@ export default function RunInstallerPage() {
       </div>
 
       {/* Success signs */}
-      <Card className="border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
-        <div className="space-y-2">
-          <h3 className="font-medium text-green-800 dark:text-green-200">
-            You&apos;ll know it&apos;s done when you see:
-          </h3>
-          <div className="rounded bg-green-100 p-3 font-mono text-sm text-green-800 dark:bg-green-900/50 dark:text-green-200">
-            <p>✔ ACFS installation complete!</p>
-            <p className="text-green-600 dark:text-green-400">
-              Please reconnect as: ssh ubuntu@YOUR_IP
-            </p>
-          </div>
-        </div>
-      </Card>
+      <OutputPreview title="You'll know it's done when you see:">
+        <p className="text-[oklch(0.72_0.19_145)]">✔ ACFS installation complete!</p>
+        <p className="text-muted-foreground">
+          Please reconnect as: ssh ubuntu@YOUR_IP
+        </p>
+      </OutputPreview>
 
       {/* Continue button */}
       <div className="flex justify-end pt-4">

@@ -97,7 +97,7 @@ export default function WizardLayout({
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 pb-24 md:pb-8">
+        <main className="flex-1 pb-52 md:pb-8">
           {/* Mobile header */}
           <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/50 bg-background/80 px-4 py-3 backdrop-blur-sm md:hidden">
             <Link href="/" className="flex items-center gap-2">
@@ -162,29 +162,29 @@ export default function WizardLayout({
       </div>
 
       {/* Mobile stepper - shown only on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/50 bg-background/95 p-4 backdrop-blur-md md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/95 px-4 pt-4 backdrop-blur-md bottom-nav-safe md:hidden">
         <StepperMobile currentStep={currentStep} onStepClick={handleStepClick} />
 
-        {/* Mobile navigation */}
-        <div className="mt-3 flex items-center justify-between gap-2">
+        {/* Mobile navigation - 48px buttons for proper touch targets */}
+        <div className="mt-4 flex items-center gap-3">
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => prevStep && handleStepClick(prevStep.id)}
             disabled={!prevStep}
             className="flex-1"
           >
-            <ChevronLeft className="mr-1 h-4 w-4" />
+            <ChevronLeft className="mr-1 h-5 w-5" />
             Back
           </Button>
           <Button
-            size="sm"
+            size="lg"
             onClick={() => nextStep && handleStepClick(nextStep.id)}
             disabled={!nextStep}
-            className="flex-1 bg-primary text-primary-foreground"
+            className="flex-1"
           >
             Next
-            <ChevronRight className="ml-1 h-4 w-4" />
+            <ChevronRight className="ml-1 h-5 w-5" />
           </Button>
         </div>
       </div>

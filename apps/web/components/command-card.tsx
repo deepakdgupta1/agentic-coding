@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback, useSyncExternalStore } from "react";
+import { useState, useCallback, useSyncExternalStore, useRef, useEffect } from "react";
 import { Check, Copy, Terminal, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useDetectedOS, useUserOS } from "@/lib/userPreferences";
+import { springs } from "@/components/motion";
 
 export interface CommandCardProps {
   /** The default command to display */
