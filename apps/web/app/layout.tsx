@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { JetBrains_Mono, Instrument_Sans } from "next/font/google";
+import { QueryProvider } from "@/components/query-provider";
 import { AnalyticsProvider } from "@/components/analytics-provider";
 import { ThirdPartyScripts } from "@/components/third-party-scripts";
 import { MotionProvider } from "@/components/motion/motion-provider";
@@ -66,9 +67,11 @@ export default function RootLayout({
         <div className="pointer-events-none fixed inset-0 z-50 bg-noise" />
         <Suspense fallback={null}>
           <ThirdPartyScripts />
-          <MotionProvider>
-            <AnalyticsProvider>{children}</AnalyticsProvider>
-          </MotionProvider>
+          <QueryProvider>
+            <MotionProvider>
+              <AnalyticsProvider>{children}</AnalyticsProvider>
+            </MotionProvider>
+          </QueryProvider>
         </Suspense>
       </body>
     </html>
