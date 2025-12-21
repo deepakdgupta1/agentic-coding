@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
-import { Check, AlertCircle, Server, ChevronDown, HardDrive } from "lucide-react";
+import { Check, AlertCircle, Server, ChevronDown, HardDrive, ShieldCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -344,17 +344,41 @@ export default function CreateVPSPage() {
         </SimplerGuide>
 
         {/* IP Address input */}
-        <div className="space-y-3">
-          <h2 className="font-semibold text-foreground">Your VPS IP address</h2>
-          <p className="text-sm text-muted-foreground">
-            Enter the IP address of your new VPS. You&apos;ll find this in your
-            provider&apos;s control panel after the VPS is created.
-          </p>
-          <p className="text-xs text-muted-foreground/70">
-            <strong>Privacy note:</strong> This website does not store or transmit your IP address
-            to any server. It&apos;s saved only in your browser&apos;s local storage to help you
-            complete the wizard steps.
-          </p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="font-semibold text-foreground">Your VPS IP address</h2>
+            <p className="text-sm text-muted-foreground">
+              Enter the IP address of your new VPS. You&apos;ll find this in your
+              provider&apos;s control panel after the VPS is created.
+            </p>
+          </div>
+
+          {/* Privacy assurance card */}
+          <div className="flex gap-3 rounded-xl border border-[oklch(0.72_0.19_145/0.25)] bg-[oklch(0.72_0.19_145/0.05)] p-3 sm:p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.72_0.19_145/0.15)] sm:h-9 sm:w-9">
+              <ShieldCheck className="h-4 w-4 text-[oklch(0.72_0.19_145)] sm:h-5 sm:w-5" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="text-[13px] font-medium leading-tight text-[oklch(0.82_0.12_145)] sm:text-sm">
+                Your data stays on your device
+              </p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+                This IP address is stored <strong className="text-foreground/80">only in your browser&apos;s local storage</strong>—it&apos;s
+                never sent to our servers or any third party. The{" "}
+                <a
+                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-[oklch(0.75_0.18_195)] hover:underline"
+                >
+                  entire codebase is open source
+                  <ExternalLink className="h-3 w-3" />
+                </a>{" "}
+                so you can verify this yourself.
+              </p>
+            </div>
+          </div>
+
           <form.Field
             name="ipAddress"
             validators={{

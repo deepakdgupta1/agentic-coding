@@ -8,6 +8,8 @@ import {
   ExternalLink,
   Check,
   Rocket,
+  ShieldCheck,
+  Code,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
@@ -114,6 +116,43 @@ export default function RunInstallerPage() {
         />
       </div>
 
+      {/* Transparency & trust */}
+      <div className="flex gap-3 rounded-xl border border-[oklch(0.72_0.19_145/0.25)] bg-[oklch(0.72_0.19_145/0.05)] p-3 sm:p-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.72_0.19_145/0.15)] sm:h-9 sm:w-9">
+          <ShieldCheck className="h-4 w-4 text-[oklch(0.72_0.19_145)] sm:h-5 sm:w-5" />
+        </div>
+        <div className="min-w-0 space-y-2">
+          <p className="text-[13px] font-medium leading-tight text-[oklch(0.82_0.12_145)] sm:text-sm">
+            Fully transparent &amp; open source
+          </p>
+          <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+            This script only runs on <strong className="text-foreground/80">your VPS</strong>—not your local computer.
+            You can inspect every line before running it:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/blob/main/install.sh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[oklch(0.75_0.18_195/0.3)] bg-[oklch(0.75_0.18_195/0.1)] px-2.5 py-1.5 text-[11px] font-medium text-[oklch(0.75_0.18_195)] transition-colors hover:bg-[oklch(0.75_0.18_195/0.2)] sm:text-xs"
+            >
+              <Code className="h-3 w-3" />
+              View install.sh source
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+            <a
+              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground sm:text-xs"
+            >
+              Full repository
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Time estimate */}
       <div className="flex items-center gap-2 text-muted-foreground">
         <Clock className="h-5 w-5" />
@@ -138,22 +177,6 @@ export default function RunInstallerPage() {
           ))}
         </div>
       </DetailsSection>
-
-      {/* View source */}
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">
-          Want to see exactly what it does?
-        </span>
-        <a
-          href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/blob/main/install.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-        >
-          View install.sh source
-          <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
 
       {/* Success signs */}
       <OutputPreview title="You'll know it's done when you see:">

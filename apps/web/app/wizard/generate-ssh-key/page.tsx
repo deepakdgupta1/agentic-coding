@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Key } from "lucide-react";
+import { Key, ShieldCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
 import { AlertCard, DetailsSection } from "@/components/alert-card";
@@ -84,6 +84,31 @@ export default function GenerateSSHKeyPage() {
         provider). Think of it like a lock and key: you share the lock, but
         only you have the key.
       </AlertCard>
+
+      {/* Privacy assurance */}
+      <div className="flex gap-3 rounded-xl border border-[oklch(0.72_0.19_145/0.25)] bg-[oklch(0.72_0.19_145/0.05)] p-3 sm:p-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.72_0.19_145/0.15)] sm:h-9 sm:w-9">
+          <ShieldCheck className="h-4 w-4 text-[oklch(0.72_0.19_145)] sm:h-5 sm:w-5" />
+        </div>
+        <div className="min-w-0 space-y-1">
+          <p className="text-[13px] font-medium leading-tight text-[oklch(0.82_0.12_145)] sm:text-sm">
+            Your keys never leave your computer
+          </p>
+          <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+            These commands run <strong className="text-foreground/80">entirely on your machine</strong>—this website cannot see, access, or store your SSH keys.
+            We&apos;re just showing you what to type. The{" "}
+            <a
+              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 font-medium text-[oklch(0.75_0.18_195)] hover:underline"
+            >
+              entire codebase is open source
+              <ExternalLink className="h-3 w-3" />
+            </a>.
+          </p>
+        </div>
+      </div>
 
       {/* Step 1: Generate */}
       <div className="space-y-4">
