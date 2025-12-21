@@ -61,6 +61,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Offline bootstrap simulation
+        run: |
+          bash tests/vm/bootstrap_offline_checks.sh
+
       - name: Run installer
         run: |
           bash install.sh --yes --mode ${{ matrix.mode }}

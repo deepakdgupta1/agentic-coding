@@ -111,6 +111,8 @@ run_one() {
       apt-get update
       apt-get install -y sudo curl git ca-certificates jq unzip tar xz-utils gnupg
 
+      bash /repo/tests/vm/bootstrap_offline_checks.sh
+
       cd /repo
       bash install.sh --yes --mode "${ACFS_TEST_MODE}"
 
