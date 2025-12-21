@@ -214,6 +214,7 @@ function WorkflowCard({ scenario, index }: { scenario: WorkflowScenario; index: 
         {/* Expand toggle - 44px min height for touch targets */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
           className="flex w-full items-center justify-between rounded-lg bg-muted/30 px-4 py-3 min-h-[44px] text-left transition-colors hover:bg-muted/50"
         >
           <span className="text-sm font-medium text-foreground">
@@ -500,11 +501,29 @@ function ToolCard({ tool, index }: { tool: FlywheelTool; index: number }) {
   const Icon = iconMap[tool.icon] || Zap;
   const [copied, setCopied] = useState(false);
 
-  const copyInstall = () => {
-    if (tool.installCommand) {
-      navigator.clipboard.writeText(tool.installCommand);
+  const copyInstall = async () => {
+    if (!tool.installCommand) return;
+
+    try {
+      await navigator.clipboard.writeText(tool.installCommand);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers or when clipboard permission is denied
+      const textArea = document.createElement("textarea");
+      textArea.value = tool.installCommand;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Silent fail - user can manually copy
+      }
+      document.body.removeChild(textArea);
     }
   };
 
