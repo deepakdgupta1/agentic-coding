@@ -2391,9 +2391,10 @@ main() {
 
     # Check for resume scenario (if state functions available)
     if type -t confirm_resume &>/dev/null; then
+        # Use || to capture non-zero exit codes without triggering set -e
+        # confirm_resume returns: 0=resume, 1=fresh install, 2=abort
         local resume_result=0
-        confirm_resume
-        resume_result=$?
+        confirm_resume || resume_result=$?
         case $resume_result in
             0) # Resume - state functions will skip completed phases
                 log_info "Resuming installation from last checkpoint..."
