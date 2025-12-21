@@ -345,9 +345,9 @@ export const jargonDictionary: Record<string, JargonTerm> = {
   "gemini-cli": {
     term: "Gemini CLI",
     short: "Google's AI assistant for your terminal",
-    long: "Gemini CLI brings Google's Gemini AI model to your command line. It can help with coding questions, generate code, explain concepts, and assist with development tasks. Part of Google's AI ecosystem, it offers another powerful option for AI-assisted development.",
-    analogy: "Like having a Google engineer available in your terminal to help with coding questions.",
-    why: "Different AI models excel at different tasks. Having Gemini available gives you another perspective and capability for your coding work.",
+    long: "Gemini CLI brings Google's Gemini AI model to your command line, giving you a third AI assistant alongside Claude Code and Codex. Like the others, it runs in your terminal and can help with coding questions, generate code, explain concepts, and assist with development tasks. Gemini is Google's AI system (the same technology behind Google's AI features), offering capabilities that sometimes differ from what Claude or GPT-4 provide. Having multiple AI assistants is like having multiple experts with different backgrounds; they might approach problems differently or have different knowledge.",
+    analogy: "If Claude Code and Codex are two brilliant developers on your team, Gemini CLI is a third developer from a completely different company with a different training background. They've read different things, excel at different problems, and sometimes one will have an insight the others miss. Having all three available means you can get diverse perspectives.",
+    why: "Different AI models genuinely have different strengths. Some are better at explaining complex concepts, some at generating creative solutions, some at careful analysis. The Agent Flywheel installs all three major AI assistants so you can choose the best one for each situation, or compare their approaches when facing a tricky problem.",
     related: ["ai-agents", "claude-code", "codex"],
   },
 
@@ -357,20 +357,20 @@ export const jargonDictionary: Record<string, JargonTerm> = {
 
   idempotent: {
     term: "Idempotent",
-    short: "Safe to run multiple times with the same result every time",
-    long: "An idempotent operation produces the same result no matter how many times you run it. If you run our installer twice, you don't get two copies of everything; the second run just verifies everything is in place. This is critical for reliability: if something fails halfway, you can re-run from the beginning without breaking anything.",
-    analogy: "Like pressing an elevator button. Pressing it once calls the elevator. Pressing it 10 more times doesn't call 10 more elevators; the outcome is the same.",
-    why: "Installers often fail partway through (network issues, permissions, etc.). Idempotent design means you can safely re-run until it succeeds, without cleanup or worry.",
+    short: "Safe to run multiple times without causing duplicate effects",
+    long: "An idempotent operation produces the same result no matter how many times you run it. The Agent Flywheel installer is designed to be idempotent: if you run it once, it installs everything. If you run it again, it checks what's already installed and only fixes what's missing. You don't end up with duplicate installations or corrupted settings. This is critical for reliability because installations often fail partway through (network interruptions, temporary server problems, etc.). With idempotent design, you can safely re-run the installer from the beginning whenever something goes wrong, without needing to clean up or uninstall first.",
+    analogy: "Think about pressing an elevator button. Pressing it once calls the elevator to your floor. Pressing it ten more times doesn't call ten more elevators or make the first one arrive faster; the outcome is exactly the same regardless of how many times you press. Similarly, running an idempotent installer multiple times leaves your system in exactly the same correct state, not a more-installed or broken state.",
+    why: "Real-world installations frequently fail partway through. Internet connections drop, servers have temporary outages, permissions sometimes need adjustment. Without idempotent design, a failed installation leaves your system in a broken half-installed state that's hard to fix. With idempotent design, you just run the installer again, and it picks up where it left off or verifies everything is correct. It removes the fear of 'what if something goes wrong?'",
     related: ["sha256"],
   },
 
   sha256: {
     term: "SHA256",
-    short: "A cryptographic fingerprint that verifies files haven't been tampered with",
-    long: "SHA256 is an algorithm that creates a unique 256-bit 'fingerprint' for any file. If even a single character in the file changes, the fingerprint changes completely. We use this to verify that installer scripts we download are exactly what the author intended, not modified by an attacker.",
-    analogy: "Like a wax seal on a letter. If the seal is intact and matches what you expect, you know nobody opened or modified the letter.",
-    why: "Running code from the internet is inherently risky. SHA256 verification ensures the scripts we run are authentic and unmodified.",
-    related: ["idempotent"],
+    short: "A digital fingerprint that proves a file hasn't been changed",
+    long: "SHA256 is a mathematical formula that creates a unique 'fingerprint' (a long string of letters and numbers) for any file. This fingerprint has a special property: if even a single character in the file changes, the fingerprint becomes completely different. So you can check if a file has been tampered with by comparing its fingerprint to the expected one. The Agent Flywheel uses this to verify that installation scripts downloaded from the internet are exactly what the original authors intended, not versions modified by hackers. When you see something like 'SHA256: 3a7f9c2...' next to a download, that's the expected fingerprint you can compare against.",
+    analogy: "Imagine each document has a unique snow globe attached to it. If anyone opens the envelope and changes even one word, the snow globe magically transforms into a completely different scene. When you receive the document, you check if the snow globe matches what was advertised. If it does, you know the document wasn't altered in transit. SHA256 is that magical snow globe for digital files.",
+    why: "Downloading and running code from the internet is one of the most dangerous things you can do with a computer. If someone intercepted the download and inserted malicious code, your computer could be compromised. SHA256 verification ensures that the scripts you run are exactly what the trusted authors created, not modified by anyone in between. It's a simple but powerful security check.",
+    related: ["idempotent", "fingerprint"],
   },
 
   passphrase: {
@@ -420,11 +420,11 @@ export const jargonDictionary: Record<string, JargonTerm> = {
 
   api: {
     term: "API",
-    short: "Application Programming Interface, how programs talk to each other",
-    long: "An API is a defined way for programs to communicate. When Claude Code needs to send a message to the AI model, it uses an API. When your code needs weather data, it calls a weather API. APIs define what requests you can make and what responses you'll get, like a menu at a restaurant.",
-    analogy: "A restaurant menu is an API: it lists what you can order (requests) and what you'll receive (responses). You don't need to know how the kitchen works, just what's on the menu.",
-    why: "AI agents work by calling APIs, sending prompts and receiving responses. Understanding APIs helps you understand how these tools work together.",
-    related: ["cli"],
+    short: "Application Programming Interface, a way for programs to exchange information",
+    long: "An API (Application Programming Interface) is a structured way for programs to communicate with each other. Instead of humans clicking buttons, programs send precisely formatted requests and receive precisely formatted responses. For example, when Claude Code sends your prompt to the AI, it's making an API call: sending a message in a specific format and receiving the AI's response in a specific format. When an app shows you the weather, it asked a weather service's API 'what's the temperature in this city?' and received a structured answer. APIs are everywhere: payment processing, social media posting, file storage, AI models. They're the invisible communication layer that makes modern software work.",
+    analogy: "A restaurant menu is an API. It lists what you can order (the requests the kitchen accepts) and describes what you'll receive (the responses). You don't need to know how the kitchen works, who the chefs are, or where they get ingredients. You just need to order from the menu correctly, and you'll get what you asked for. APIs work the same way: follow the specified format, and you get the expected result.",
+    why: "AI assistants work almost entirely through APIs. When Claude Code helps you, it's sending your questions to an AI service's API and receiving responses. When it searches the web, that's another API. Understanding this helps you see how the pieces fit together, and why things like API keys (passwords for APIs) and rate limits (restrictions on how often you can call) matter.",
+    related: ["cli", "rate-limits"],
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -434,19 +434,19 @@ export const jargonDictionary: Record<string, JargonTerm> = {
   ubuntu: {
     term: "Ubuntu",
     short: "A popular, beginner-friendly version of Linux",
-    long: "Ubuntu is one of the most popular Linux distributions. It's free, well-documented, has a huge community, and is the default choice on most cloud providers. Ubuntu releases new versions every 6 months (with 'LTS' versions every 2 years that get 5 years of support). Most online tutorials and AI training data assume Ubuntu, making it easier to get help.",
-    analogy: "If Linux is 'operating systems that aren't Windows or Mac,' Ubuntu is the most popular, well-supported flavor, like choosing Toyota when you want a reliable car.",
-    why: "We target Ubuntu because it's the most common server OS. Scripts tested on Ubuntu work on the vast majority of VPS providers.",
-    related: ["linux", "vps"],
+    long: "Ubuntu is one of the most popular versions ('distributions') of Linux. It's completely free, extremely well-documented, has a huge community ready to help with questions, and is the default choice on most cloud server providers. When you create a VPS, 'Ubuntu' will likely be the first operating system option listed. Ubuntu releases new versions every 6 months, with special 'LTS' (Long Term Support) versions every 2 years that receive security updates for 5 years. Because Ubuntu is so popular, most tutorials and guides assume you're using it, and AI assistants have seen so much Ubuntu-related training data that they're particularly good at helping with it.",
+    analogy: "If Linux is a type of cuisine (like 'Italian food'), Ubuntu is a specific popular restaurant chain serving that cuisine. There are other Linux restaurants (Debian, Fedora, Arch), but Ubuntu is the one most people recognize, most delivery services support, and most recipes are written for. Choosing Ubuntu means you'll find the most help and the fewest surprises.",
+    why: "The Agent Flywheel targets Ubuntu because it's the most common server operating system. Almost every cloud provider offers Ubuntu, almost every tutorial assumes Ubuntu, and almost every AI assistant can help with Ubuntu questions. When the installer runs, it's running commands designed and tested for Ubuntu.",
+    related: ["linux", "vps", "lts"],
   },
 
   linux: {
     term: "Linux",
-    short: "A free, open-source operating system that powers most of the internet",
-    long: "Linux is an operating system (like Windows or macOS) that's free and open-source. It powers most web servers, cloud platforms, Android phones, and even the Mars rovers. Unlike Windows/Mac, Linux is developed by a global community. While it's less common on desktops, it dominates servers because it's free, stable, and highly customizable.",
-    analogy: "If Windows and Mac are proprietary restaurants owned by companies, Linux is like a community potluck: everyone contributes recipes, anyone can cook, and the food is free.",
-    why: "We use Linux because that's what cloud servers run. It's the foundation for all modern backend development and cloud computing.",
-    related: ["ubuntu", "bash"],
+    short: "A free operating system that powers most of the internet",
+    long: "Linux is an operating system, the fundamental software that controls your computer (like Windows on PCs or macOS on Macs). Unlike those commercial options, Linux is free and 'open source' (anyone can see and modify its code). Linux powers most of the internet's infrastructure: web servers, cloud platforms, Android phones, smart TVs, routers, and even NASA's Mars rovers and the International Space Station computers. While it's less common on personal desktops, Linux absolutely dominates servers because it's free (no licensing costs), extremely stable (servers often run for years without rebooting), and highly customizable (you can strip out what you don't need). Created in 1991 by Linus Torvalds, Linux is now developed by thousands of contributors worldwide.",
+    analogy: "Windows and macOS are like apartments in buildings owned by Microsoft and Apple. You pay rent (licenses), you follow their rules, and they control what you can modify. Linux is like owning your own land: it's completely free, you can build whatever you want, and a global community of neighbors is happy to help you with construction advice. The tradeoff is you need to be comfortable with more hands-on management.",
+    why: "Cloud servers run Linux because it's free, stable, and powerful. The commands you'll type during setup are Linux commands. The AI assistants were trained heavily on Linux systems. Understanding that you're entering the Linux world helps frame the whole experience: you're not clicking through Windows menus, you're typing commands that give you precise control over a powerful server operating system.",
+    related: ["ubuntu", "bash", "terminal"],
   },
 
   // ═══════════════════════════════════════════════════════════════
