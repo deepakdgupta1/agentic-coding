@@ -702,8 +702,25 @@ setup_shell() {
     fi
 
     # Install Oh My Zsh for target user
+    # Check multiple possible locations for existing installation
     local omz_dir="$TARGET_HOME/.oh-my-zsh"
-    if [[ ! -d "$omz_dir" ]]; then
+    local omz_installed=false
+
+    if [[ -d "$omz_dir" ]]; then
+        omz_installed=true
+        log_detail "Oh My Zsh already installed at $omz_dir"
+    elif [[ -d "/root/.oh-my-zsh" ]] && [[ "$(whoami)" == "root" ]]; then
+        # If running as root and oh-my-zsh exists in /root, copy it to target
+        log_detail "Oh My Zsh found in /root, copying to $TARGET_USER"
+        $SUDO cp -r /root/.oh-my-zsh "$omz_dir"
+        $SUDO chown -R "$TARGET_USER:$TARGET_USER" "$omz_dir"
+        omz_installed=true
+    elif [[ -f "$TARGET_HOME/.zshrc" ]] && grep -q "oh-my-zsh" "$TARGET_HOME/.zshrc" 2>/dev/null; then
+        # oh-my-zsh referenced in .zshrc but directory missing - unusual state
+        log_warn "Oh My Zsh referenced in .zshrc but directory not found; reinstalling"
+    fi
+
+    if [[ "$omz_installed" != "true" ]]; then
         log_detail "Installing Oh My Zsh for $TARGET_USER"
         # Run as target user to install in their home
         acfs_run_verified_upstream_script_as_target "ohmyzsh" "sh" --unattended
