@@ -1177,6 +1177,15 @@ finalize() {
     $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/bin/acfs"
     run_as_target ln -sf "$ACFS_HOME/bin/acfs" "$TARGET_HOME/.local/bin/acfs"
 
+    # Install Claude destructive-command guard hook automatically.
+    #
+    # This is especially important because ACFS config includes "dangerous mode"
+    # aliases (e.g., `cc`) that can run commands without interactive approvals.
+    log_detail "Installing Claude Git Safety Guard (PreToolUse hook)"
+    TARGET_USER="$TARGET_USER" TARGET_HOME="$TARGET_HOME" \
+        "$ACFS_HOME/scripts/services-setup.sh" --install-claude-guard --yes || \
+        log_warn "Claude Git Safety Guard installation failed (optional)"
+
     # Create state file
     cat > "$ACFS_STATE_FILE" << EOF
 {
