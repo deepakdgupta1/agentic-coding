@@ -116,6 +116,32 @@ get_version() {
         ntm|ubs|bv|cass|cm|caam|slb)
             version=$("$tool" --version 2>/dev/null | head -1 || echo "unknown")
             ;;
+        atuin)
+            version=$(atuin --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+            ;;
+        zoxide)
+            version=$(zoxide --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+            ;;
+        omz)
+            # OMZ version from .oh-my-zsh git tag or commit
+            local omz_dir="${ZSH:-$HOME/.oh-my-zsh}"
+            if [[ -d "$omz_dir/.git" ]]; then
+                version=$(git -C "$omz_dir" describe --tags --abbrev=0 2>/dev/null || \
+                          git -C "$omz_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            else
+                version="unknown"
+            fi
+            ;;
+        p10k)
+            # P10K version from git tag or commit
+            local p10k_dir="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/themes/powerlevel10k"
+            if [[ -d "$p10k_dir/.git" ]]; then
+                version=$(git -C "$p10k_dir" describe --tags --abbrev=0 2>/dev/null || \
+                          git -C "$p10k_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            else
+                version="unknown"
+            fi
+            ;;
         *)
             version="unknown"
             ;;
@@ -430,9 +456,9 @@ update_bun() {
 
     run_cmd "Bun self-upgrade" "$bun_bin" upgrade
 
-    # Capture version after and log if changed
+    # Capture version after and log if changed (don't use log_item "ok" to avoid double-counting)
     if capture_version_after "bun"; then
-        log_item "ok" "Bun updated" "${VERSION_BEFORE[bun]} → ${VERSION_AFTER[bun]}"
+        [[ "$QUIET" != "true" ]] && echo -e "       ${DIM}${VERSION_BEFORE[bun]} → ${VERSION_AFTER[bun]}${NC}"
     fi
 }
 
@@ -790,7 +816,7 @@ update_p10k() {
         else
             log_item "fail" "Powerlevel10k" "git pull failed"
             log_to_file "P10K update failed: $output"
-            ((FAIL_COUNT += 1))
+            # Note: log_item "fail" already increments FAIL_COUNT
         fi
     fi
 }
