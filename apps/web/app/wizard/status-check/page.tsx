@@ -90,6 +90,9 @@ export default function StatusCheckPage() {
     router.push(withCurrentSearch("/wizard/launch-onboarding"));
   }, [router, markComplete]);
 
+  // Compute auth services once, not on every category iteration
+  const authServices = getAuthServices();
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -172,7 +175,7 @@ export default function StatusCheckPage() {
 
         {/* Auth commands grouped by category */}
         {(["access", "agent", "cloud"] as const).map((category) => {
-          const services = getAuthServices()[category];
+          const services = authServices[category];
           if (services.length === 0) return null;
 
           return (

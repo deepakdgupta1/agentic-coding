@@ -267,8 +267,9 @@ export default function AccountsPage() {
             className="h-full bg-[oklch(0.72_0.19_145)] transition-all"
             style={{
               width: `${
-                (stronglyRecommendedChecked.length / stronglyRecommended.length) *
-                100
+                stronglyRecommended.length > 0
+                  ? (stronglyRecommendedChecked.length / stronglyRecommended.length) * 100
+                  : 0
               }%`,
             }}
           />
