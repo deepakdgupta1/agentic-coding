@@ -133,7 +133,7 @@ get_completed() {
 is_completed() {
     local lesson=$1
     local completed
-    completed=$(get_completed)
+    completed=$(get_completed | tr -d ' ')
     [[ "$completed" =~ (^|,)$lesson(,|$) ]]
 }
 
