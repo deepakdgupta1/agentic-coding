@@ -5,6 +5,17 @@ import { test, expect } from "@playwright/test";
  *
  * These tests verify the complete wizard user journey works correctly,
  * including state persistence, navigation, and edge cases.
+ *
+ * Button text for each step:
+ * - Step 1 (OS Selection): "Continue"
+ * - Step 2 (Install Terminal): "Continue"
+ * - Step 3 (Generate SSH Key): "I copied my public key"
+ * - Step 4 (Rent VPS): "I rented a VPS"
+ * - Step 5 (Create VPS): "Continue to SSH"
+ * - Step 6 (SSH Connect): "I'm connected, continue"
+ * - Step 7 (Run Installer): "I finished installing"
+ * - Step 8 (Reconnect Ubuntu): "Continue"
+ * - Step 9 (Status Check): "Continue"
  */
 
 test.describe("Wizard Flow", () => {
@@ -18,12 +29,11 @@ test.describe("Wizard Flow", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // Click the primary CTA - wait for it to be stable
+    // Click the primary CTA
     await page.getByRole("link", { name: /start the wizard/i }).click();
 
     // Should be on step 1 (OS selection)
     await expect(page).toHaveURL("/wizard/os-selection");
-    // Page may have multiple h1s - check that one contains OS-related text
     await expect(page.locator("h1").first()).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 }).first()).toContainText(/OS|operating|computer/i);
   });
@@ -72,8 +82,8 @@ test.describe("Wizard Flow", () => {
     await expect(page).toHaveURL("/wizard/generate-ssh-key");
     await expect(page.locator("h1").first()).toContainText(/SSH/i);
 
-    // Click continue
-    await page.click('button:has-text("Continue")');
+    // Click the step 3 specific button
+    await page.click('button:has-text("I copied my public key")');
 
     // Should navigate to step 4
     await expect(page).toHaveURL("/wizard/rent-vps");
@@ -85,7 +95,7 @@ test.describe("Wizard Flow", () => {
     await page.getByRole('radio', { name: /Mac/i }).click();
     await page.click('button:has-text("Continue")');
     await page.click('button:has-text("Continue")');
-    await page.click('button:has-text("Continue")');
+    await page.click('button:has-text("I copied my public key")');
 
     // Now on step 4
     await expect(page).toHaveURL("/wizard/rent-vps");
@@ -104,7 +114,7 @@ test.describe("Wizard Flow", () => {
     await page.getByRole('radio', { name: /Mac/i }).click();
     await page.click('button:has-text("Continue")');
     await page.click('button:has-text("Continue")');
-    await page.click('button:has-text("Continue")');
+    await page.click('button:has-text("I copied my public key")');
     await page.click('button:has-text("I rented a VPS")');
 
     // Now on step 5
@@ -294,6 +304,7 @@ test.describe("IP Address Validation", () => {
     });
 
     await page.goto("/wizard/create-vps");
+    await expect(page.locator("h1").first()).toBeVisible();
 
     // Enter invalid IP
     await page.fill('input[placeholder*="192.168"]', "invalid-ip");
@@ -347,7 +358,7 @@ test.describe("Command Card Copy Functionality", () => {
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 3000 });
 
     // Find a command card with copy button
-    await expect(page.locator('button:has-text("Copy command")')).toBeVisible();
+    await expect(page.locator('button:has-text("Copy command")').first()).toBeVisible();
   });
 });
 
@@ -356,12 +367,12 @@ test.describe("Beginner Guide", () => {
     await page.goto("/wizard/os-selection");
 
     // Find and click the SimplerGuide toggle
-    const guideToggle = page.locator('button:has-text("New to this")');
+    const guideToggle = page.locator('button:has-text("Make it simpler")');
     if (await guideToggle.isVisible()) {
       await guideToggle.click();
 
-      // Guide content should be visible
-      await expect(page.locator('text="What does this mean"')).toBeVisible();
+      // Guide content should expand - look for content that appears
+      await expect(page.locator('text="extra help"')).toBeVisible();
     }
   });
 });
@@ -387,7 +398,7 @@ test.describe("Complete Wizard Flow Integration", () => {
     await expect(page).toHaveURL("/wizard/generate-ssh-key");
 
     // Step 3: Generate SSH Key
-    await page.click('button:has-text("Continue")');
+    await page.click('button:has-text("I copied my public key")');
     await expect(page).toHaveURL("/wizard/rent-vps");
 
     // Step 4: Rent VPS
