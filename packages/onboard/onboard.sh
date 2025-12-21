@@ -158,8 +158,9 @@ mark_completed() {
             .last_accessed = now | todate
         ' "$PROGRESS_FILE" > "$tmp" && mv "$tmp" "$PROGRESS_FILE"
     else
-        # Fallback: simple append (not perfect but works)
-        echo "Note: Install jq for better progress tracking"
+        # Fallback: warn user that progress is not saved
+        echo -e "${YELLOW}Warning: 'jq' not found. Progress will NOT be saved.${NC}"
+        echo "Please install jq to enable progress tracking."
     fi
 }
 
