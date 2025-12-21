@@ -104,7 +104,9 @@ declare -A ACFS_PHASE_NAMES=(
 )
 
 # Current schema version
-readonly ACFS_STATE_SCHEMA_VERSION=2
+# v2: Stable phase IDs (original)
+# v3: Added ubuntu_upgrade section for multi-reboot upgrade tracking
+readonly ACFS_STATE_SCHEMA_VERSION=3
 
 # ============================================================
 # State File Location
@@ -1404,4 +1406,381 @@ parse_resume_flags() {
         esac
         shift
     done
+}
+
+# ============================================================
+# Ubuntu Upgrade State Tracking
+# ============================================================
+# These functions track multi-reboot Ubuntu upgrade progress.
+# The upgrade state is stored in a separate section of state.json
+# to keep it isolated from installation phase state.
+#
+# Schema v3 adds the ubuntu_upgrade section:
+# {
+#   "ubuntu_upgrade": {
+#     "enabled": true,
+#     "started_at": "2025-01-15T10:00:00Z",
+#     "original_version": "24.04",
+#     "target_version": "25.10",
+#     "upgrade_path": ["24.10", "25.04", "25.10"],
+#     "current_stage": "upgrading",
+#     "completed_upgrades": [
+#       {"from": "24.04", "to": "24.10", "completed_at": "..."}
+#     ],
+#     "current_upgrade": {"from": "24.10", "to": "25.04", "started_at": "..."},
+#     "needs_reboot": false,
+#     "resume_after_reboot": true,
+#     "last_error": null
+#   }
+# }
+#
+# Related beads: agentic_coding_flywheel_setup-2yd
+# ============================================================
+
+# Initialize upgrade state when starting an upgrade sequence
+# Usage: state_upgrade_init <original_version> <target_version> <upgrade_path_json>
+# Example: state_upgrade_init "24.04" "25.10" '["24.10", "25.04", "25.10"]'
+state_upgrade_init() {
+    local original_version="$1"
+    local target_version="$2"
+    local upgrade_path="$3"  # JSON array string
+
+    if ! command -v jq &>/dev/null; then
+        echo "Error: jq is required for state_upgrade_init" >&2
+        return 1
+    fi
+
+    local now
+    now="$(date -Iseconds)"
+
+    # Initialize the ubuntu_upgrade section
+    state_update "
+        .ubuntu_upgrade = {
+            \"enabled\": true,
+            \"started_at\": \"$now\",
+            \"original_version\": \"$original_version\",
+            \"target_version\": \"$target_version\",
+            \"upgrade_path\": $upgrade_path,
+            \"current_stage\": \"initializing\",
+            \"completed_upgrades\": [],
+            \"current_upgrade\": null,
+            \"needs_reboot\": false,
+            \"resume_after_reboot\": false,
+            \"last_error\": null
+        }
+    "
+}
+
+# Mark current upgrade step as starting
+# Usage: state_upgrade_start <from_version> <to_version>
+state_upgrade_start() {
+    local from_version="$1"
+    local to_version="$2"
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local now
+    now="$(date -Iseconds)"
+
+    state_update "
+        .ubuntu_upgrade.current_stage = \"upgrading\" |
+        .ubuntu_upgrade.current_upgrade = {
+            \"from\": \"$from_version\",
+            \"to\": \"$to_version\",
+            \"started_at\": \"$now\"
+        }
+    "
+}
+
+# Mark current upgrade step as completed
+# Usage: state_upgrade_complete <to_version>
+state_upgrade_complete() {
+    local to_version="$1"
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local state
+    state=$(state_load) || return 1
+
+    local now
+    now="$(date -Iseconds)"
+
+    # Move current_upgrade to completed_upgrades
+    local from_version
+    from_version=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.from // ""')
+
+    state_update "
+        .ubuntu_upgrade.completed_upgrades += [{
+            \"from\": \"$from_version\",
+            \"to\": \"$to_version\",
+            \"completed_at\": \"$now\"
+        }] |
+        .ubuntu_upgrade.current_upgrade = null |
+        .ubuntu_upgrade.current_stage = \"step_complete\"
+    "
+}
+
+# Mark that system needs reboot before continuing
+# Usage: state_upgrade_needs_reboot
+state_upgrade_needs_reboot() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    state_update "
+        .ubuntu_upgrade.needs_reboot = true |
+        .ubuntu_upgrade.resume_after_reboot = true |
+        .ubuntu_upgrade.current_stage = \"awaiting_reboot\"
+    "
+}
+
+# Clear reboot flags after successful resume
+# Usage: state_upgrade_resumed
+state_upgrade_resumed() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    state_update "
+        .ubuntu_upgrade.needs_reboot = false |
+        .ubuntu_upgrade.current_stage = \"resumed\"
+    "
+}
+
+# Check if upgrade sequence is complete
+# Usage: state_upgrade_is_complete
+# Returns: 0 if complete, 1 if not complete or not upgrading
+state_upgrade_is_complete() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local state
+    state=$(state_load) || return 1
+
+    # Check if ubuntu_upgrade section exists and is enabled
+    local enabled
+    enabled=$(echo "$state" | jq -r '.ubuntu_upgrade.enabled // false')
+    if [[ "$enabled" != "true" ]]; then
+        return 1  # Not in upgrade mode
+    fi
+
+    # Check if current stage is completed
+    local stage
+    stage=$(echo "$state" | jq -r '.ubuntu_upgrade.current_stage // ""')
+    if [[ "$stage" == "completed" ]]; then
+        return 0
+    fi
+
+    # Check if all upgrades in path are completed
+    local path_count completed_count
+    path_count=$(echo "$state" | jq -r '.ubuntu_upgrade.upgrade_path | length')
+    completed_count=$(echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades | length')
+
+    if [[ "$completed_count" -ge "$path_count" ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Get current upgrade stage
+# Usage: state_upgrade_get_stage
+# Outputs: not_started | initializing | upgrading | awaiting_reboot | resumed | step_complete | completed | error
+state_upgrade_get_stage() {
+    if ! command -v jq &>/dev/null; then
+        echo "not_started"
+        return 0
+    fi
+
+    local state
+    if ! state=$(state_load 2>/dev/null); then
+        echo "not_started"
+        return 0
+    fi
+
+    local enabled
+    enabled=$(echo "$state" | jq -r '.ubuntu_upgrade.enabled // false')
+    if [[ "$enabled" != "true" ]]; then
+        echo "not_started"
+        return 0
+    fi
+
+    local stage
+    stage=$(echo "$state" | jq -r '.ubuntu_upgrade.current_stage // "not_started"')
+    echo "$stage"
+}
+
+# Record an error during upgrade
+# Usage: state_upgrade_set_error <error_message>
+state_upgrade_set_error() {
+    local error_msg="$1"
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    # Escape quotes in error message
+    local escaped_msg
+    escaped_msg=$(printf '%s' "$error_msg" | sed 's/"/\\"/g')
+
+    state_update "
+        .ubuntu_upgrade.last_error = \"$escaped_msg\" |
+        .ubuntu_upgrade.current_stage = \"error\"
+    "
+}
+
+# Mark upgrade sequence as fully completed
+# Usage: state_upgrade_mark_complete
+state_upgrade_mark_complete() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local now
+    now="$(date -Iseconds)"
+
+    state_update "
+        .ubuntu_upgrade.current_stage = \"completed\" |
+        .ubuntu_upgrade.completed_at = \"$now\" |
+        .ubuntu_upgrade.needs_reboot = false |
+        .ubuntu_upgrade.resume_after_reboot = false
+    "
+}
+
+# Clean up upgrade state after completion
+# Usage: state_upgrade_cleanup
+# This removes the ubuntu_upgrade section entirely
+state_upgrade_cleanup() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    state_update "del(.ubuntu_upgrade)"
+}
+
+# Check if we're in the middle of an upgrade
+# Usage: state_upgrade_in_progress
+# Returns: 0 if upgrade is in progress, 1 if not
+state_upgrade_in_progress() {
+    local stage
+    stage=$(state_upgrade_get_stage)
+
+    case "$stage" in
+        initializing|upgrading|awaiting_reboot|resumed|step_complete)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Get the next version to upgrade to
+# Usage: state_upgrade_get_next_version
+# Outputs: next version string or empty if no more upgrades
+state_upgrade_get_next_version() {
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local state
+    state=$(state_load) || return 1
+
+    local completed_count path
+    completed_count=$(echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades | length')
+
+    # Get the next item in upgrade_path based on completed count
+    echo "$state" | jq -r ".ubuntu_upgrade.upgrade_path[$completed_count] // empty"
+}
+
+# Get upgrade progress summary
+# Usage: state_upgrade_get_progress
+# Outputs: JSON object with progress info
+state_upgrade_get_progress() {
+    if ! command -v jq &>/dev/null; then
+        echo '{"error": "jq required"}'
+        return 1
+    fi
+
+    local state
+    state=$(state_load) || {
+        echo '{"error": "no state"}'
+        return 1
+    }
+
+    echo "$state" | jq '{
+        enabled: .ubuntu_upgrade.enabled // false,
+        stage: .ubuntu_upgrade.current_stage // "not_started",
+        original: .ubuntu_upgrade.original_version // null,
+        target: .ubuntu_upgrade.target_version // null,
+        completed_count: (.ubuntu_upgrade.completed_upgrades | length),
+        total_count: (.ubuntu_upgrade.upgrade_path | length),
+        needs_reboot: .ubuntu_upgrade.needs_reboot // false,
+        last_error: .ubuntu_upgrade.last_error // null
+    }'
+}
+
+# Print upgrade status for user display
+# Usage: state_upgrade_print_status
+state_upgrade_print_status() {
+    if ! command -v jq &>/dev/null; then
+        echo "Upgrade status unavailable (jq required)"
+        return 1
+    fi
+
+    local state
+    if ! state=$(state_load 2>/dev/null); then
+        echo "No upgrade in progress"
+        return 0
+    fi
+
+    local enabled
+    enabled=$(echo "$state" | jq -r '.ubuntu_upgrade.enabled // false')
+    if [[ "$enabled" != "true" ]]; then
+        echo "No upgrade in progress"
+        return 0
+    fi
+
+    local original target stage completed_count total_count
+    original=$(echo "$state" | jq -r '.ubuntu_upgrade.original_version')
+    target=$(echo "$state" | jq -r '.ubuntu_upgrade.target_version')
+    stage=$(echo "$state" | jq -r '.ubuntu_upgrade.current_stage')
+    completed_count=$(echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades | length')
+    total_count=$(echo "$state" | jq -r '.ubuntu_upgrade.upgrade_path | length')
+
+    echo "=== Ubuntu Upgrade Status ==="
+    echo "Original: $original → Target: $target"
+    echo "Progress: $completed_count/$total_count upgrades completed"
+    echo "Stage: $stage"
+
+    # Show completed upgrades
+    if [[ "$completed_count" -gt 0 ]]; then
+        echo ""
+        echo "Completed upgrades:"
+        echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades[] | "  ✓ \(.from) → \(.to)"'
+    fi
+
+    # Show current upgrade if any
+    local current
+    current=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade // empty')
+    if [[ -n "$current" ]]; then
+        local from to
+        from=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.from')
+        to=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.to')
+        echo ""
+        echo "Current upgrade: $from → $to"
+    fi
+
+    # Show error if any
+    local error
+    error=$(echo "$state" | jq -r '.ubuntu_upgrade.last_error // empty')
+    if [[ -n "$error" ]]; then
+        echo ""
+        echo "Last error: $error"
+    fi
 }

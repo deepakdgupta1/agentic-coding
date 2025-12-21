@@ -23,6 +23,10 @@
 #   --strict          Treat ALL tools as critical (any checksum mismatch aborts)
 #   --list-modules    List available modules and exit
 #   --print-plan      Print execution plan and exit (no installs)
+#   --only <module>       Only run a specific module (repeatable)
+#   --only-phase <phase>  Only run modules in a specific phase (repeatable)
+#   --skip <module>       Skip a specific module (repeatable)
+#   --no-deps             Disable dependency closure (expert/debug)
 # ============================================================
 
 set -euo pipefail
@@ -37,11 +41,10 @@ ACFS_REF="${ACFS_REF:-main}"
 ACFS_RAW="https://raw.githubusercontent.com/${ACFS_REPO_OWNER}/${ACFS_REPO_NAME}/${ACFS_REF}"
 # Note: ACFS_HOME is set after TARGET_HOME is determined
 ACFS_LOG_DIR="/var/log/acfs"
-# SCRIPT_DIR is empty when running via curl|bash (BASH_SOURCE is unset)
-if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+# SCRIPT_DIR is empty when running via curl|bash (stdin; no file on disk)
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR=""
 fi
 
 # Default options
@@ -124,6 +127,66 @@ _source_context_lib() {
     return 0
 }
 _source_context_lib
+
+# ============================================================
+# Source reliability libraries for state tracking & reporting
+# (mjt.5.8: Integrate manifest-driven execution with resume/state)
+# ============================================================
+_source_reliability_libs() {
+    # Already loaded?
+    if [[ -n "${ACFS_RELIABILITY_LOADED:-}" ]]; then
+        return 0
+    fi
+
+    # Try local files first (when running from repo)
+    if [[ -n "${SCRIPT_DIR:-}" ]]; then
+        local state_lib="$SCRIPT_DIR/scripts/lib/state.sh"
+        local report_lib="$SCRIPT_DIR/scripts/lib/report.sh"
+
+        if [[ -f "$state_lib" ]]; then
+            # shellcheck source=scripts/lib/state.sh
+            source "$state_lib"
+        fi
+
+        if [[ -f "$report_lib" ]]; then
+            # shellcheck source=scripts/lib/report.sh
+            source "$report_lib"
+        fi
+
+        export ACFS_RELIABILITY_LOADED=1
+        return 0
+    fi
+
+    # Download for curl|bash scenario (if curl available)
+    if command -v curl &>/dev/null; then
+        local tmp_state="/tmp/acfs-state-$$.sh"
+        local tmp_report="/tmp/acfs-report-$$.sh"
+
+        if curl -fsSL "$ACFS_RAW/scripts/lib/state.sh" -o "$tmp_state" 2>/dev/null; then
+            source "$tmp_state"
+            rm -f "$tmp_state"
+        fi
+
+        if curl -fsSL "$ACFS_RAW/scripts/lib/report.sh" -o "$tmp_report" 2>/dev/null; then
+            source "$tmp_report"
+            rm -f "$tmp_report"
+        fi
+
+        export ACFS_RELIABILITY_LOADED=1
+        return 0
+    fi
+
+    # Fallback: define minimal no-op stubs
+    state_init() { :; }
+    state_phase_start() { :; }
+    state_phase_complete() { :; }
+    state_phase_fail() { :; }
+    confirm_resume() { return 1; }  # Fresh install
+    report_failure() { echo "Installation failed" >&2; }
+    report_success() { echo "Installation complete" >&2; }
+    return 0
+}
+_source_reliability_libs
 
 # ACFS Color scheme (Catppuccin Mocha inspired)
 ACFS_PRIMARY="#89b4fa"
@@ -461,6 +524,18 @@ detect_environment() {
     if [[ -f "$ACFS_LIB_DIR/install_helpers.sh" ]]; then
         # shellcheck source=scripts/lib/install_helpers.sh
         source "$ACFS_LIB_DIR/install_helpers.sh"
+    fi
+
+    # Source state management for resume/progress tracking (mjt.5.8)
+    if [[ -f "$ACFS_LIB_DIR/state.sh" ]]; then
+        # shellcheck source=scripts/lib/state.sh
+        source "$ACFS_LIB_DIR/state.sh"
+    fi
+
+    # Source error tracking for try_step wrappers (mjt.5.8)
+    if [[ -f "$ACFS_LIB_DIR/error_tracking.sh" ]]; then
+        # shellcheck source=scripts/lib/error_tracking.sh
+        source "$ACFS_LIB_DIR/error_tracking.sh"
     fi
 
     # Source manifest index (data-only, safe to source)
@@ -2277,19 +2352,103 @@ main() {
     validate_target_user
     init_target_paths
     ensure_ubuntu
-    confirm_or_exit
+
+    # ============================================================
+    # State Management and Resume Logic (mjt.5.8)
+    # ============================================================
+    # Initialize state file location (uses TARGET_USER's home)
+    ACFS_HOME="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}"
+    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    export ACFS_HOME ACFS_STATE_FILE
+
+    # Validate and handle existing state file
+    if type -t state_ensure_valid &>/dev/null; then
+        if ! state_ensure_valid; then
+            log_error "State validation failed. Aborting."
+            exit 1
+        fi
+    fi
+
+    # Check for resume scenario (if state functions available)
+    if type -t confirm_resume &>/dev/null; then
+        local resume_result=0
+        confirm_resume
+        resume_result=$?
+        case $resume_result in
+            0) # Resume - state functions will skip completed phases
+                log_info "Resuming installation from last checkpoint..."
+                ;;
+            1) # Fresh install - initialize new state
+                if type -t state_init &>/dev/null; then
+                    state_init
+                fi
+                ;;
+            2) # Abort
+                log_info "Installation aborted by user."
+                exit 0
+                ;;
+        esac
+    else
+        # Fallback: use original confirm_or_exit
+        confirm_or_exit
+    fi
+
     ensure_base_deps
 
     if [[ "$DRY_RUN" != "true" ]]; then
-        normalize_user
-        setup_filesystem
-        setup_shell
-        install_cli_tools
-        install_languages
-        install_agents
-        install_cloud_db
-        install_stack
-        finalize
+        # Execute phases with state tracking (mjt.5.8)
+        # Each run_phase call checks if phase is already completed and skips if so
+
+        # Track installation timing for report_success
+        local installation_start_time
+        installation_start_time=$(date +%s)
+
+        # Helper: Run phase with structured error reporting (mjt.5.8)
+        _run_phase_with_report() {
+            local phase_id="$1"
+            local phase_display="$2"
+            local phase_func="$3"
+            local phase_num="${phase_display%%/*}"
+
+            if type -t run_phase &>/dev/null; then
+                if ! run_phase "$phase_id" "$phase_display" "$phase_func"; then
+                    # Use structured error reporting
+                    if type -t report_failure &>/dev/null; then
+                        report_failure "$phase_num" 9
+                    else
+                        log_error "Phase $phase_display failed"
+                    fi
+                    log_info "Run with --resume to continue from this point."
+                    exit 1
+                fi
+            else
+                # Fallback: direct call with basic error handling
+                if ! "$phase_func"; then
+                    log_error "Phase $phase_display failed"
+                    exit 1
+                fi
+            fi
+        }
+
+        _run_phase_with_report "user_setup" "1/9 User Setup" normalize_user
+        _run_phase_with_report "filesystem" "2/9 Filesystem" setup_filesystem
+        _run_phase_with_report "shell_setup" "3/9 Shell Setup" setup_shell
+        _run_phase_with_report "cli_tools" "4/9 CLI Tools" install_cli_tools
+        _run_phase_with_report "languages" "5/9 Languages" install_languages
+        _run_phase_with_report "agents" "6/9 Coding Agents" install_agents
+        _run_phase_with_report "cloud_db" "7/9 Cloud & DB" install_cloud_db
+        _run_phase_with_report "stack" "8/9 Stack" install_stack
+        _run_phase_with_report "finalize" "9/9 Finalize" finalize
+
+        # Calculate installation time for success report
+        local installation_end_time total_seconds
+        installation_end_time=$(date +%s)
+        total_seconds=$((installation_end_time - installation_start_time))
+
+        # Report success with timing (mjt.5.8)
+        if type -t report_success &>/dev/null; then
+            report_success 9 "$total_seconds"
+        fi
 
         SMOKE_TEST_FAILED=false
         if ! run_smoke_test; then

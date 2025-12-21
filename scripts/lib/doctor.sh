@@ -913,8 +913,10 @@ check_claude_auth() {
 }
 
 # check_codex_auth - Thorough Codex CLI authentication check
+# Codex CLI uses OAuth (ChatGPT accounts), NOT OPENAI_API_KEY environment variable.
+# Token location: ~/.codex/auth.json (or $CODEX_HOME/auth.json)
 # Returns via check(): pass (auth OK), warn (partial/skipped), fail (auth broken)
-# Related: bead 325
+# Related: bead 325, ua5 (Codex auth documentation fix)
 check_codex_auth() {
     # Skip if not installed
     if ! command -v codex &>/dev/null; then
@@ -928,34 +930,46 @@ check_codex_auth() {
         return
     fi
 
-    # Check for OPENAI_API_KEY in environment
-    if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OPENAI_API_KEY set"
+    # Determine auth.json location (respects CODEX_HOME if set)
+    local auth_file="${CODEX_HOME:-$HOME/.codex}/auth.json"
+
+    # Check if auth.json exists
+    if [[ ! -f "$auth_file" ]]; then
+        check "deep.agent.codex_auth" "Codex CLI auth" "warn" "not authenticated" "Run: codex login"
         return
     fi
 
-    # Check for API key in common config locations
-    local found_key=false
+    # Check for OAuth tokens (primary auth method)
+    # auth.json structure: { "tokens": { "access_token": "..." }, "OPENAI_API_KEY": null|"..." }
+    local has_oauth=false
+    local has_api_key=false
 
-    # Check ~/.zshrc.local (ACFS convention)
-    if [[ -f "$HOME/.zshrc.local" ]] && grep -q "OPENAI_API_KEY" "$HOME/.zshrc.local" 2>/dev/null; then
-        found_key=true
-    fi
-
-    # Check ~/.config/openai (common location)
-    if [[ -f "$HOME/.config/openai/api_key" ]] || [[ -f "$HOME/.openai/api_key" ]]; then
-        found_key=true
-    fi
-
-    # Check direnv .envrc in common project dirs
-    if [[ -f "/data/projects/.envrc" ]] && grep -q "OPENAI_API_KEY" "/data/projects/.envrc" 2>/dev/null; then
-        found_key=true
-    fi
-
-    if [[ "$found_key" == "true" ]]; then
-        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "API key found in config"
+    # Check for OAuth tokens.access_token (preferred)
+    if command -v jq &>/dev/null; then
+        # Use jq if available for reliable JSON parsing
+        if jq -e '.tokens.access_token // empty' "$auth_file" >/dev/null 2>&1; then
+            has_oauth=true
+        fi
+        # Check for legacy API key in auth.json
+        if jq -e '.OPENAI_API_KEY // empty' "$auth_file" 2>/dev/null | grep -q .; then
+            has_api_key=true
+        fi
     else
-        check "deep.agent.codex_auth" "Codex CLI auth" "warn" "no OPENAI_API_KEY found" "Set OPENAI_API_KEY in ~/.zshrc.local"
+        # Fallback: basic grep checks (less reliable but works without jq)
+        if grep -q '"access_token"' "$auth_file" 2>/dev/null; then
+            has_oauth=true
+        fi
+        if grep -q '"OPENAI_API_KEY".*:.*"[^"]\+"' "$auth_file" 2>/dev/null; then
+            has_api_key=true
+        fi
+    fi
+
+    if [[ "$has_oauth" == "true" ]]; then
+        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OAuth authenticated (ChatGPT account)"
+    elif [[ "$has_api_key" == "true" ]]; then
+        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "API key authenticated (pay-as-you-go)"
+    else
+        check "deep.agent.codex_auth" "Codex CLI auth" "warn" "auth.json exists but no valid tokens" "Run: codex login"
     fi
 }
 
