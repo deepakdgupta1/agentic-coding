@@ -50,6 +50,54 @@
 # - Not a raw dump - curated for learning and replay
 #
 # ============================================================
+# CASS (Coding Agent Session Search) API REFERENCE
+# ============================================================
+#
+# CASS is the backend for session discovery and export. See bead eli for research.
+#
+# Version Info:
+#   API Version: 1, Contract Version: 1, Crate: 0.1.35+
+#
+# Supported Connectors (agents):
+#   claude_code, codex, gemini, cursor, amp, cline, aider, opencode, chatgpt, pi_agent
+#
+# Key Commands:
+#   cass stats --json              # Session counts by agent/workspace
+#   cass search "query" --json     # Full-text search with JSON output
+#   cass export <path> --format json  # Export session to JSON array
+#   cass status --json             # Health check with index freshness
+#   cass capabilities --json       # Feature/connector discovery
+#
+# CASS Export JSON Structure (per message):
+#   {
+#     "agentId": "abc123",           // Short session identifier
+#     "sessionId": "uuid",           // Full session UUID
+#     "cwd": "/path/to/project",     // Working directory
+#     "gitBranch": "main",           // Git branch (optional)
+#     "timestamp": "ISO8601",        // Message timestamp
+#     "type": "user|assistant",      // Message type
+#     "uuid": "message-uuid",        // Message UUID
+#     "parentUuid": "uuid|null",     // For threading
+#     "message": {
+#       "role": "user|assistant",
+#       "content": "...",            // String or array of content blocks
+#       "model": "claude-opus-4-5",  // For assistant messages
+#       "usage": {...}               // Token usage stats
+#     }
+#   }
+#
+# Limitations (see bead eli):
+#   - No direct "list sessions" CLI - use `cass search "*" --limit 100`
+#   - CASS indexes JSONL files from agent data dirs, not a sessions table
+#   - Export requires knowing the session file path
+#   - Use stats/search to discover sessions, then export specific ones
+#
+# Session File Locations:
+#   Claude Code: ~/.claude/projects/<project>/agent-*.jsonl
+#   Codex: ~/.codex/sessions/<year>/<month>/<day>/*.jsonl
+#   Gemini: ~/.gemini/tmp/<hash>/session.jsonl
+#
+# ============================================================
 
 # Source logging if not already loaded
 if [[ -z "${ACFS_LOG_LOADED:-}" ]]; then
