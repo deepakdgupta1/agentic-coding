@@ -39,6 +39,7 @@ VERBOSE=false
 QUIET=false
 YES_MODE=false
 ABORT_ON_FAILURE=false
+REBOOT_REQUIRED=false
 
 # Logging
 UPDATE_LOG_DIR="${HOME}/.acfs/logs/updates"
@@ -318,9 +319,99 @@ update_apt() {
         return 0
     fi
 
+    # Check if apt/dpkg is available (Linux only)
+    if ! command -v apt-get &>/dev/null; then
+        log_item "skip" "apt" "not available (non-Debian system)"
+        return 0
+    fi
+
+    # Check for apt lock
+    if ! check_apt_lock; then
+        return 0
+    fi
+
+    # Run apt update
     run_cmd_sudo "apt update" apt-get update -y
-    run_cmd_sudo "apt upgrade" apt-get upgrade -y
+
+    # Get list of upgradable packages before upgrade
+    local upgradable_list=""
+    local upgrade_count=0
+    if upgradable_list=$(apt list --upgradable 2>/dev/null | grep -v "^Listing"); then
+        upgrade_count=$(echo "$upgradable_list" | grep -c . || echo 0)
+        if [[ $upgrade_count -gt 0 ]]; then
+            log_to_file "Upgradable packages ($upgrade_count):"
+            log_to_file "$upgradable_list"
+        fi
+    fi
+
+    if [[ $upgrade_count -eq 0 ]]; then
+        log_item "ok" "apt upgrade" "all packages up to date"
+    else
+        log_to_file "Upgrading $upgrade_count packages..."
+        run_cmd_sudo "apt upgrade ($upgrade_count packages)" apt-get upgrade -y
+    fi
+
     run_cmd_sudo "apt autoremove" apt-get autoremove -y
+
+    # Check if reboot is required (kernel updates, etc.)
+    check_reboot_required
+}
+
+# Check if apt is locked by another process
+check_apt_lock() {
+    # Check for dpkg lock
+    if [[ -f /var/lib/dpkg/lock-frontend ]]; then
+        if fuser /var/lib/dpkg/lock-frontend &>/dev/null 2>&1; then
+            log_item "fail" "apt locked" "dpkg lock held by another process"
+            log_to_file "APT lock detected: /var/lib/dpkg/lock-frontend in use"
+            if [[ "$ABORT_ON_FAILURE" == "true" ]]; then
+                echo -e "${RED}Aborting: apt is locked by another process${NC}"
+                echo "Try: sudo killall apt apt-get dpkg  (use with caution)"
+                exit 1
+            fi
+            return 1
+        fi
+    fi
+
+    # Check for apt/apt-get processes
+    if pgrep -x "apt|apt-get|dpkg" &>/dev/null; then
+        log_item "fail" "apt locked" "apt/dpkg process running"
+        log_to_file "APT lock detected: apt/dpkg process already running"
+        if [[ "$ABORT_ON_FAILURE" == "true" ]]; then
+            echo -e "${RED}Aborting: another apt process is running${NC}"
+            exit 1
+        fi
+        return 1
+    fi
+
+    # Check for unattended-upgrades
+    if pgrep -x "unattended-upgr" &>/dev/null; then
+        log_item "skip" "apt" "unattended-upgrades running, will retry later"
+        log_to_file "Skipping apt: unattended-upgrades in progress"
+        return 1
+    fi
+
+    return 0
+}
+
+# Check if system reboot is required after updates
+check_reboot_required() {
+    if [[ -f /var/run/reboot-required ]]; then
+        log_item "warn" "Reboot required" "kernel or critical package updated"
+        log_to_file "REBOOT REQUIRED: /var/run/reboot-required exists"
+
+        if [[ -f /var/run/reboot-required.pkgs ]]; then
+            local pkgs
+            pkgs=$(cat /var/run/reboot-required.pkgs 2>/dev/null || echo "unknown")
+            log_to_file "Packages requiring reboot: $pkgs"
+            if [[ "$QUIET" != "true" ]]; then
+                echo -e "       ${DIM}Packages: $pkgs${NC}"
+            fi
+        fi
+
+        # Set a global flag for summary
+        REBOOT_REQUIRED=true
+    fi
 }
 
 update_bun() {
@@ -505,6 +596,9 @@ print_summary() {
             echo "Updated: $SUCCESS_COUNT"
             echo "Skipped: $SKIP_COUNT"
             echo "Failed:  $FAIL_COUNT"
+            if [[ "$REBOOT_REQUIRED" == "true" ]]; then
+                echo "Reboot:  REQUIRED"
+            fi
             echo ""
             echo "Completed: $(date -Iseconds)"
             echo "==============================================="
@@ -522,6 +616,13 @@ print_summary() {
             echo -e "${GREEN}All updates completed successfully!${NC}"
         else
             echo -e "${YELLOW}Some updates failed. Check output above.${NC}"
+        fi
+
+        # Reboot warning
+        if [[ "$REBOOT_REQUIRED" == "true" ]]; then
+            echo ""
+            echo -e "${YELLOW}${BOLD}⚠ System reboot required${NC}"
+            echo -e "${DIM}Run: sudo reboot${NC}"
         fi
 
         if [[ "$DRY_RUN" == "true" ]]; then
