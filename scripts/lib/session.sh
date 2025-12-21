@@ -75,7 +75,7 @@ validate_session_export() {
     fi
 
     # Check it's valid JSON
-    if ! jq empty "$file" 2>/dev/null; then
+    if ! jq -e . "$file" >/dev/null 2>&1; then
         log_error "Invalid JSON in session export: $file"
         return 1
     fi
@@ -205,12 +205,13 @@ readonly REDACT_PATTERNS=(
     'AKIA[A-Z0-9]{16}'
 
     # Generic password/secret patterns (key=value or key: value)
-    'password["\s:=]+[^\s"'\'']{8,}'
-    'secret["\s:=]+[^\s"'\'']{8,}'
-    'api_key["\s:=]+[^\s"'\'']{8,}'
-    'apikey["\s:=]+[^\s"'\'']{8,}'
-    'auth_token["\s:=]+[^\s"'\'']{8,}'
-    'access_token["\s:=]+[^\s"'\'']{8,}'
+    # Using [[:space:]] for portability instead of \s
+    'password["[:space:]:=]+[^[:space:]"'\'']{8,}'
+    'secret["[:space:]:=]+[^[:space:]"'\'']{8,}'
+    'api_key["[:space:]:=]+[^[:space:]"'\'']{8,}'
+    'apikey["[:space:]:=]+[^[:space:]"'\'']{8,}'
+    'auth_token["[:space:]:=]+[^[:space:]"'\'']{8,}'
+    'access_token["[:space:]:=]+[^[:space:]"'\'']{8,}'
 )
 
 # Optional redaction patterns - applied when ACFS_SANITIZE_OPTIONAL=1
@@ -258,7 +259,7 @@ sanitize_session_export() {
     fi
 
     # Validate it's valid JSON first
-    if ! jq empty "$file" 2>/dev/null; then
+    if ! jq -e . "$file" >/dev/null 2>&1; then
         log_error "Invalid JSON in session export: $file"
         return 1
     fi
@@ -269,30 +270,38 @@ sanitize_session_export() {
 
     # Sanitize all string values in the JSON
     # This processes the transcript content, summary, key_prompts, etc.
-    if ! jq --arg patterns "${REDACT_PATTERNS[*]}" '
-        # Recursive function to sanitize strings
-        def sanitize_string:
-            if type == "string" then
-                # Apply common secret patterns
-                gsub("sk-[a-zA-Z0-9]{20,}"; "[REDACTED]") |
-                gsub("sk-ant-[a-zA-Z0-9_-]{20,}"; "[REDACTED]") |
-                gsub("AIza[a-zA-Z0-9_-]{35}"; "[REDACTED]") |
-                gsub("ghp_[a-zA-Z0-9]{36}"; "[REDACTED]") |
-                gsub("gho_[a-zA-Z0-9]{36}"; "[REDACTED]") |
-                gsub("ghs_[a-zA-Z0-9]{36}"; "[REDACTED]") |
-                gsub("ghr_[a-zA-Z0-9]{36}"; "[REDACTED]") |
-                gsub("xoxb-[a-zA-Z0-9-]+"; "[REDACTED]") |
-                gsub("xoxp-[a-zA-Z0-9-]+"; "[REDACTED]") |
-                gsub("AKIA[A-Z0-9]{16}"; "[REDACTED]")
-            elif type == "array" then
-                map(sanitize_string)
-            elif type == "object" then
-                with_entries(.value |= sanitize_string)
-            else
-                .
-            end;
-        sanitize_string
-    ' "$file" > "$tmpfile"; then
+    # Using heredoc to avoid shell quoting issues with jq regex patterns
+    local jq_filter
+    read -r -d '' jq_filter <<'JQ_EOF'
+def sanitize_string:
+    if type == "string" then
+        gsub("sk-[a-zA-Z0-9]{20,}"; "[REDACTED]") |
+        gsub("sk-ant-[a-zA-Z0-9_-]{20,}"; "[REDACTED]") |
+        gsub("AIza[a-zA-Z0-9_-]{35}"; "[REDACTED]") |
+        gsub("ghp_[a-zA-Z0-9]{36}"; "[REDACTED]") |
+        gsub("gho_[a-zA-Z0-9]{36}"; "[REDACTED]") |
+        gsub("ghs_[a-zA-Z0-9]{36}"; "[REDACTED]") |
+        gsub("ghr_[a-zA-Z0-9]{36}"; "[REDACTED]") |
+        gsub("xoxb-[a-zA-Z0-9-]+"; "[REDACTED]") |
+        gsub("xoxp-[a-zA-Z0-9-]+"; "[REDACTED]") |
+        gsub("AKIA[A-Z0-9]{16}"; "[REDACTED]") |
+        gsub("(?i)password[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]") |
+        gsub("(?i)secret[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]") |
+        gsub("(?i)api_key[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]") |
+        gsub("(?i)apikey[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]") |
+        gsub("(?i)auth_token[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]") |
+        gsub("(?i)access_token[\"\\s:=]+[^\\s\"']{8,}"; "[REDACTED]")
+    elif type == "array" then
+        map(sanitize_string)
+    elif type == "object" then
+        with_entries(.value |= sanitize_string)
+    else
+        .
+    end;
+sanitize_string
+JQ_EOF
+
+    if ! jq "$jq_filter" "$file" > "$tmpfile"; then
         rm -f "$tmpfile"
         log_error "Failed to sanitize session export"
         return 1
