@@ -8,6 +8,8 @@ import {
   validateDependencyExistence,
   detectDependencyCycles,
   validatePhaseOrdering,
+  validateFunctionNameUniqueness,
+  validateReservedNames,
   validateManifest,
   formatValidationErrors,
 } from './validate.js';
@@ -436,8 +438,8 @@ describe('validateManifest (combined)', () => {
   test('passes with valid manifest', () => {
     const manifest = createManifest([
       {
-        id: 'base',
-        description: 'Base',
+        id: 'base.system',
+        description: 'Base system',
         phase: 1,
         install: ['echo "base"'],
         verify: ['echo "base"'],
@@ -447,10 +449,10 @@ describe('validateManifest (combined)', () => {
         generated: true,
       },
       {
-        id: 'shell',
+        id: 'shell.zsh',
         description: 'Shell',
         phase: 2,
-        dependencies: ['base'],
+        dependencies: ['base.system'],
         install: ['echo "shell"'],
         verify: ['echo "shell"'],
         run_as: 'target_user',
@@ -525,5 +527,185 @@ describe('formatValidationErrors', () => {
     expect(formatted).toContain('MISSING_DEPENDENCY');
     expect(formatted).toContain('Check spelling');
     expect(formatted).toContain('1 error');
+  });
+});
+
+describe('validateFunctionNameUniqueness', () => {
+  test('passes when all function names are unique', () => {
+    const manifest = createManifest([
+      {
+        id: 'lang.bun',
+        description: 'Bun runtime',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+      {
+        id: 'lang.rust',
+        description: 'Rust toolchain',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateFunctionNameUniqueness(manifest);
+    expect(errors).toHaveLength(0);
+  });
+
+  test('detects collision between modules with similar IDs', () => {
+    // "lang.bun" and "lang_bun" would both generate "install_lang_bun"
+    const manifest = createManifest([
+      {
+        id: 'lang.bun',
+        description: 'Bun runtime',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+      {
+        id: 'lang_bun', // underscore instead of dot - generates same function name
+        description: 'Bun runtime duplicate',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateFunctionNameUniqueness(manifest);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].code).toBe('FUNCTION_NAME_COLLISION');
+    expect(errors[0].moduleId).toBe('lang_bun'); // Second module gets the error
+    expect(errors[0].context.functionName).toBe('install_lang_bun');
+    expect(errors[0].context.collidingModules).toContain('lang.bun');
+    expect(errors[0].context.collidingModules).toContain('lang_bun');
+  });
+
+  test('detects multiple collisions', () => {
+    const manifest = createManifest([
+      { id: 'a.b', description: 'A', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+      { id: 'a_b', description: 'B', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+      { id: 'c.d', description: 'C', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+      { id: 'c_d', description: 'D', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+    ]);
+
+    const errors = validateFunctionNameUniqueness(manifest);
+    expect(errors).toHaveLength(2); // Two collisions: a.b/a_b and c.d/c_d
+  });
+});
+
+describe('validateReservedNames', () => {
+  test('passes when no reserved names are used', () => {
+    const manifest = createManifest([
+      {
+        id: 'lang.bun',
+        description: 'Bun runtime',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateReservedNames(manifest);
+    expect(errors).toHaveLength(0);
+  });
+
+  test('detects collision with install_all', () => {
+    // A module named "all" would generate "install_all" which is reserved
+    const manifest = createManifest([
+      {
+        id: 'all',
+        description: 'All module',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateReservedNames(manifest);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].code).toBe('RESERVED_NAME_COLLISION');
+    expect(errors[0].context.functionName).toBe('install_all');
+  });
+
+  test('detects collision with category name', () => {
+    // A module named "base" would generate "install_base" which is a category
+    const manifest = createManifest([
+      {
+        id: 'base',
+        description: 'Base module',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateReservedNames(manifest);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].code).toBe('RESERVED_NAME_COLLISION');
+    expect(errors[0].context.functionName).toBe('install_base');
+  });
+
+  test('allows modules with category prefix (e.g., base.system)', () => {
+    // "base.system" generates "install_base_system" which is NOT reserved
+    const manifest = createManifest([
+      {
+        id: 'base.system',
+        description: 'Base system',
+        install: ['echo "install"'],
+        verify: ['echo "verify"'],
+        run_as: 'target_user',
+        optional: false,
+        enabled_by_default: true,
+        generated: true,
+      },
+    ]);
+
+    const errors = validateReservedNames(manifest);
+    expect(errors).toHaveLength(0);
+  });
+});
+
+describe('validateManifest with function name checks', () => {
+  test('includes function name collision in combined validation', () => {
+    const manifest = createManifest([
+      { id: 'a.b', description: 'A', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+      { id: 'a_b', description: 'B', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+    ]);
+
+    const result = validateManifest(manifest);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.code === 'FUNCTION_NAME_COLLISION')).toBe(true);
+  });
+
+  test('includes reserved name collision in combined validation', () => {
+    const manifest = createManifest([
+      { id: 'all', description: 'All', install: ['echo'], verify: ['echo'], run_as: 'target_user', optional: false, enabled_by_default: true, generated: true },
+    ]);
+
+    const result = validateManifest(manifest);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.code === 'RESERVED_NAME_COLLISION')).toBe(true);
   });
 });

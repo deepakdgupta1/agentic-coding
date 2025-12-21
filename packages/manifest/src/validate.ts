@@ -13,7 +13,12 @@ import type { Manifest, Module } from './types.js';
 
 export interface ValidationError {
   /** Error code for programmatic handling */
-  code: 'MISSING_DEPENDENCY' | 'DEPENDENCY_CYCLE' | 'PHASE_VIOLATION';
+  code:
+    | 'MISSING_DEPENDENCY'
+    | 'DEPENDENCY_CYCLE'
+    | 'PHASE_VIOLATION'
+    | 'FUNCTION_NAME_COLLISION'
+    | 'RESERVED_NAME_COLLISION';
   /** Human-readable error message */
   message: string;
   /** Module ID where the error was detected */
@@ -155,6 +160,180 @@ export function detectDependencyCycles(manifest: Manifest): ValidationError[] {
 }
 
 // ============================================================
+// Function Name Generation (mirrors generate.ts)
+// ============================================================
+
+/**
+ * Convert module ID to generated bash function name.
+ * Must stay in sync with generate.ts toFunctionName()
+ */
+function toFunctionName(moduleId: string): string {
+  return `install_${moduleId.replace(/\./g, '_')}`;
+}
+
+// ============================================================
+// Reserved Names
+// ============================================================
+
+/**
+ * Reserved function names that must not be used by generated module functions.
+ * Includes orchestrator functions, category install functions, and common shell patterns.
+ */
+const RESERVED_FUNCTION_NAMES = new Set([
+  // Orchestrator functions from generated install_all.sh
+  'install_all',
+
+  // Category install functions (generated from manifest categories)
+  'install_base',
+  'install_lang',
+  'install_tools',
+  'install_agents',
+  'install_cloud',
+  'install_stack',
+  'install_acfs',
+  'install_shell',
+  'install_cli',
+  'install_db',
+  'install_users',
+
+  // Doctor/manifest check functions
+  'run_manifest_checks',
+
+  // Logging functions (from logging.sh)
+  'log_step',
+  'log_section',
+  'log_success',
+  'log_error',
+  'log_warn',
+  'log_info',
+
+  // Security functions (from security.sh)
+  'acfs_security_init',
+  'load_checksums',
+  'get_checksum',
+  'verify_checksum',
+
+  // Contract functions (from contract.sh)
+  'acfs_require_contract',
+
+  // State functions (from state.sh)
+  'state_tool_done',
+  'state_tool_skip',
+  'state_tool_failed',
+  'record_skipped_tool',
+
+  // Common shell builtins/functions that should never be shadowed
+  'main',
+  'usage',
+  'help',
+  'init',
+  'setup',
+  'cleanup',
+  'run',
+  'exec',
+  'exit',
+  'test',
+  'true',
+  'false',
+]);
+
+// ============================================================
+// Function Name Collision Detection
+// ============================================================
+
+/**
+ * Validates that generated function names are unique across all modules.
+ * Two modules must not produce the same bash function name.
+ *
+ * @param manifest - The manifest to validate
+ * @returns Array of errors for function name collisions
+ *
+ * @example
+ * ```ts
+ * // If both "lang.bun" and "lang-bun" exist, they'd both generate
+ * // "install_lang_bun" - this function catches that collision.
+ * const errors = validateFunctionNameUniqueness(manifest);
+ * ```
+ */
+export function validateFunctionNameUniqueness(manifest: Manifest): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const functionToModules = new Map<string, string[]>();
+
+  // Build map of function name -> module IDs
+  for (const module of manifest.modules) {
+    const funcName = toFunctionName(module.id);
+    const existing = functionToModules.get(funcName);
+    if (existing) {
+      existing.push(module.id);
+    } else {
+      functionToModules.set(funcName, [module.id]);
+    }
+  }
+
+  // Report collisions
+  for (const [funcName, moduleIds] of functionToModules) {
+    if (moduleIds.length > 1) {
+      // Report error on the second (and subsequent) modules
+      for (let i = 1; i < moduleIds.length; i++) {
+        const moduleId = moduleIds[i];
+        const firstModuleId = moduleIds[0];
+        errors.push({
+          code: 'FUNCTION_NAME_COLLISION',
+          message: `Module "${moduleId}" generates function "${funcName}" which collides with "${firstModuleId}"`,
+          moduleId,
+          context: {
+            functionName: funcName,
+            collidingModules: moduleIds,
+            suggestion: `Rename module to avoid collision. Consider using a different category prefix or more specific naming.`,
+          },
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validates that generated function names do not collide with reserved orchestrator names.
+ *
+ * @param manifest - The manifest to validate
+ * @returns Array of errors for reserved name collisions
+ *
+ * @example
+ * ```ts
+ * // A module named "all" would generate "install_all" which is reserved.
+ * const errors = validateReservedNames(manifest);
+ * ```
+ */
+export function validateReservedNames(manifest: Manifest): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  for (const module of manifest.modules) {
+    const funcName = toFunctionName(module.id);
+
+    if (RESERVED_FUNCTION_NAMES.has(funcName)) {
+      errors.push({
+        code: 'RESERVED_NAME_COLLISION',
+        message: `Module "${module.id}" generates function "${funcName}" which is a reserved orchestrator name`,
+        moduleId: module.id,
+        context: {
+          functionName: funcName,
+          reservedNames: Array.from(RESERVED_FUNCTION_NAMES).filter((n) =>
+            n.startsWith('install_')
+          ),
+          suggestion: `Rename the module. Reserved names include: ${Array.from(RESERVED_FUNCTION_NAMES)
+            .filter((n) => n.startsWith('install_'))
+            .join(', ')}`,
+        },
+      });
+    }
+  }
+
+  return errors;
+}
+
+// ============================================================
 // Phase Ordering Validation
 // ============================================================
 
@@ -222,6 +401,8 @@ export function validatePhaseOrdering(manifest: Manifest): ValidationError[] {
  * 1. Dependency existence (fast-fail on missing refs)
  * 2. Cycle detection (DAG requirement)
  * 3. Phase ordering (execution plan feasibility)
+ * 4. Function name uniqueness (no collisions in generated bash)
+ * 5. Reserved name validation (no collisions with orchestrator)
  *
  * @param manifest - The manifest to validate
  * @returns ValidationResult with all errors
@@ -253,6 +434,12 @@ export function validateManifest(manifest: Manifest): ValidationResult {
   if (errors.length === 0) {
     errors.push(...validatePhaseOrdering(manifest));
   }
+
+  // 4. Check for function name collisions (can run independently)
+  errors.push(...validateFunctionNameUniqueness(manifest));
+
+  // 5. Check for reserved name collisions (can run independently)
+  errors.push(...validateReservedNames(manifest));
 
   return {
     valid: errors.length === 0,
@@ -286,6 +473,18 @@ export function formatValidationErrors(result: ValidationResult): string {
         break;
       case 'PHASE_VIOLATION':
         lines.push(`    → Move dependency to earlier phase or move module to later phase`);
+        break;
+      case 'FUNCTION_NAME_COLLISION':
+        lines.push(`    → Rename one of the colliding modules to use a different ID`);
+        if (error.context.suggestion) {
+          lines.push(`    → ${error.context.suggestion}`);
+        }
+        break;
+      case 'RESERVED_NAME_COLLISION':
+        lines.push(`    → Rename the module to avoid the reserved function name`);
+        if (error.context.suggestion) {
+          lines.push(`    → ${error.context.suggestion}`);
+        }
         break;
     }
     lines.push('');
