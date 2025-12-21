@@ -14,6 +14,10 @@
 #   --skip-postgres   Skip PostgreSQL 18 installation
 #   --skip-vault      Skip HashiCorp Vault installation
 #   --skip-cloud      Skip cloud CLIs (wrangler, supabase, vercel)
+#   --resume          Resume from checkpoint (default when state exists)
+#   --force-reinstall Start fresh, ignore existing state
+#   --reset-state     Delete state file and exit (for debugging)
+#   --interactive     Enable interactive prompts for resume decisions
 # ============================================================
 
 set -euo pipefail
@@ -40,6 +44,12 @@ MODE="vibe"
 SKIP_POSTGRES=false
 SKIP_VAULT=false
 SKIP_CLOUD=false
+
+# Resume/reinstall options (used by state.sh confirm_resume)
+export ACFS_FORCE_RESUME=false
+export ACFS_FORCE_REINSTALL=false
+export ACFS_INTERACTIVE=false
+RESET_STATE_ONLY=false
 
 # Target user configuration
 # When running as root, we install for ubuntu user, not root
@@ -266,6 +276,22 @@ parse_args() {
                 ;;
             --skip-cloud)
                 SKIP_CLOUD=true
+                shift
+                ;;
+            --resume)
+                export ACFS_FORCE_RESUME=true
+                shift
+                ;;
+            --force-reinstall)
+                export ACFS_FORCE_REINSTALL=true
+                shift
+                ;;
+            --reset-state)
+                RESET_STATE_ONLY=true
+                shift
+                ;;
+            --interactive)
+                export ACFS_INTERACTIVE=true
                 shift
                 ;;
             *)
@@ -1591,6 +1617,19 @@ $summary_content"
 # ============================================================
 main() {
     parse_args "$@"
+
+    # Handle --reset-state: just delete state file and exit
+    if [[ "$RESET_STATE_ONLY" == "true" ]]; then
+        echo "Resetting ACFS state..." >&2
+        local state_file="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}/state.json"
+        if [[ -f "$state_file" ]]; then
+            rm -f "$state_file"
+            echo "State file deleted: $state_file" >&2
+        else
+            echo "No state file found at: $state_file" >&2
+        fi
+        exit 0
+    fi
 
     # Install gum FIRST so the entire script looks amazing
     install_gum_early
