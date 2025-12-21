@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091,SC2034
 # ============================================================
-# Test script for selection.sh
+# Test script for module selection logic (install_helpers.sh)
 # Run: bash scripts/lib/test_selection.sh
 # ============================================================
 
@@ -13,7 +13,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Source required files
 source "$SCRIPT_DIR/logging.sh"
 source "$PROJECT_ROOT/scripts/generated/manifest_index.sh"
-source "$SCRIPT_DIR/selection.sh"
+ACFS_MANIFEST_INDEX_LOADED=true  # Required by install_helpers.sh
+# The selection logic is in install_helpers.sh (acfs_resolve_selection, should_run_module)
+source "$SCRIPT_DIR/install_helpers.sh"
 
 TESTS_PASSED=0
 TESTS_FAILED=0
