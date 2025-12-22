@@ -498,7 +498,7 @@ verify_cli_tools() {
     fi
 
     # Optional tools (nice to have)
-    local optional_tools=("zoxide" "direnv" "nvim" "lazygit" "gum" "atuin")
+    local optional_tools=("zoxide" "direnv" "nvim" "lazygit" "gum" "atuin" "yq" "tldr" "delta" "tree" "ncdu" "http")
     for tool in "${optional_tools[@]}"; do
         if _cli_command_exists "$tool"; then
             log_detail "  $tool"
