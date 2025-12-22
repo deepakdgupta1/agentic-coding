@@ -874,6 +874,46 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     why: "Autonomous operation is the goal of agentic AI. When agents can work unsupervised, you multiply your productivity; agents work while you sleep, think about other problems, or take breaks. The Agent Flywheel tools (Agent Mail, Beads, NTM) enable autonomous operation by providing coordination, task tracking, and session persistence.",
     related: ["agentic", "ai-agents", "parallel-agents"],
   },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ADDITIONAL BEGINNER TERMS
+  // ═══════════════════════════════════════════════════════════════
+
+  session: {
+    term: "Session",
+    short: "A persistent terminal environment that keeps running even when you disconnect",
+    long: "In the context of tmux and terminal work, a session is a saved terminal environment that persists on the server. When you start a tmux session, it creates a container for your terminal work. You can open multiple windows and panes within that session, run programs, and do your work. The key feature is persistence: if you disconnect (close your laptop, lose internet, or just log off), the session keeps running on the server. When you reconnect, you can 'attach' back to that same session and find everything exactly as you left it, with programs still running.",
+    analogy: "It's like leaving your desk at work with papers spread out and programs open. When you come back the next day, everything is still there. A normal SSH connection is like a phone call; when you hang up, it's over. A tmux session is like your desk; it stays there waiting for you.",
+    why: "Sessions are essential for AI coding assistants because they often run long tasks. Without sessions, if your internet blips or you close your laptop, all running work stops. With sessions, agents can work for hours or days, and you can check in whenever you want. The installer sets up ntm (nice tmux) to manage sessions easily.",
+    related: ["tmux", "ntm", "ssh"],
+  },
+
+  "api-key": {
+    term: "API Key",
+    short: "A secret password that lets programs access a service on your behalf",
+    long: "An API key is a unique string of characters (like 'sk-abc123xyz789...') that acts as a password for automated access to a service. When you sign up for a service like Anthropic (for Claude) or OpenAI (for ChatGPT), you can generate API keys in your account settings. You give this key to programs that need to use the service on your behalf. The program sends the key with each request to prove it's authorized. API keys should be kept secret; anyone with your key can use the service and potentially rack up charges on your account.",
+    analogy: "It's like a valet key for your car. You give it to someone who needs to use your car (the program), and it lets them do specific things (access the AI service), but it's not your master key (your account password). If someone steals it, they can use your car, so you keep it private.",
+    why: "AI coding assistants need API keys to access AI services like Claude or ChatGPT. The key proves you have an account and tracks usage for billing. You'll typically set API keys as environment variables so programs can find them without hardcoding secrets in code.",
+    related: ["environment-variable", "claude-code", "api"],
+  },
+
+  "environment-variable": {
+    term: "Environment Variable",
+    short: "A named setting stored in your system that programs can read",
+    long: "Environment variables are named values stored in your system that programs can access. They're like settings that exist outside any specific program. For example, the PATH variable tells the system where to find executable programs. ANTHROPIC_API_KEY might store your Claude API key. Programs read these variables to find configuration without needing it hardcoded. You typically set them in shell config files (like .zshrc) so they're available every time you open a terminal.",
+    analogy: "Think of environment variables like labels in a shared kitchen: 'COFFEE_MAKER_LOCATION = top shelf' or 'WIFI_PASSWORD = abc123'. Any program that needs to know can just check the label. You set it once, and every program can read it.",
+    why: "Environment variables keep secrets out of code. Instead of putting your API key directly in a script (where anyone reading the script sees it), you put it in an environment variable. The script just reads the variable. If you share the script, your key stays private. The installer sets up common environment variables for the tools it installs.",
+    related: ["api-key", "zsh", "bash"],
+  },
+
+  clone: {
+    term: "Clone",
+    short: "Download a complete copy of a Git repository including all its history",
+    long: "Cloning is the Git operation that downloads a complete copy of a repository to your computer. When you 'git clone https://github.com/user/project', you download all the files, all the branches, and the entire history of changes. After cloning, you have a fully functional local copy that you can work with, make changes to, and later sync back. Unlike downloading a zip file of the code, cloning preserves the Git connection, so you can pull updates from the original and push your changes back.",
+    analogy: "Like photocopying an entire filing cabinet including all the notes about who filed what and when. You get a complete working copy, not just the current contents.",
+    why: "Cloning is how you start working on any Git-hosted project. The AI coding assistants often clone repositories to work on them. When the wizard mentions 'cloning a repo,' it means downloading a complete copy of a project to your VPS.",
+    related: ["repository", "git", "github"],
+  },
 };
 
 /**
