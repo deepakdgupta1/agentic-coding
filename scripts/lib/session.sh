@@ -101,7 +101,7 @@
 # ============================================================
 
 # Source logging if not already loaded
-if [[ -z "${ACFS_LOG_LOADED:-}" ]]; then
+if [[ -z "${_ACFS_LOGGING_SH_LOADED:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     # shellcheck source=logging.sh
     source "${SCRIPT_DIR}/logging.sh" 2>/dev/null || true

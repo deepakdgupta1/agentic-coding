@@ -188,7 +188,9 @@ get_current() {
         jq -r '.current // 0' "$PROGRESS_FILE" 2>/dev/null || echo "0"
     else
         # POSIX-compatible: extract current value with sed
-        sed -n 's/.*"current":[[:space:]]*\([0-9]*\).*/\1/p' "$PROGRESS_FILE" 2>/dev/null | head -1 || echo "0"
+        local result
+        result=$(sed -n 's/.*"current":[[:space:]]*\([0-9]*\).*/\1/p' "$PROGRESS_FILE" 2>/dev/null | head -1)
+        echo "${result:-0}"
     fi
 }
 
