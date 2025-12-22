@@ -393,8 +393,20 @@ function generateVerifiedInstallerSnippet(module: Module): string[] {
   let fallbackShellCmd: string;
   if (module.run_as === 'target_user') {
     // Use run_as_target_runner to switch user while preserving stdin
+    // When runner is bash/sh and there are args, we need:
+    //   -s: read commands from stdin (required for bash when args present)
+    //   --: end of options, args after this go to the script as $1, $2, etc.
     const parts = ['run_as_target_runner', shellQuote(vi.runner)];
-    if (vi.args) {
+    if (vi.args && vi.args.length > 0) {
+      // Check if args already include -s and -- (e.g., from manifest)
+      const hasS = vi.args.includes('-s');
+      const hasDash = vi.args.includes('--');
+      if (!hasS) {
+        parts.push("'-s'");
+      }
+      if (!hasDash) {
+        parts.push("'--'");
+      }
       for (const arg of vi.args) {
         parts.push(shellQuote(arg));
       }

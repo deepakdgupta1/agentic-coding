@@ -142,7 +142,7 @@ install_stack_mcp_agent_mail() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '--yes'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s' '--' '--yes'; then
                             install_success=true
                         fi
                     fi
@@ -212,7 +212,7 @@ install_stack_ultimate_bug_scanner() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '--easy-mode'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s' '--' '--easy-mode'; then
                             install_success=true
                         fi
                     fi
@@ -342,7 +342,7 @@ install_stack_cass() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '--easy-mode' '--verify'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s' '--' '--easy-mode' '--verify'; then
                             install_success=true
                         fi
                     fi
@@ -402,7 +402,7 @@ install_stack_cm() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '--easy-mode' '--verify'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s' '--' '--easy-mode' '--verify'; then
                             install_success=true
                         fi
                     fi
