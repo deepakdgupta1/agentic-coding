@@ -142,10 +142,10 @@ if ! declare -f show_progress_header >/dev/null; then
         for ((i=0; i<filled; i++)); do bar+="█"; done
         for ((i=0; i<empty; i++)); do bar+="░"; done
 
-        # Truncate name if too long (max 40 chars)
+        # Truncate name if too long (max 50 chars to fit padding)
         local display_name="$name"
-        if [[ ${#display_name} -gt 40 ]]; then
-            display_name="${display_name:0:37}..."
+        if [[ ${#display_name} -gt 50 ]]; then
+            display_name="${display_name:0:47}..."
         fi
 
         # Print progress header (box is 65 chars wide, content is 63 chars)
@@ -153,7 +153,7 @@ if ! declare -f show_progress_header >/dev/null; then
         echo "╔═══════════════════════════════════════════════════════════════╗" >&2
         printf "║  Progress: [%s] %3d%%  (%d/%d)                 ║\n" \
                "$bar" "$percent" "$current" "$total" >&2
-        printf "║  Current:  %-51s ║\n" "$display_name" >&2
+        printf "║  Current:  %-50s ║\n" "$display_name" >&2
         printf "║  Elapsed:  %2dm %02ds                                            ║\n" \
                "$elapsed_min" "$elapsed_sec" >&2
         echo "╚═══════════════════════════════════════════════════════════════╝" >&2
