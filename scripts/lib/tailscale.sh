@@ -72,7 +72,7 @@ _tailscale_get_codename() {
 
     # Map newer Ubuntu codenames to supported Tailscale repos
     case "$codename" in
-        oracular|plucky) codename="noble" ;;
+        oracular|plucky|questing) codename="noble" ;;
     esac
 
     # Default to noble (24.04) if we can't determine

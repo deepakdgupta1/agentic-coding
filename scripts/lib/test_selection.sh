@@ -157,6 +157,22 @@ test_phase_selection() {
     test_fail "$name"
 }
 
+test_phase_name_selection() {
+    local name="--only-phase accepts named phase ids (agents)"
+    reset_selection
+    ONLY_PHASES=("agents")
+
+    if acfs_resolve_selection; then
+        if should_run_module "agents.claude" && should_run_module "agents.codex"; then
+            if should_run_module "lang.bun"; then
+                test_pass "$name"
+                return
+            fi
+        fi
+    fi
+    test_fail "$name"
+}
+
 test_unknown_module_error() {
     local name="Unknown module in --only returns error"
     reset_selection
@@ -514,6 +530,7 @@ test_only_modules_no_deps
 test_skip_modules
 test_skip_safety_violation
 test_phase_selection
+test_phase_name_selection
 test_unknown_module_error
 test_unknown_skip_error
 test_unknown_phase_error

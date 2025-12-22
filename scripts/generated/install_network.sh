@@ -70,7 +70,7 @@ install_network_tailscale() {
 DISTRO_CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
 # Map newer Ubuntu codenames to supported ones
 case "$DISTRO_CODENAME" in
-  oracular|plucky) DISTRO_CODENAME="noble" ;;
+  oracular|plucky|questing) DISTRO_CODENAME="noble" ;;
 esac
 curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${DISTRO_CODENAME}.noarmor.gpg" \
   | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null

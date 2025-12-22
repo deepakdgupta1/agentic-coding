@@ -70,7 +70,7 @@ mkdir -p /etc/apt/keyrings
 curl --proto '=https' --proto-redir '=https' -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg
 CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
 case "$CODENAME" in
-  oracular|plucky) CODENAME="noble" ;;
+  oracular|plucky|questing) CODENAME="noble" ;;
 esac
 echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" | tee /etc/apt/sources.list.d/pgdg.list
 INSTALL_DB_POSTGRES18

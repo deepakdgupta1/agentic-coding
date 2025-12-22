@@ -99,6 +99,43 @@ declare -gA ACFS_PLAN_REASON=()
 declare -gA ACFS_PLAN_EXCLUDE_REASON=()
 ACFS_EFFECTIVE_PLAN=()
 
+acfs_normalize_only_phases() {
+    if [[ "${#ONLY_PHASES[@]}" -eq 0 ]]; then
+        return 0
+    fi
+
+    local -a normalized=()
+    local phase=""
+    local lower=""
+
+    for phase in "${ONLY_PHASES[@]}"; do
+        [[ -n "$phase" ]] || continue
+        lower="${phase,,}"
+
+        if [[ "$lower" =~ ^[0-9]+$ ]]; then
+            normalized+=("$lower")
+            continue
+        fi
+
+        case "$lower" in
+            base|base_deps|system) normalized+=("1") ;;
+            user_setup|user|users) normalized+=("2") ;;
+            filesystem|fs) normalized+=("3") ;;
+            shell_setup|shell) normalized+=("4") ;;
+            cli_tools|cli) normalized+=("5") ;;
+            languages|language|lang) normalized+=("6") ;;
+            agents|agent) normalized+=("7") ;;
+            cloud_db|cloud-db) normalized+=("8") ;;
+            stack) normalized+=("9") ;;
+            finalize|final) normalized+=("10") ;;
+            *) normalized+=("$phase") ;;
+        esac
+    done
+
+    ONLY_PHASES=("${normalized[@]}")
+    return 0
+}
+
 acfs_resolve_selection() {
     if [[ "${ACFS_MANIFEST_INDEX_LOADED:-false}" != "true" ]]; then
         log_error "Manifest index not loaded. Cannot resolve selection."
@@ -111,6 +148,9 @@ acfs_resolve_selection() {
     declare -gA ACFS_PLAN_REASON=()
     declare -gA ACFS_PLAN_EXCLUDE_REASON=()
     ACFS_EFFECTIVE_PLAN=()
+
+    # Normalize named phases like "agents" to manifest phase numbers
+    acfs_normalize_only_phases
 
     local -A module_exists=()
     local -A phase_exists=()

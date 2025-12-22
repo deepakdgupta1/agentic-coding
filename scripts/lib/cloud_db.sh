@@ -115,7 +115,7 @@ _cloud_get_codename() {
         source /etc/os-release
         local codename="${VERSION_CODENAME:-noble}"
         case "$codename" in
-            oracular|plucky) codename="noble" ;;
+            oracular|plucky|questing) codename="noble" ;;
         esac
         echo "$codename"
     else

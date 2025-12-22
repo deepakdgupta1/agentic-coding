@@ -225,7 +225,7 @@ modules:
         DISTRO_CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
         # Map newer Ubuntu codenames to supported ones
         case "$DISTRO_CODENAME" in
-          oracular|plucky) DISTRO_CODENAME="noble" ;;
+          oracular|plucky|questing) DISTRO_CODENAME="noble" ;;
         esac
         curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${DISTRO_CODENAME}.noarmor.gpg" \
           | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
@@ -490,7 +490,7 @@ modules:
         curl --proto '=https' --proto-redir '=https' -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg
         CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
         case "$CODENAME" in
-          oracular|plucky) CODENAME="noble" ;;
+          oracular|plucky|questing) CODENAME="noble" ;;
         esac
         echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" | tee /etc/apt/sources.list.d/pgdg.list
       - apt-get update
