@@ -34,9 +34,6 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps chromium
 
-      - name: Build application
-        run: bun run build
-
       - name: Run Playwright tests
         run: bunx playwright test --project=chromium
 
