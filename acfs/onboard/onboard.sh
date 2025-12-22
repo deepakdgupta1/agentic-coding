@@ -31,9 +31,24 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
+
+# Lesson summaries: key learning points for each lesson (pipe-separated)
+declare -A LESSON_SUMMARIES
+LESSON_SUMMARIES=(
+    [0]="Understanding the ACFS philosophy|How AI agents fit into development|Your path to productivity"
+    [1]="Navigating with pwd, ls, cd|Creating files and directories|Understanding file paths"
+    [2]="SSH key generation and usage|Persistent connections|Managing remote sessions"
+    [3]="Creating sessions with ntm new|Detaching with Ctrl+B, D|Resuming with ntm attach"
+    [4]="Launching Claude Code with cc|Using Codex with cod|Gemini CLI with gmi"
+    [5]="NTM as your command center|Managing multiple sessions|Session naming conventions"
+    [6]="Quick command palette|Fast task switching|Workflow optimization"
+    [7]="The agent flywheel loop|Iterating with AI feedback|Building momentum"
+    [8]="Keeping tools updated|Managing configurations|Staying current"
+)
 
 # ============================================================
 # Helper Functions
@@ -234,6 +249,131 @@ _reset_progress() {
     rm -f "$PROGRESS_FILE"
     _init_progress
     echo -e "${GREEN}Progress reset. Starting fresh!${NC}"
+}
+
+# ============================================================
+# Celebration Screen
+# ============================================================
+
+# Show celebration screen after lesson completion
+_show_celebration() {
+    local idx="$1"
+    local lesson_title
+    lesson_title=$(_get_lesson_title "$idx")
+
+    # Get progress stats
+    local progress_data completed_count total percent
+    progress_data=$(_calc_progress)
+    completed_count=$(echo "$progress_data" | cut -d'|' -f1)
+    total=$(echo "$progress_data" | cut -d'|' -f2)
+    percent=$(echo "$progress_data" | cut -d'|' -f3)
+
+    # Get lesson summary points
+    local summary_raw="${LESSON_SUMMARIES[$idx]:-}"
+    local -a summary_points=()
+    if [[ -n "$summary_raw" ]]; then
+        IFS='|' read -ra summary_points <<< "$summary_raw"
+    fi
+
+    # Render progress bar
+    local progress_bar
+    progress_bar=$(_render_progress_bar "$completed_count" "$total" 20)
+
+    clear
+    echo ""
+
+    if _has_gum; then
+        # Gum-enhanced celebration
+        gum style \
+            --border rounded \
+            --border-foreground "#89b4fa" \
+            --padding "1 2" \
+            --margin "1" \
+            "$(echo -e "🎉 ${BOLD}Lesson Complete: ${lesson_title}${NC}")"
+
+        echo ""
+
+        if [[ ${#summary_points[@]} -gt 0 ]]; then
+            echo -e "  ${BOLD}You learned:${NC}"
+            for point in "${summary_points[@]}"; do
+                echo -e "  ${GREEN}•${NC} $point"
+            done
+            echo ""
+        fi
+
+        echo -e "  ${BOLD}Progress:${NC} $progress_bar ${completed_count}/${total} (${percent}%)"
+        echo ""
+
+        local next=$((idx + 1))
+        if (( next >= ${#LESSONS[@]} )); then
+            gum style \
+                --foreground "#a6e3a1" \
+                --bold \
+                "🏆 You've completed all lessons!"
+            echo ""
+            echo -e "  You're now ready to use the full ACFS workflow."
+            echo -e "  Run ${CYAN}acfs cheatsheet${NC} for quick command reference."
+            echo ""
+            gum confirm "Return to menu?" && return 0
+        else
+            local choice
+            choice=$(gum choose \
+                "Continue to next lesson" \
+                "Return to menu")
+
+            case "$choice" in
+                "Continue to next lesson")
+                    return 1  # Signal to continue
+                    ;;
+                *)
+                    return 0  # Return to menu
+                    ;;
+            esac
+        fi
+    else
+        # Plain text celebration
+        echo -e "${CYAN}+-------------------------------------------------------------+${NC}"
+        echo -e "${CYAN}|${NC}  🎉 ${BOLD}Lesson Complete: ${lesson_title}${NC}"
+        echo -e "${CYAN}|${NC}"
+
+        if [[ ${#summary_points[@]} -gt 0 ]]; then
+            echo -e "${CYAN}|${NC}  ${BOLD}You learned:${NC}"
+            for point in "${summary_points[@]}"; do
+                echo -e "${CYAN}|${NC}    ${GREEN}•${NC} $point"
+            done
+        fi
+
+        echo -e "${CYAN}|${NC}"
+        echo -e "${CYAN}|${NC}  ${BOLD}Progress:${NC} $progress_bar ${completed_count}/${total} (${percent}%)"
+        echo -e "${CYAN}|${NC}"
+
+        local next=$((idx + 1))
+        if (( next >= ${#LESSONS[@]} )); then
+            echo -e "${CYAN}|${NC}  ${GREEN}${BOLD}🏆 You've completed all lessons!${NC}"
+            echo -e "${CYAN}|${NC}"
+            echo -e "${CYAN}|${NC}  You're now ready to use the full ACFS workflow."
+            echo -e "${CYAN}|${NC}  Run ${CYAN}acfs cheatsheet${NC} for quick command reference."
+            echo -e "${CYAN}+-------------------------------------------------------------+${NC}"
+            echo ""
+            read -r -p "Press Enter to return to menu..." </dev/tty || true
+            return 0
+        else
+            echo -e "${CYAN}|${NC}  ${BOLD}[Enter]${NC} Continue to next lesson"
+            echo -e "${CYAN}|${NC}  ${BOLD}[m]${NC}     Return to menu"
+            echo -e "${CYAN}+-------------------------------------------------------------+${NC}"
+            echo ""
+            read -r -p "Choice: " choice </dev/tty || true
+
+            case "$choice" in
+                m|M)
+                    return 0
+                    ;;
+                *)
+                    return 1  # Continue to next
+                    ;;
+            esac
+        fi
+    fi
 }
 
 # ============================================================
