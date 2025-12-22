@@ -182,7 +182,8 @@ export default function CreateVPSPage() {
           </div>
         </div>
         <p className="text-muted-foreground">
-          Launch your <Jargon term="vps">VPS</Jargon> with password authentication. Follow the checklist below.
+          You have an account with your VPS provider. Now let&apos;s create the actual server
+          (the VPS instance) that will run your development environment.
         </p>
       </div>
 

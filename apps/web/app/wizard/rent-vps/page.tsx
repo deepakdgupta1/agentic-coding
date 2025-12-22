@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Check, Server, ChevronDown, Cloud, Heart } from "lucide-react";
+import { ExternalLink, Check, Server, ChevronDown, Cloud, Heart, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertCard } from "@/components/alert-card";
 import { TrackedLink } from "@/components/tracked-link";
@@ -514,6 +514,19 @@ export default function RentVPSPage() {
           </GuideCaution>
         </div>
       </SimplerGuide>
+
+      {/* Transition to next step */}
+      <AlertCard variant="info" icon={Info} title="Account created? Great!">
+        <div className="space-y-2">
+          <p>
+            Now you need to actually <strong>launch a server</strong>. Having an account is
+            like having a Netflix subscription — you still need to pick something to watch.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            The next step walks you through creating your actual VPS instance inside your new account.
+          </p>
+        </div>
+      </AlertCard>
 
       {/* Continue button */}
       <div className="flex justify-end pt-4">
