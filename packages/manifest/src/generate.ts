@@ -449,17 +449,20 @@ function generateVerifiedInstallerSnippet(module: Module): string[] {
   let fallbackShellCmd: string;
   if (module.run_as === 'target_user') {
     // Use run_as_target_runner to switch user while preserving stdin
-    // When runner is bash/sh and there are args, we need:
-    //   -s: read commands from stdin (required for bash when args present)
-    //   --: end of options, args after this go to the script as $1, $2, etc.
+    // When runner is bash/sh, we ALWAYS need -s to read from stdin (piped content)
+    // When there are args, we also need -- to separate bash flags from script args
     const parts = ['run_as_target_runner', shellQuote(vi.runner)];
+
+    // Always add -s for bash/sh since we're piping script content to stdin
+    // Without -s, bash expects a filename argument, not stdin input
+    const needsStdinFlag = ['bash', 'sh'].includes(vi.runner);
+    if (needsStdinFlag) {
+      parts.push("'-s'");
+    }
+
     if (vi.args && vi.args.length > 0) {
-      // Check if args already include -s and -- (e.g., from manifest)
-      const hasS = vi.args.includes('-s');
+      // Add -- separator before args (unless already present)
       const hasDash = vi.args.includes('--');
-      if (!hasS) {
-        parts.push("'-s'");
-      }
       if (!hasDash) {
         parts.push("'--'");
       }
@@ -719,8 +722,18 @@ function generateCategoryScript(manifest: Manifest, category: ModuleCategory): s
     lines.push('');
 
     // Verify commands
-    lines.push('    # Verify');
-    lines.push(...generateVerifyCommands(module));
+    // Skip verification for run_in_tmux modules - they install async in a detached session
+    // and won't be ready for immediate verification. The installed_check will work on re-runs.
+    const skipVerify = module.verified_installer?.run_in_tmux === true;
+    if (skipVerify) {
+      lines.push('    # Verify skipped: run_in_tmux installs async in detached tmux session');
+      lines.push(`    log_info "${module.id}: installation running in background tmux session"`);
+      const tmuxSession = `acfs-${module.verified_installer?.tool?.replace(/_/g, '-') ?? module.id}`;
+      lines.push(`    log_info "Attach with: tmux attach -t ${tmuxSession}"`);
+    } else {
+      lines.push('    # Verify');
+      lines.push(...generateVerifyCommands(module));
+    }
     lines.push('');
     lines.push(`    log_success "${module.id} installed"`);
     lines.push('}');

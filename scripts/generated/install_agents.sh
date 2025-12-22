@@ -82,7 +82,7 @@ install_agents_claude() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s'; then
                             install_success=true
                         fi
                     fi

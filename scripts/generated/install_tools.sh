@@ -82,7 +82,7 @@ install_tools_atuin() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'sh'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'sh' '-s'; then
                             install_success=true
                         fi
                     fi
@@ -142,7 +142,7 @@ install_tools_zoxide() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'sh'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'sh' '-s'; then
                             install_success=true
                         fi
                     fi

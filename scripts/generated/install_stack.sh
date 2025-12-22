@@ -82,7 +82,7 @@ install_stack_ntm() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s'; then
                             install_success=true
                         fi
                     fi
@@ -168,18 +168,9 @@ install_stack_mcp_agent_mail() {
         fi
     fi
 
-    # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "dry-run: verify: command -v am (target_user)"
-    else
-        if ! run_as_target_shell <<'INSTALL_STACK_MCP_AGENT_MAIL'
-command -v am
-INSTALL_STACK_MCP_AGENT_MAIL
-        then
-            log_error "stack.mcp_agent_mail: verify failed: command -v am"
-            return 1
-        fi
-    fi
+    # Verify skipped: run_in_tmux installs async in detached tmux session
+    log_info "stack.mcp_agent_mail: installation running in background tmux session"
+    log_info "Attach with: tmux attach -t acfs-mcp-agent-mail"
 
     log_success "stack.mcp_agent_mail installed"
 }
@@ -280,7 +271,7 @@ install_stack_beads_viewer() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s'; then
                             install_success=true
                         fi
                     fi
@@ -470,7 +461,7 @@ install_stack_caam() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s'; then
                             install_success=true
                         fi
                     fi
@@ -530,7 +521,7 @@ install_stack_slb() {
                     expected_sha256="$(get_checksum "$tool" 2>/dev/null)" || expected_sha256=""
 
                     if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash'; then
+                        if verify_checksum "$url" "$expected_sha256" "$tool" 2>/dev/null | run_as_target_runner 'bash' '-s'; then
                             install_success=true
                         fi
                     fi
