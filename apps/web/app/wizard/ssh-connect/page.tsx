@@ -205,6 +205,30 @@ export default function SSHConnectPage() {
         <code className="ml-1 rounded bg-[oklch(0.75_0.18_195/0.15)] px-2 py-0.5 font-mono font-bold text-[oklch(0.85_0.12_195)]">{vpsIP}</code>
       </AlertCard>
 
+      {/* CRITICAL: Password distinction warning */}
+      <AlertCard variant="warning" title="⚠️ Which password to use">
+        <div className="space-y-2">
+          <p>
+            You&apos;ll need the <strong className="text-foreground">VPS root password</strong> — this is{" "}
+            <strong className="text-foreground">NOT</strong> the same as your VPS provider account password!
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            <li>
+              <span className="text-[oklch(0.72_0.19_145)]">✓ Correct:</span>{" "}
+              <strong>VPS root password</strong> — the password you set when creating this specific VPS,
+              or the one your provider emailed you
+            </li>
+            <li>
+              <span className="text-destructive">✗ Wrong:</span>{" "}
+              Your Hetzner/Vultr/DigitalOcean <em>account</em> login password
+            </li>
+          </ul>
+          <p className="text-xs text-muted-foreground mt-2">
+            If you can&apos;t find it, check your email or your VPS provider&apos;s control panel for the VPS-specific password.
+          </p>
+        </div>
+      </AlertCard>
+
       {/* Primary command */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Run this command</h2>
@@ -217,17 +241,45 @@ export default function SSHConnectPage() {
         />
       </div>
 
+      {/* "Type yes" prompt explanation - show users what the scary message looks like */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">What you&apos;ll see first</h2>
+        <p className="text-sm text-muted-foreground">
+          The first time you connect, you&apos;ll see a scary-looking security message.
+          <strong className="text-foreground"> This is completely normal!</strong> It just means SSH hasn&apos;t seen this server before.
+        </p>
+        <OutputPreview title="You'll see something like:">
+          <div className="space-y-1">
+            <p className="text-amber-400">The authenticity of host &apos;{vpsIP} ({vpsIP})&apos; can&apos;t be established.</p>
+            <p className="text-muted-foreground">ED25519 key fingerprint is SHA256:xYz123abc456def...</p>
+            <p className="text-amber-400">Are you sure you want to continue connecting (yes/no/[fingerprint])?</p>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            This looks alarming, but it&apos;s just SSH confirming you want to trust this new server.
+          </p>
+        </OutputPreview>
+        <AlertCard variant="success" title="✓ Type 'yes' and press Enter">
+          This is safe! You&apos;re telling SSH to remember this server. Type the full word{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">yes</code> (not just &quot;y&quot;), then press Enter.
+        </AlertCard>
+      </div>
+
       {/* Password prompt */}
-      <AlertCard variant="warning" title="You'll be asked for your password">
-        <p className="mb-2">
-          First, you&apos;ll see a message about &quot;authenticity of host&quot;.
-          Type <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">yes</code> and press Enter.
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Then enter your password</h2>
+        <p className="text-sm text-muted-foreground">
+          After typing &quot;yes&quot;, you&apos;ll be asked for your password:
         </p>
-        <p>
-          Then enter the root password you set during VPS creation (or received via email).
-          <strong className="block mt-1">Note: The password won&apos;t appear as you type - that&apos;s normal!</strong>
-        </p>
-      </AlertCard>
+        <OutputPreview title="You'll see:">
+          <p className="text-muted-foreground">root@{vpsIP}&apos;s password: <span className="animate-pulse">_</span></p>
+        </OutputPreview>
+        <AlertCard variant="info" title="The password won't appear as you type">
+          <p>
+            When you type your password, <strong>nothing will show on screen</strong> — no dots, no asterisks, nothing.
+            This is a security feature, not a bug! Just type your password and press Enter.
+          </p>
+        </AlertCard>
+      </div>
 
       {/* Fallback to ubuntu */}
       <div className="space-y-3">
