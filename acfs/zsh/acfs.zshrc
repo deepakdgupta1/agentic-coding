@@ -257,6 +257,14 @@ acfs() {
         return 1
       fi
       ;;
+    info|i)
+      if [[ -f "$HOME/.acfs/scripts/lib/info.sh" ]]; then
+        bash "$HOME/.acfs/scripts/lib/info.sh" "$@"
+      else
+        echo "Error: info.sh not found"
+        return 1
+      fi
+      ;;
     version|-v|--version)
       if [[ -f "$HOME/.acfs/VERSION" ]]; then
         cat "$HOME/.acfs/VERSION"
@@ -270,12 +278,18 @@ acfs() {
       echo "Usage: acfs <command>"
       echo ""
       echo "Commands:"
+      echo "  info            Quick system overview (hostname, IP, uptime, progress)"
       echo "  continue        View installation progress (after Ubuntu upgrade)"
       echo "  services-setup  Configure AI agents and cloud services"
       echo "  doctor          Check system health and tool status"
       echo "  update          Update ACFS tools to latest versions"
       echo "  version         Show ACFS version"
       echo "  help            Show this help message"
+      echo ""
+      echo "Output formats (for info/doctor):"
+      echo "  --json          JSON output for scripting"
+      echo "  --html          Self-contained HTML dashboard"
+      echo "  --minimal       Just the essentials"
       ;;
   esac
 }
