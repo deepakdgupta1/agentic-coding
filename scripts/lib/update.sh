@@ -32,6 +32,7 @@ FAIL_COUNT=0
 UPDATE_APT=true
 UPDATE_AGENTS=true
 UPDATE_CLOUD=true
+UPDATE_RUNTIME=true
 UPDATE_STACK=false
 UPDATE_SHELL=true
 FORCE_MODE=false
@@ -476,6 +477,11 @@ check_reboot_required() {
 update_bun() {
     log_section "Bun Runtime"
 
+    if [[ "$UPDATE_RUNTIME" != "true" ]]; then
+        log_item "skip" "Bun" "disabled via --no-runtime / category selection"
+        return 0
+    fi
+
     local bun_bin="$HOME/.bun/bin/bun"
 
     if [[ ! -x "$bun_bin" ]]; then
@@ -632,6 +638,11 @@ update_cloud() {
 update_rust() {
     log_section "Rust Toolchain"
 
+    if [[ "$UPDATE_RUNTIME" != "true" ]]; then
+        log_item "skip" "Rust" "disabled via --no-runtime / category selection"
+        return 0
+    fi
+
     local rustup_bin="$HOME/.cargo/bin/rustup"
 
     if [[ ! -x "$rustup_bin" ]]; then
@@ -667,6 +678,11 @@ update_rust() {
 update_uv() {
     log_section "Python Tools (uv)"
 
+    if [[ "$UPDATE_RUNTIME" != "true" ]]; then
+        log_item "skip" "uv" "disabled via --no-runtime / category selection"
+        return 0
+    fi
+
     local uv_bin="$HOME/.local/bin/uv"
 
     if [[ ! -x "$uv_bin" ]]; then
@@ -687,6 +703,11 @@ update_uv() {
 
 update_go() {
     log_section "Go Runtime"
+
+    if [[ "$UPDATE_RUNTIME" != "true" ]]; then
+        log_item "skip" "Go" "disabled via --no-runtime / category selection"
+        return 0
+    fi
 
     # Check if go is installed
     if ! command -v go &>/dev/null; then
@@ -1106,6 +1127,7 @@ CATEGORY OPTIONS (select what to update):
   --agents-only      Only update coding agents (Claude, Codex, Gemini)
   --cloud-only       Only update cloud CLIs (Wrangler, Supabase, Vercel)
   --shell-only       Only update shell tools (OMZ, P10K, plugins, Atuin, Zoxide)
+  --runtime-only     Only update runtimes (Bun, Rust, uv, Go)
   --stack            Include Dicklesworthstone stack tools (default: disabled)
 
 SKIP OPTIONS (exclude categories from update):
@@ -1113,6 +1135,7 @@ SKIP OPTIONS (exclude categories from update):
   --no-agents        Skip coding agent updates
   --no-cloud         Skip cloud CLI updates
   --no-shell         Skip shell tool updates
+  --no-runtime       Skip runtime updates (Bun, Rust, uv, Go)
 
 BEHAVIOR OPTIONS:
   --force            Install tools that are missing (not just update existing)
@@ -1125,7 +1148,7 @@ BEHAVIOR OPTIONS:
   --help, -h         Show this help message
 
 EXAMPLES:
-  # Standard update (apt, shell, agents, cloud)
+  # Standard update (apt, runtimes, shell, agents, cloud)
   acfs-update
 
   # Include Dicklesworthstone stack
@@ -1133,6 +1156,9 @@ EXAMPLES:
 
   # Only update agents
   acfs-update --agents-only
+
+  # Only update runtimes
+  acfs-update --runtime-only
 
   # Update everything except apt (faster)
   acfs-update --no-apt
@@ -1154,7 +1180,7 @@ WHAT EACH CATEGORY UPDATES:
             Codex CLI (bun install -g @openai/codex@latest)
             Gemini CLI (bun install -g @google/gemini-cli@latest)
   cloud:    Wrangler, Supabase CLI, Vercel CLI (bun install -g @latest)
-  runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update)
+  runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update), Go (apt-managed)
   stack:    NTM, UBS, BV, CASS, CM, CAAM, SLB (re-run upstream installers)
 
 LOGS:
@@ -1198,6 +1224,7 @@ main() {
                 UPDATE_APT=true
                 UPDATE_AGENTS=false
                 UPDATE_CLOUD=false
+                UPDATE_RUNTIME=false
                 UPDATE_STACK=false
                 UPDATE_SHELL=false
                 shift
@@ -1206,6 +1233,7 @@ main() {
                 UPDATE_APT=false
                 UPDATE_AGENTS=true
                 UPDATE_CLOUD=false
+                UPDATE_RUNTIME=false
                 UPDATE_STACK=false
                 UPDATE_SHELL=false
                 shift
@@ -1214,6 +1242,7 @@ main() {
                 UPDATE_APT=false
                 UPDATE_AGENTS=false
                 UPDATE_CLOUD=true
+                UPDATE_RUNTIME=false
                 UPDATE_STACK=false
                 UPDATE_SHELL=false
                 shift
@@ -1222,8 +1251,18 @@ main() {
                 UPDATE_APT=false
                 UPDATE_AGENTS=false
                 UPDATE_CLOUD=false
+                UPDATE_RUNTIME=false
                 UPDATE_STACK=false
                 UPDATE_SHELL=true
+                shift
+                ;;
+            --runtime-only)
+                UPDATE_APT=false
+                UPDATE_AGENTS=false
+                UPDATE_CLOUD=false
+                UPDATE_RUNTIME=true
+                UPDATE_STACK=false
+                UPDATE_SHELL=false
                 shift
                 ;;
             --stack)
@@ -1244,6 +1283,10 @@ main() {
                 ;;
             --no-shell)
                 UPDATE_SHELL=false
+                shift
+                ;;
+            --no-runtime)
+                UPDATE_RUNTIME=false
                 shift
                 ;;
             --force)

@@ -571,9 +571,10 @@ After installation, keeping tools current is handled by `acfs-update`. It provid
 ### Usage
 
 ```bash
-acfs-update                  # Update apt, shell, agents, and cloud CLIs
+acfs-update                  # Update apt, runtimes, shell, agents, and cloud CLIs
 acfs-update --stack          # Include Dicklesworthstone stack tools
 acfs-update --agents-only    # Only update coding agents
+acfs-update --runtime-only   # Only update runtimes (bun, rust, uv, go)
 acfs-update --dry-run        # Preview changes without making them
 acfs-update --yes --quiet    # Automated/CI mode with minimal output
 ```
@@ -588,6 +589,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 | **Runtime** | Bun | `bun upgrade` |
 | **Runtime** | Rust | `rustup update stable` |
 | **Runtime** | uv (Python) | `uv self update` |
+| **Runtime** | Go | `apt upgrade` (if apt-managed) |
 | **Agents** | Claude Code | `claude update` |
 | **Agents** | Codex, Gemini | `bun install -g @latest` |
 | **Cloud** | Wrangler, Supabase, Vercel | `bun install -g @latest` |
@@ -601,6 +603,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 --agents-only    Only update coding agents
 --cloud-only     Only update cloud CLIs
 --shell-only     Only update shell tools (OMZ, P10K, plugins, Atuin, Zoxide)
+--runtime-only   Only update runtimes (bun, rust, uv, go)
 --stack          Include Dicklesworthstone stack (disabled by default)
 ```
 
@@ -610,6 +613,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 --no-agents      Skip agent updates
 --no-cloud       Skip cloud CLI updates
 --no-shell       Skip shell tool updates
+--no-runtime     Skip runtime updates (bun, rust, uv, go)
 ```
 
 **Behavior:**
