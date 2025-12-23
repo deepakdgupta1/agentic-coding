@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ExternalLink, Check, Server, ChevronDown, Cloud, Heart, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertCard } from "@/components/alert-card";
@@ -81,13 +82,12 @@ function ScreenshotFigure({ file, alt, caption }: ScreenshotSpec) {
         rel="noopener noreferrer"
         className="block overflow-hidden rounded-xl border border-border/50 bg-muted/10 transition hover:border-primary/30"
       >
-        <img
+        <Image
           src={src}
           alt={alt}
           width={1440}
           height={1000}
-          loading="lazy"
-          decoding="async"
+          unoptimized
           className="h-auto w-full"
         />
       </a>

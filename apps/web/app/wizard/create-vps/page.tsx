@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useForm } from "@tanstack/react-form";
 import { Check, AlertCircle, Server, ChevronDown, HardDrive, ShieldCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,46 @@ import {
 } from "@/components/simpler-guide";
 import { Jargon } from "@/components/jargon";
 
+type ScreenshotSpec = {
+  file: string;
+  alt: string;
+  caption: string;
+};
+
+const SCREENSHOT_BASE =
+  "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/research_screenshots";
+
+function screenshotUrl(file: string): string {
+  return `${SCREENSHOT_BASE}/${file}`;
+}
+
+function ScreenshotFigure({ file, alt, caption }: ScreenshotSpec) {
+  const src = screenshotUrl(file);
+  return (
+    <figure className="space-y-1">
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block overflow-hidden rounded-xl border border-border/50 bg-muted/10 transition hover:border-primary/30"
+      >
+        <Image
+          src={src}
+          alt={alt}
+          width={1440}
+          height={1000}
+          unoptimized
+          className="h-auto w-full"
+        />
+      </a>
+      <figcaption className="text-xs text-muted-foreground">
+        {caption}{" "}
+        <span className="sr-only">(opens full size in a new tab)</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 const CHECKLIST_ITEMS = [
   { id: "ubuntu", label: "Selected Ubuntu 24.04+ (25.10 preferred)" },
   { id: "region", label: "Picked a region close to me" },
@@ -34,6 +75,7 @@ type ChecklistItemId = typeof CHECKLIST_ITEMS[number]["id"];
 interface ProviderGuideProps {
   name: string;
   steps: string[];
+  screenshots?: ScreenshotSpec[];
   isExpanded: boolean;
   onToggle: () => void;
 }
@@ -41,6 +83,7 @@ interface ProviderGuideProps {
 function ProviderGuide({
   name,
   steps,
+  screenshots,
   isExpanded,
   onToggle,
 }: ProviderGuideProps) {
@@ -72,6 +115,18 @@ function ProviderGuide({
               <li key={i}>{step}</li>
             ))}
           </ol>
+          {screenshots && screenshots.length > 0 && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {screenshots.map((shot) => (
+                <ScreenshotFigure
+                  key={shot.file}
+                  file={shot.file}
+                  alt={shot.alt}
+                  caption={shot.caption}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -89,6 +144,13 @@ const PROVIDER_GUIDES = [
       "Complete checkout (servers activate within minutes, occasionally up to 1 hour)",
       'Go to "Your services" > "VPS control" to find your IP address',
     ],
+    screenshots: [
+      {
+        file: "contabo_us_03_order_page.png",
+        alt: "Contabo order/configure page with region and Ubuntu image selections",
+        caption: "Contabo order page — select region + Ubuntu image here.",
+      },
+    ],
   },
   {
     name: "OVH",
@@ -100,6 +162,13 @@ const PROVIDER_GUIDES = [
       "Set a strong root password and save it somewhere safe",
       "Complete the order (activation is usually instant)",
       "Copy the IP address from your control panel",
+    ],
+    screenshots: [
+      {
+        file: "ovh_us_03_order.png",
+        alt: "OVH order/configuration flow showing OS and region selections",
+        caption: "OVH order flow — select Ubuntu + region during configuration.",
+      },
     ],
   },
 ];
@@ -256,6 +325,7 @@ export default function CreateVPSPage() {
               key={provider.name}
               name={provider.name}
               steps={provider.steps}
+              screenshots={provider.screenshots}
               isExpanded={expandedProvider === provider.name}
               onToggle={() =>
                 setExpandedProvider((prev) =>

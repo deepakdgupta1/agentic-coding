@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
     // to resolve `next` and other packages when multiple lockfiles exist.
     root: workspaceRoot,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "raw.githubusercontent.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

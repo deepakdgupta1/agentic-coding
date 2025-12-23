@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { safeGetItem, safeSetItem } from "./utils";
 
-export type OperatingSystem = "mac" | "windows";
+export type OperatingSystem = "mac" | "windows" | "linux";
 
 const OS_KEY = "agent-flywheel-user-os";
 const VPS_IP_KEY = "agent-flywheel-vps-ip";
@@ -53,11 +53,11 @@ export const userPreferencesKeys = {
  */
 export function getUserOS(): OperatingSystem | null {
   const stored = safeGetItem(OS_KEY);
-  if (stored === "mac" || stored === "windows") {
+  if (stored === "mac" || stored === "windows" || stored === "linux") {
     return stored;
   }
   const fromQuery = getQueryParam(OS_QUERY_KEY);
-  if (fromQuery === "mac" || fromQuery === "windows") {
+  if (fromQuery === "mac" || fromQuery === "windows" || fromQuery === "linux") {
     return fromQuery;
   }
   return null;
@@ -88,6 +88,9 @@ export function detectOS(): OperatingSystem | null {
   }
 
   if (ua.includes("win")) return "windows";
+
+  // Detect Linux before Mac to avoid false positives
+  if (ua.includes("linux") && !ua.includes("android")) return "linux";
 
   // Avoid mis-detecting iOS user agents that contain "like Mac OS X".
   if (ua.includes("mac") && !ua.includes("like mac os x")) return "mac";
