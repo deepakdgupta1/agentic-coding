@@ -329,6 +329,20 @@ export default function AccountsPage() {
         </p>
       </div>
 
+      {/* Cost warning - prominent placement for subscription services */}
+      <AlertCard variant="warning" icon={DollarSign} title="Subscription costs ahead">
+        Some AI coding agents require expensive subscriptions to use after installation:
+        <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
+          <li><strong>Claude Code</strong>: Requires Claude Max ($200/mo)</li>
+          <li><strong>Codex CLI</strong>: Requires ChatGPT Pro ($200/mo)</li>
+          <li><strong>Gemini CLI</strong>: Requires Gemini Ultra (~$275/mo)</li>
+        </ul>
+        <p className="mt-2 text-sm">
+          <strong>You don&apos;t need all of them!</strong> Start with one agent (Claude Code is recommended)
+          and add others later if you want different AI perspectives.
+        </p>
+      </AlertCard>
+
       {/* Google SSO tip - uses getGoogleSsoServices() to show count */}
       <AlertCard variant="tip" icon={Sparkles} title="Quick signup with Google">
         {getGoogleSsoServices().length} of {SERVICES.length} services support Google SSO.
@@ -434,6 +448,16 @@ export default function AccountsPage() {
           </div>
         </div>
       </SimplerGuide>
+
+      {/* Skip reassurance note */}
+      <div className="rounded-xl border border-muted bg-muted/30 p-4">
+        <p className="text-sm text-muted-foreground">
+          <strong className="text-foreground">Don&apos;t want to create accounts now?</strong>{" "}
+          That&apos;s completely fine! You can skip this step and create accounts after
+          installation. The ACFS installer will still install all the tools—you&apos;ll
+          just need to authenticate them later when you&apos;re ready to use them.
+        </p>
+      </div>
 
       {/* Action buttons */}
       <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end">

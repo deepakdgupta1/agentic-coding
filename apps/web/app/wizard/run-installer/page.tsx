@@ -258,6 +258,22 @@ export default function RunInstallerPage() {
         </TrackedLink>
       </div>
 
+      {/* Installation output guide */}
+      <AlertCard variant="info" title="Understanding the installation output">
+        <div className="space-y-2 text-sm">
+          <p>You&apos;ll see lots of text scrolling by. Here&apos;s what to look for:</p>
+          <ul className="list-inside list-disc space-y-1">
+            <li><span className="text-[oklch(0.72_0.19_145)] font-medium">✔ Green checkmarks</span> = Step completed successfully</li>
+            <li><span className="text-[oklch(0.78_0.16_75)] font-medium">⚠ Yellow warnings</span> = Non-critical issue, installer continues</li>
+            <li><span className="text-[oklch(0.65_0.22_25)] font-medium">✖ Red X</span> = Something failed, but installer will retry or skip</li>
+          </ul>
+          <p className="text-muted-foreground">
+            Just wait for the final &quot;Installation complete&quot; message. If you see errors,
+            you can always re-run the installer—it will retry failed steps.
+          </p>
+        </div>
+      </AlertCard>
+
       {/* Success signs */}
       <OutputPreview title="You'll know it's done when you see:">
         <p className="text-[oklch(0.72_0.19_145)]">✔ Agent Flywheel installation complete!</p>
