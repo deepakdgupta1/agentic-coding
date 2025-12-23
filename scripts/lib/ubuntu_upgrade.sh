@@ -1213,6 +1213,20 @@ ubuntu_show_upgrade_warning() {
     hops=$(echo "$path" | wc -l | tr -d ' ')
     local estimated_time=$((hops * 30))
 
+    # Detect server IP for SSH reconnection instructions
+    local server_ip=""
+    if [[ -n "${SSH_CONNECTION:-}" ]]; then
+        # SSH_CONNECTION format: "client_ip client_port server_ip server_port"
+        server_ip=$(echo "$SSH_CONNECTION" | awk '{print $3}')
+    fi
+    if [[ -z "$server_ip" ]]; then
+        # Fallback: get first IP from hostname
+        server_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+    if [[ -z "$server_ip" ]]; then
+        server_ip="<your-server-ip>"
+    fi
+
     cat << EOF
 
 ╔══════════════════════════════════════════════════════════════════╗
@@ -1229,20 +1243,22 @@ ubuntu_show_upgrade_warning() {
 ║                                                                  ║
 ║  1. System will upgrade and reboot $hops time(s)
 ║  2. Your SSH connection will disconnect at each reboot           ║
-║  3. Wait 2-3 minutes, then reconnect with SAME credentials       ║
-║  4. Re-run the SAME curl command to continue installation        ║
+║  3. Wait 2-3 minutes, then reconnect                             ║
+║  4. Press UP ARROW to recall the curl command, then press ENTER  ║
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  AFTER EACH REBOOT, RUN:                                         ║
+║  AFTER EACH REBOOT:                                              ║
 ║                                                                  ║
-║    ssh root@<your-server-ip>                                     ║
-║    (enter your root password)                                    ║
+║    1. ssh root@$server_ip
+║       (use the same root password as before)                     ║
 ║                                                                  ║
-║    curl -fsSL https://raw.githubusercontent.com/                 ║
-║      Dicklesworthstone/agentic_coding_flywheel_setup/            ║
-║      main/install.sh | bash -s -- --yes --mode vibe              ║
+║    2. Press UP ARROW key to recall the last command              ║
+║       (the curl command you just ran)                            ║
 ║                                                                  ║
-║  The installer will automatically resume where it left off.      ║
+║    3. Press ENTER to run it again                                ║
+║                                                                  ║
+║  The installer remembers your progress and continues from        ║
+║  where it left off. Repeat until you reach Ubuntu $target.
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  IF SOMETHING FAILS:                                             ║
