@@ -640,7 +640,7 @@ export const trackFunnelStepEnter = (
       milestone: 'vps_selection',
       funnel_id: funnelData.sessionId,
     });
-  } else if (stepNumber === 7) {
+  } else if (stepNumber === 9) {
     sendEvent('funnel_milestone', {
       milestone: 'installer_step',
       funnel_id: funnelData.sessionId,
@@ -702,7 +702,7 @@ export const trackFunnelStepComplete = (
   // Track step-specific conversions (note: wizard_start is tracked on step 1 entry in useWizardAnalytics)
   if (stepNumber === 5) {
     trackConversion('vps_created', 10);
-  } else if (stepNumber === 7) {
+  } else if (stepNumber === 9) {
     trackConversion('installer_run', 50);
   } else if (stepNumber === TOTAL_STEPS) {
     trackFunnelComplete();
