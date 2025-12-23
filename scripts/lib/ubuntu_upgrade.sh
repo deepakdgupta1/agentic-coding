@@ -150,7 +150,7 @@ ubuntu_enable_normal_releases() {
     # Check current setting
     if grep -q "^Prompt=lts" "$config"; then
         # Backup original
-        cp "$config" "${config}.acfs-backup"
+        cp "$config" "${config}.disabled"
 
         # Change to normal releases
         sed -i 's/^Prompt=lts$/Prompt=normal/' "$config"
@@ -164,7 +164,7 @@ ubuntu_enable_normal_releases() {
 # Restore LTS-only release setting after upgrade complete
 ubuntu_restore_lts_only() {
     local config="/etc/update-manager/release-upgrades"
-    local backup="${config}.acfs-backup"
+    local backup="${config}.disabled"
 
     if [[ -f "$backup" ]]; then
         mv "$backup" "$config"
@@ -459,7 +459,7 @@ ubuntu_check_reboot_required() {
 # Solution: Temporarily convert DEB822 (.sources) to legacy (.list) format before upgrade
 ubuntu_workaround_deb822_bug() {
     local sources_file="/etc/apt/sources.list.d/ubuntu.sources"
-    local backup_file="/etc/apt/sources.list.d/ubuntu.sources.acfs-backup"
+    local backup_file="/etc/apt/sources.list.d/ubuntu.sources.disabled"
     local legacy_file="/etc/apt/sources.list.d/ubuntu-acfs-temp.list"
 
     # Check if DEB822 format sources exist
@@ -520,7 +520,7 @@ LEGACY_SOURCES
 ubuntu_cleanup_deb822_workaround() {
     local sources_file="/etc/apt/sources.list.d/ubuntu.sources"
     local disabled_file="${sources_file}.disabled"
-    local backup_file="${sources_file}.acfs-backup"
+    local backup_file="${sources_file}.disabled"
     local legacy_file="/etc/apt/sources.list.d/ubuntu-acfs-temp.list"
 
     # Remove our temporary legacy file
@@ -1211,7 +1211,7 @@ ubuntu_show_upgrade_warning() {
     path=$(ubuntu_calculate_upgrade_path)
     local hops
     hops=$(echo "$path" | wc -l | tr -d ' ')
-    local estimated_time=$((hops * 15))
+    local estimated_time=$((hops * 30))
 
     cat << EOF
 
@@ -1221,16 +1221,33 @@ ubuntu_show_upgrade_warning() {
 ║                                                                  ║
 ║  Current version:  Ubuntu $current
 ║  Target version:   Ubuntu $target
-║  Upgrade path:     $current → $(echo "$path" | tr '\n' ' ' | sed 's/ / → /g; s/ → $//')
-║  Estimated time:   ~${estimated_time} minutes
+║  Upgrade path:     $current -> $(echo "$path" | tr '\n' ' ' | sed 's/ / -> /g; s/ -> $//')
+║  Estimated time:   ~${estimated_time} minutes total
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  NOTE:                                                           ║
+║  WHAT WILL HAPPEN:                                               ║
 ║                                                                  ║
-║  • System will reboot $hops time(s)
-║  • SSH sessions will disconnect during reboots                   ║
-║  • Reconnect after each reboot to monitor progress               ║
-║  • If anything fails, reinstall base image from your provider    ║
+║  1. System will upgrade and reboot $hops time(s)
+║  2. Your SSH connection will disconnect at each reboot           ║
+║  3. Wait 2-3 minutes, then reconnect with SAME credentials       ║
+║  4. Re-run the SAME curl command to continue installation        ║
+║                                                                  ║
+╠══════════════════════════════════════════════════════════════════╣
+║  AFTER EACH REBOOT, RUN:                                         ║
+║                                                                  ║
+║    ssh root@<your-server-ip>                                     ║
+║    (enter your root password)                                    ║
+║                                                                  ║
+║    curl -fsSL https://raw.githubusercontent.com/                 ║
+║      Dicklesworthstone/agentic_coding_flywheel_setup/            ║
+║      main/install.sh | bash -s -- --yes --mode vibe              ║
+║                                                                  ║
+║  The installer will automatically resume where it left off.      ║
+║                                                                  ║
+╠══════════════════════════════════════════════════════════════════╣
+║  IF SOMETHING FAILS:                                             ║
+║  Reinstall the base Ubuntu image from your VPS provider's panel  ║
+║  and start fresh. This is always safe.                           ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 
