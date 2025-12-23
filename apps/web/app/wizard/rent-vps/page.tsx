@@ -58,6 +58,47 @@ const PROVIDERS: ProviderInfo[] = [
   },
 ];
 
+type ScreenshotSpec = {
+  file: string;
+  alt: string;
+  caption: string;
+};
+
+const SCREENSHOT_BASE =
+  "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/research_screenshots";
+
+function screenshotUrl(file: string): string {
+  return `${SCREENSHOT_BASE}/${file}`;
+}
+
+function ScreenshotFigure({ file, alt, caption }: ScreenshotSpec) {
+  const src = screenshotUrl(file);
+  return (
+    <figure className="mt-3 space-y-1">
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block overflow-hidden rounded-xl border border-border/50 bg-muted/10 transition hover:border-primary/30"
+      >
+        <img
+          src={src}
+          alt={alt}
+          width={1440}
+          height={1000}
+          loading="lazy"
+          decoding="async"
+          className="h-auto w-full"
+        />
+      </a>
+      <figcaption className="text-xs text-muted-foreground">
+        {caption}{" "}
+        <span className="sr-only">(opens full size in a new tab)</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 interface ProviderCardProps {
   provider: ProviderInfo;
   isExpanded: boolean;
@@ -209,6 +250,24 @@ export default function RentVPSPage() {
           ))}
         </div>
       </div>
+
+      {/* Credit card and verification warning */}
+      <AlertCard variant="warning" title="Before you sign up">
+        <div className="space-y-2 text-sm">
+          <p>
+            <strong className="text-foreground">Credit card required:</strong> Both providers require
+            a valid credit card for signup. Prepaid cards may not work.
+          </p>
+          <p>
+            <strong className="text-foreground">Email verification:</strong> You&apos;ll need to verify
+            your email address. Check your spam folder if you don&apos;t see the verification email.
+          </p>
+          <p className="text-muted-foreground">
+            Some providers (especially Contabo) may require additional identity verification for
+            new accounts. This usually takes a few minutes but can occasionally take up to 24 hours.
+          </p>
+        </div>
+      </AlertCard>
 
       {/* Provider cards */}
       <div className="space-y-4">
@@ -411,11 +470,21 @@ export default function RentVPSPage() {
                 <TrackedLink href="https://contabo.com/en-us/vps/" trackingId="contabo-guide-link" className="text-primary underline">
                   contabo.com/en-us/vps
                 </TrackedLink>
+                <ScreenshotFigure
+                  file="contabo_us_01_main.png"
+                  alt="Contabo VPS page showing plan tiles and pricing"
+                  caption="Contabo VPS page (US) — you’ll pick a plan from here."
+                />
               </GuideStep>
 
               <GuideStep number={2} title="Choose a plan with enough resources">
                 Look for a plan with <strong>12+ vCPU</strong> and <strong>48GB+ RAM</strong> (32GB absolute minimum).
                 NVMe storage is standard on all recommended plans. Click &quot;Configure&quot; or &quot;Order&quot;.
+                <ScreenshotFigure
+                  file="contabo_us_02_plans.png"
+                  alt="Contabo plans list highlighting Cloud VPS options"
+                  caption="Plans list — pick Cloud VPS 50 (64GB) or Cloud VPS 40 (48GB)."
+                />
               </GuideStep>
 
               <GuideStep number={3} title="Configure your VPS">
@@ -427,6 +496,11 @@ export default function RentVPSPage() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   If 25.10 isn&apos;t offered, Ubuntu 24.04 LTS is fine — ACFS upgrades to 25.10 automatically.
                 </p>
+                <ScreenshotFigure
+                  file="contabo_us_03_order_page.png"
+                  alt="Contabo order/configure page with region and image selections"
+                  caption="Configure page — choose region + Ubuntu image, then continue checkout."
+                />
               </GuideStep>
 
               <GuideStep number={4} title="Create an account">
@@ -449,6 +523,58 @@ export default function RentVPSPage() {
               <GuideStep number={6} title="Complete the order">
                 Review your order and complete checkout. Contabo activates servers
                 quickly, usually within minutes!
+              </GuideStep>
+            </div>
+          </GuideSection>
+
+          <GuideSection title="Step-by-Step: Signing Up (OVH Example)">
+            <div className="space-y-4">
+              <GuideStep number={1} title="Go to OVH's VPS page">
+                Click on &quot;OVH&quot; above, or go to{" "}
+                <TrackedLink href="https://us.ovhcloud.com/vps/" trackingId="ovh-guide-link" className="text-primary underline">
+                  us.ovhcloud.com/vps
+                </TrackedLink>
+                <ScreenshotFigure
+                  file="ovh_us_01_main.png"
+                  alt="OVH VPS page showing plan tiers and call-to-action buttons"
+                  caption="OVH VPS page (US) — pick a VPS tier to start ordering."
+                />
+              </GuideStep>
+
+              <GuideStep number={2} title="Choose VPS-5 (64GB) or VPS-4 (48GB)">
+                We recommend:
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li><strong>VPS-5:</strong> 64GB RAM (best for multi-agent work)</li>
+                  <li><strong>VPS-4:</strong> 48GB RAM (budget option)</li>
+                </ul>
+                Click &quot;Order&quot; to continue.
+                <ScreenshotFigure
+                  file="ovh_us_02_plans.png"
+                  alt="OVH plans list showing VPS-4 and VPS-5 options"
+                  caption="Plans list — select VPS-5 (64GB) or VPS-4 (48GB), then click Order."
+                />
+              </GuideStep>
+
+              <GuideStep number={3} title="Configure your order">
+                During configuration, look for:
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li><strong>Image/OS:</strong> Ubuntu 25.10 (or latest available)</li>
+                  <li><strong>Region:</strong> Closest to you (US-East/US-West/EU)</li>
+                  <li><strong>Authentication:</strong> Password (skip SSH keys for now)</li>
+                </ul>
+                <ScreenshotFigure
+                  file="ovh_us_03_order.png"
+                  alt="OVH order/configuration flow showing OS and region selections"
+                  caption="Order flow — pick Ubuntu + region, then continue to checkout."
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  If Ubuntu 25.10 isn&apos;t available, Ubuntu 24.04 LTS is fine — ACFS upgrades automatically.
+                </p>
+              </GuideStep>
+
+              <GuideStep number={4} title="Create an account + pay">
+                OVH will prompt you to create an account and add a payment method.
+                Once the order completes, activation is usually instant.
               </GuideStep>
             </div>
           </GuideSection>
