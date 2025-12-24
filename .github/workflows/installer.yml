@@ -114,7 +114,8 @@ jobs:
 
       - name: Run installer
         run: |
-          bash install.sh --yes --mode ${{ matrix.mode }}
+          # Skip preflight in CI - GitHub Actions containers have limited disk (17GB < 20GB required)
+          bash install.sh --yes --skip-preflight --mode ${{ matrix.mode }}
 
       - name: Run doctor
         run: |
