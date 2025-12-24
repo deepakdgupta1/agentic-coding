@@ -119,7 +119,7 @@ export default function ReconnectUbuntuPage() {
             1. Type <code className="rounded bg-muted px-1">exit</code> to close
             the current session
           </p>
-          <CommandCard command="exit" description="Close root session" />
+          <CommandCard command="exit" description="Close root session" runLocation="vps" />
         </div>
 
         <div className="space-y-3">
@@ -150,6 +150,7 @@ export default function ReconnectUbuntuPage() {
             command={sshCommand}
             windowsCommand={sshCommandWindows}
             description="Reconnect as ubuntu user"
+            runLocation="local"
             showCheckbox
             persistKey="reconnect-ubuntu"
           />

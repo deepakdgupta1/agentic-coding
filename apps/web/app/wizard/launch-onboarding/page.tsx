@@ -170,6 +170,7 @@ export default function LaunchOnboardingPage() {
                 <CommandCard
                   command="claude"
                   description="Follow the prompts. If it prints a URL, open it on your laptop to log in."
+                  runLocation="vps"
                 />
               </div>
             </div>
@@ -180,6 +181,7 @@ export default function LaunchOnboardingPage() {
                 <CommandCard
                   command="codex login"
                   description="Starts the login flow. If it prints a URL, open it on your laptop to authenticate."
+                  runLocation="vps"
                 />
               </div>
             </div>
@@ -187,7 +189,7 @@ export default function LaunchOnboardingPage() {
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[oklch(0.78_0.16_75)] text-[oklch(0.15_0.02_75)] font-bold text-sm">3</div>
               <div>
                 <p className="font-medium">Gemini CLI (optional)</p>
-                <CommandCard command="gemini" description="Follow the prompts to authenticate (Google account)." />
+                <CommandCard command="gemini" description="Follow the prompts to authenticate (Google account)." runLocation="vps" />
               </div>
             </div>
           </div>
@@ -250,6 +252,7 @@ export default function LaunchOnboardingPage() {
               <CommandCard
                 command={`ssh -i ~/.ssh/acfs_ed25519 ubuntu@${displayIP}`}
                 windowsCommand={`ssh -i $HOME\\.ssh\\acfs_ed25519 ubuntu@${displayIP}`}
+                runLocation="local"
               />
               <p className="text-sm text-muted-foreground">Open your terminal and SSH in.</p>
             </div>
@@ -262,14 +265,14 @@ export default function LaunchOnboardingPage() {
             <div className="space-y-2">
               <h3 className="font-medium">Resume or create a session</h3>
               <div className="space-y-2">
-                <CommandCard command="ntm list" description="See existing sessions" />
+                <CommandCard command="ntm list" description="See existing sessions" runLocation="vps" />
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
                 <div className="flex-1">
-                  <CommandCard command="ntm attach myproject" description="Resume a session" />
+                  <CommandCard command="ntm attach myproject" description="Resume a session" runLocation="vps" />
                 </div>
                 <div className="flex-1">
-                  <CommandCard command="ntm new myproject" description="Or create new" />
+                  <CommandCard command="ntm new myproject" description="Or create new" runLocation="vps" />
                 </div>
               </div>
             </div>
@@ -281,7 +284,7 @@ export default function LaunchOnboardingPage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Start coding with AI</h3>
-              <CommandCard command="cc" description="Launch Claude Code" />
+              <CommandCard command="cc" description="Launch Claude Code" runLocation="vps" />
             </div>
           </div>
 
@@ -303,7 +306,7 @@ export default function LaunchOnboardingPage() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <CommandCard command="exit" description="Disconnect from VPS" />
+                  <CommandCard command="exit" description="Disconnect from VPS" runLocation="vps" />
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -335,7 +338,7 @@ export default function LaunchOnboardingPage() {
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
             <h3 className="font-medium">1. Create a session for your project</h3>
-            <CommandCard command="ntm new my-awesome-app" />
+            <CommandCard command="ntm new my-awesome-app" runLocation="vps" />
             <p className="text-sm text-muted-foreground">
               This creates a persistent workspace named &quot;my-awesome-app&quot;.
             </p>
@@ -343,12 +346,12 @@ export default function LaunchOnboardingPage() {
 
           <div className="space-y-2">
             <h3 className="font-medium">2. Create and navigate to a project folder</h3>
-            <CommandCard command="mkdir ~/projects/my-awesome-app && cd ~/projects/my-awesome-app" />
+            <CommandCard command="mkdir ~/projects/my-awesome-app && cd ~/projects/my-awesome-app" runLocation="vps" />
           </div>
 
           <div className="space-y-2">
             <h3 className="font-medium">3. Start Claude and describe your project</h3>
-            <CommandCard command="cc" />
+            <CommandCard command="cc" runLocation="vps" />
             <p className="text-sm text-muted-foreground">
               Tell Claude what you want to build. For example:
             </p>
@@ -377,12 +380,12 @@ export default function LaunchOnboardingPage() {
             <p className="text-sm text-muted-foreground">
               Everything you create lives in <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/home/ubuntu</code> (or just <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">~</code>).
             </p>
-            <CommandCard command="cd ~" description="Go to your home folder" />
+            <CommandCard command="cd ~" description="Go to your home folder" runLocation="vps" />
           </div>
 
           <div className="space-y-2">
             <p className="font-medium">See what&apos;s here</p>
-            <CommandCard command="lsd" description="List files (with icons!)" />
+            <CommandCard command="lsd" description="List files (with icons!)" runLocation="vps" />
             <p className="text-sm text-muted-foreground">
               We installed <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">lsd</code> — a prettier version of <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">ls</code>.
             </p>
@@ -392,10 +395,10 @@ export default function LaunchOnboardingPage() {
             <p className="font-medium">Navigate into a folder</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <div className="flex-1">
-                <CommandCard command="cd projects" description="Enter a folder" />
+                <CommandCard command="cd projects" description="Enter a folder" runLocation="vps" />
               </div>
               <div className="flex-1">
-                <CommandCard command="cd .." description="Go back up" />
+                <CommandCard command="cd .." description="Go back up" runLocation="vps" />
               </div>
             </div>
           </div>
@@ -404,10 +407,10 @@ export default function LaunchOnboardingPage() {
             <p className="font-medium">Find files fast</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <div className="flex-1">
-                <CommandCard command='rg "search term"' description="Search file contents" />
+                <CommandCard command='rg "search term"' description="Search file contents" runLocation="vps" />
               </div>
               <div className="flex-1">
-                <CommandCard command="fd filename" description="Find files by name" />
+                <CommandCard command="fd filename" description="Find files by name" runLocation="vps" />
               </div>
             </div>
           </div>
@@ -438,7 +441,7 @@ export default function LaunchOnboardingPage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Create a project folder</h3>
-              <CommandCard command="mkdir ~/my-first-project && cd ~/my-first-project" />
+              <CommandCard command="mkdir ~/my-first-project && cd ~/my-first-project" runLocation="vps" />
             </div>
           </div>
 
@@ -448,7 +451,7 @@ export default function LaunchOnboardingPage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Authenticate Claude</h3>
-              <CommandCard command="claude" />
+              <CommandCard command="claude" runLocation="vps" />
               <p className="text-sm text-muted-foreground">
                 The terminal will display a URL. Copy it and open in your laptop&apos;s
                 browser to log in, then return to your terminal.
@@ -462,7 +465,7 @@ export default function LaunchOnboardingPage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Start Claude Code</h3>
-              <CommandCard command="cc" />
+              <CommandCard command="cc" runLocation="vps" />
               <p className="text-sm text-muted-foreground">
                 After authenticating, this launches Claude Code.
               </p>
@@ -534,13 +537,14 @@ export default function LaunchOnboardingPage() {
             <CommandCard
               command={`ssh -i ~/.ssh/acfs_ed25519 ubuntu@${displayIP}`}
               windowsCommand={`ssh -i $HOME\\.ssh\\acfs_ed25519 ubuntu@${displayIP}`}
+              runLocation="local"
             />
           </div>
 
           <div className="space-y-2">
             <h3 className="font-medium">3. Resume your session (if using NTM)</h3>
-            <CommandCard command="ntm list" description="See your sessions" />
-            <CommandCard command="ntm attach myproject" description="Resume a session" />
+            <CommandCard command="ntm list" description="See your sessions" runLocation="vps" />
+            <CommandCard command="ntm attach myproject" description="Resume a session" runLocation="vps" />
             <p className="text-sm text-muted-foreground mt-2">
               This brings back exactly where you left off — including any running Claude sessions!
             </p>
@@ -567,6 +571,24 @@ export default function LaunchOnboardingPage() {
             </p>
           </div>
         </details>
+
+        {/* Windows Terminal tip */}
+        <div className="mt-6 rounded-lg border border-[oklch(0.75_0.18_195/0.3)] bg-[oklch(0.75_0.18_195/0.1)] p-4">
+          <Link
+            href="/wizard/windows-terminal-setup"
+            className="flex items-start gap-3"
+          >
+            <Terminal className="mt-0.5 h-5 w-5 text-[oklch(0.75_0.18_195)]" />
+            <div>
+              <p className="font-medium text-foreground">
+                Windows User? Set up one-click VPS access
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Create a Windows Terminal profile to connect to your VPS with a single click →
+              </p>
+            </div>
+          </Link>
+        </div>
       </Card>
 
       {/* What you can do now */}
@@ -616,7 +638,7 @@ export default function LaunchOnboardingPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 For simple fixes, nano is already installed on your VPS:
               </p>
-              <CommandCard command="nano hello.py" description="Open a file in nano" />
+              <CommandCard command="nano hello.py" description="Open a file in nano" runLocation="vps" />
               <p className="mt-3 text-sm text-muted-foreground">Nano shortcuts:</p>
               <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-muted-foreground">
                 <li>

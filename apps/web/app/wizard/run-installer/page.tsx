@@ -113,6 +113,7 @@ export default function RunInstallerPage() {
         <CommandCard
           command={INSTALL_COMMAND}
           description="Agent Flywheel installer one-liner"
+          runLocation="vps"
           showCheckbox
           persistKey="run-flywheel-installer"
           className="border-2 border-primary/20"

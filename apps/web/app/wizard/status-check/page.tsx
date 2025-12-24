@@ -118,6 +118,44 @@ export default function StatusCheckPage() {
         </p>
       </div>
 
+      {/* Reconnection Reminder */}
+      <AlertCard variant="warning" icon={AlertCircle} title="Before running these commands">
+        <div className="space-y-2">
+          <p>
+            Make sure you&apos;re connected to your <strong>VPS</strong>, not running commands on your laptop!
+          </p>
+          <p className="text-sm">
+            If you&apos;re in PowerShell or Terminal on your laptop, first run your SSH command:
+          </p>
+          <code className="mt-1 block overflow-x-auto rounded bg-background/50 px-3 py-2 font-mono text-xs">
+            ssh -i ~/.ssh/acfs_ed25519 ubuntu@YOUR_VPS_IP
+          </code>
+          <p className="text-sm text-muted-foreground">
+            Once you see <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ubuntu@</code> in your prompt, you&apos;re ready.
+          </p>
+        </div>
+      </AlertCard>
+
+      {/* Common Mistake Warning */}
+      <AlertCard variant="error" icon={AlertCircle} title="Common Mistake: Claude Desktop vs Claude Code">
+        <div className="space-y-2">
+          <p>
+            <strong>Claude Code is NOT the Claude Desktop app</strong> you download to your computer.
+          </p>
+          <p className="text-sm">
+            Claude Code is a command-line tool that&apos;s already installed <strong>on your VPS</strong>.
+            To use it:
+          </p>
+          <ol className="list-decimal list-inside space-y-1 text-sm">
+            <li>SSH into your VPS first (using the command above)</li>
+            <li>Then run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">claude</code> or <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">cc</code> commands</li>
+          </ol>
+          <p className="text-sm text-muted-foreground">
+            If you&apos;re seeing &quot;command not found&quot; in PowerShell or Terminal on your laptop, you&apos;re in the wrong place!
+          </p>
+        </div>
+      </AlertCard>
+
       {/* Doctor command */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Run the doctor command</h2>
@@ -127,6 +165,7 @@ export default function StatusCheckPage() {
         <CommandCard
           command="acfs doctor"
           description="Run Agent Flywheel health check"
+          runLocation="vps"
           showCheckbox
           persistKey="flywheel-doctor"
         />
@@ -157,6 +196,7 @@ export default function StatusCheckPage() {
               key={i}
               command={check.command}
               description={check.description}
+              runLocation="vps"
             />
           ))}
         </div>
@@ -234,6 +274,7 @@ export default function StatusCheckPage() {
                     key={service.id}
                     command={service.postInstallCommand!}
                     description={`Log in to ${service.name}`}
+                    runLocation="vps"
                     showCheckbox
                     persistKey={`auth-${service.id}`}
                   />

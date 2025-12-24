@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck, Terminal } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
 import { AlertCard, OutputPreview } from "@/components/alert-card";
@@ -91,7 +92,7 @@ export default function VerifyKeyConnectionPage() {
         <p className="text-sm text-muted-foreground">
           Exit your current SSH session to return to your local terminal.
         </p>
-        <CommandCard command="exit" description="Close the current session" />
+        <CommandCard command="exit" description="Close the current session" runLocation="vps" />
       </div>
 
       {/* Step 2: Reconnect with key */}
@@ -104,6 +105,7 @@ export default function VerifyKeyConnectionPage() {
           command={sshKeyCommand}
           windowsCommand={sshKeyCommandWindows}
           description="Key-based login (no password)"
+          runLocation="local"
           showCheckbox
           persistKey="verify-key-connection"
         />
@@ -117,6 +119,24 @@ export default function VerifyKeyConnectionPage() {
         </div>
       </OutputPreview>
 
+      {/* Windows Terminal tip */}
+      <div className="rounded-xl border border-[oklch(0.75_0.18_195/0.3)] bg-[oklch(0.75_0.18_195/0.08)] p-4">
+        <Link
+          href={withCurrentSearch("/wizard/windows-terminal-setup")}
+          className="flex items-start gap-3"
+        >
+          <Terminal className="mt-0.5 h-5 w-5 text-[oklch(0.75_0.18_195)]" />
+          <div>
+            <p className="font-medium text-foreground">
+              Windows User? Set up one-click VPS access
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Create a Windows Terminal profile to connect to your VPS with a single click →
+            </p>
+          </div>
+        </Link>
+      </div>
+
       {/* Troubleshooting */}
       <div className="space-y-3">
         <h2 className="text-xl font-semibold">Troubleshooting</h2>
@@ -128,7 +148,7 @@ export default function VerifyKeyConnectionPage() {
           <AlertCard variant="warning" title="Permission denied (publickey)">
             Your key file permissions may be too open. Fix with:
             <div className="mt-2">
-              <CommandCard command="chmod 600 ~/.ssh/acfs_ed25519" />
+              <CommandCard command="chmod 600 ~/.ssh/acfs_ed25519" runLocation="local" />
             </div>
           </AlertCard>
           <AlertCard variant="warning" title="Connection refused">

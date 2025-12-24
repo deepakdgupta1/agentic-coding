@@ -108,7 +108,8 @@ export type WizardStep =
   | 'reconnect_ubuntu'
   | 'run_installer'
   | 'status_check'
-  | 'launch_onboarding';
+  | 'launch_onboarding'
+  | 'windows_terminal_setup';
 
 /**
  * Track wizard step views

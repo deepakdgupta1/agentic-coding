@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Terminal, CheckCircle2 } from "lucide-react";
+import { Check, Copy, Terminal, CheckCircle2, Server, Monitor } from "lucide-react";
 import { motion, AnimatePresence } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,6 +26,8 @@ export interface CommandCardProps {
   persistKey?: string;
   /** Callback when checkbox is checked */
   onComplete?: () => void;
+  /** Where the command should be run - "vps" or "local" (your computer) */
+  runLocation?: "vps" | "local";
   /** Additional class names */
   className?: string;
 }
@@ -54,6 +56,26 @@ function setCompletionInStorage(key: string, completed: boolean): void {
   safeSetItem(key, completed ? "true" : "false");
 }
 
+/**
+ * Badge showing whether a command runs on VPS or locally
+ */
+function LocationBadge({ location }: { location: "vps" | "local" }) {
+  if (location === "vps") {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.72_0.19_195/0.3)] bg-[oklch(0.72_0.19_195/0.12)] px-2 py-1 text-xs font-medium text-[oklch(0.72_0.19_195)]">
+        <Server className="h-3 w-3" aria-hidden="true" />
+        <span>Run on VPS</span>
+      </div>
+    );
+  }
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.78_0.16_75/0.3)] bg-[oklch(0.78_0.16_75/0.12)] px-2 py-1 text-xs font-medium text-[oklch(0.78_0.16_75)]">
+      <Monitor className="h-3 w-3" aria-hidden="true" />
+      <span>Run on your computer</span>
+    </div>
+  );
+}
+
 export function CommandCard({
   command,
   macCommand,
@@ -62,6 +84,7 @@ export function CommandCard({
   showCheckbox = false,
   persistKey,
   onComplete,
+  runLocation,
   className,
 }: CommandCardProps) {
   const [copied, setCopied] = useState(false);
@@ -152,10 +175,15 @@ export function CommandCard({
         className
       )}
     >
-      {/* Description */}
-      {description && (
+      {/* Description and Location Badge */}
+      {(description || runLocation) && (
         <div className="border-b border-border/30 px-4 py-3">
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {description && (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            )}
+            {runLocation && <LocationBadge location={runLocation} />}
+          </div>
         </div>
       )}
 
