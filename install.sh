@@ -1237,7 +1237,7 @@ install_asset() {
     fi
 
     # Security: Validate dest_path is under expected directories
-    local allowed_prefixes=("$ACFS_HOME" "$TARGET_HOME" "/data")
+    local allowed_prefixes=("$ACFS_HOME" "$TARGET_HOME" "/data" "/usr/local/bin")
     local valid_dest=false
     for prefix in "${allowed_prefixes[@]}"; do
         [[ -n "$prefix" ]] || continue
