@@ -80,6 +80,7 @@ export function createAuthChecks(overrides: Partial<AuthCheckDeps> = {}) {
       const output = deps.execSync(command, {
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5000,
       });
       return output.trim();
     } catch {

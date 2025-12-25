@@ -8,8 +8,19 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 
 // Environment variables for third-party services
 // Note: GA4 is handled by AnalyticsProvider to avoid duplicate scripts
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
-const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+const GTM_ID_RAW = process.env.NEXT_PUBLIC_GTM_ID;
+const CLARITY_PROJECT_ID_RAW = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+
+function isValidGtmId(value: unknown): value is string {
+  return typeof value === 'string' && /^GTM-[A-Z0-9]+$/.test(value);
+}
+
+function isValidClarityProjectId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-zA-Z0-9]+$/.test(value);
+}
+
+const GTM_ID = isValidGtmId(GTM_ID_RAW) ? GTM_ID_RAW : undefined;
+const CLARITY_PROJECT_ID = isValidClarityProjectId(CLARITY_PROJECT_ID_RAW) ? CLARITY_PROJECT_ID_RAW : undefined;
 // Only enable Vercel Analytics when explicitly configured (requires Vercel project config)
 const ENABLE_VERCEL_ANALYTICS = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === 'true';
 // Only enable Speed Insights when explicitly configured (requires Vercel Pro)
@@ -47,7 +58,7 @@ export function ThirdPartyScripts() {
               new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
               j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-              })(window,document,'script','dataLayer','${GTM_ID}');
+              })(window,document,'script','dataLayer',${JSON.stringify(GTM_ID)});
             `,
           }}
         />
@@ -64,7 +75,7 @@ export function ThirdPartyScripts() {
                 c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
                 t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
                 y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");
+              })(window, document, "clarity", "script", ${JSON.stringify(CLARITY_PROJECT_ID)});
             `,
           }}
         />

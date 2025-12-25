@@ -9,27 +9,79 @@
 
 set -euo pipefail
 
-# State file location (set during install)
-ACFS_STATE_FILE="${ACFS_STATE_FILE:-/var/lib/acfs/state.json}"
+# Optional override for state file location.
+# If unset, we auto-detect from common install locations.
+ACFS_STATE_FILE="${ACFS_STATE_FILE:-}"
 
-# Detect target user from state file or default to ubuntu
-detect_target_user() {
+is_valid_username() {
+    local username="$1"
+    [[ "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]
+}
+
+read_target_user_from_state_file() {
+    local state_file="$1"
     local target_user=""
 
-    if [[ -f "$ACFS_STATE_FILE" ]]; then
-        # Try jq first (faster and more reliable)
-        if command -v jq &>/dev/null; then
-            target_user="$(jq -r '.target_user // empty' "$ACFS_STATE_FILE" 2>/dev/null || true)"
-        fi
+    [[ -f "$state_file" ]] || return 1
 
-        # Fall back to sed if jq not available
-        if [[ -z "$target_user" ]]; then
-            target_user="$(sed -n 's/.*"target_user"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$ACFS_STATE_FILE" | head -n 1)"
-        fi
+    # Try jq first (faster and more reliable)
+    if command -v jq &>/dev/null; then
+        target_user="$(jq -r '.target_user // empty' "$state_file" 2>/dev/null || true)"
     fi
 
-    # Default to ubuntu if not found
-    echo "${target_user:-ubuntu}"
+    # Fall back to sed if jq not available / parse fails
+    if [[ -z "$target_user" ]]; then
+        target_user="$(sed -n 's/.*"target_user"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$state_file" | head -n 1)"
+    fi
+
+    if [[ -n "$target_user" ]] && is_valid_username "$target_user"; then
+        printf '%s' "$target_user"
+        return 0
+    fi
+
+    return 1
+}
+
+# Detect target user from state file(s) or default to ubuntu
+detect_target_user() {
+    local state_candidate
+
+    if [[ -n "${ACFS_STATE_FILE:-}" ]]; then
+        if read_target_user_from_state_file "$ACFS_STATE_FILE"; then
+            echo ""
+            return 0
+        fi
+        echo "ubuntu"
+        return 0
+    fi
+
+    # 1) Upgrade/resume state file (root-owned)
+    if read_target_user_from_state_file "/var/lib/acfs/state.json"; then
+        echo ""
+        return 0
+    fi
+
+    # 2) Current user's installed state (when invoked as the target user)
+    if read_target_user_from_state_file "$HOME/.acfs/state.json"; then
+        echo ""
+        return 0
+    fi
+
+    # 3) Common default target user
+    if read_target_user_from_state_file "/home/ubuntu/.acfs/state.json"; then
+        echo ""
+        return 0
+    fi
+
+    # 4) Scan for an installed state file under /home/*
+    for state_candidate in /home/*/.acfs/state.json; do
+        if read_target_user_from_state_file "$state_candidate"; then
+            echo ""
+            return 0
+        fi
+    done
+
+    echo "ubuntu"
 }
 
 # Find acfs installation for a user
@@ -64,7 +116,12 @@ main() {
     # Find the acfs binary
     if ! acfs_bin="$(find_acfs_bin "$target_user")"; then
         echo "Error: ACFS not found for user '$target_user'" >&2
-        echo "Expected at: /home/$target_user/.local/bin/acfs" >&2
+
+        local target_home
+        target_home="$(getent passwd "$target_user" 2>/dev/null | cut -d: -f6)" || true
+        target_home="${target_home:-/home/$target_user}"
+
+        echo "Expected at: $target_home/.local/bin/acfs (or $target_home/.acfs/bin/acfs)" >&2
         echo "" >&2
         echo "Try running as the target user:" >&2
         echo "  su - $target_user -c 'acfs $*'" >&2
