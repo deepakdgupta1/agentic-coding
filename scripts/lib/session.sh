@@ -286,17 +286,17 @@ sanitize_content() {
     # Apply core redaction patterns
     for pattern in "${REDACT_PATTERNS[@]}"; do
         # Use sed with extended regex for pattern replacement
-        result=$(echo "$result" | sed -E "s/${pattern}/[REDACTED]/gi" 2>/dev/null || echo "$result")
+        result=$(printf '%s' "$result" | sed -E "s/${pattern}/[REDACTED]/gI" 2>/dev/null || printf '%s' "$result")
     done
 
     # Apply optional patterns if enabled
     if [[ "${ACFS_SANITIZE_OPTIONAL:-0}" == "1" ]]; then
         for pattern in "${OPTIONAL_REDACT_PATTERNS[@]}"; do
-            result=$(echo "$result" | sed -E "s/${pattern}/[REDACTED]/gi" 2>/dev/null || echo "$result")
+            result=$(printf '%s' "$result" | sed -E "s/${pattern}/[REDACTED]/gI" 2>/dev/null || printf '%s' "$result")
         done
     fi
 
-    echo "$result"
+    printf '%s\n' "$result"
 }
 
 # Sanitize a session export JSON file in place
