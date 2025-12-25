@@ -26,7 +26,8 @@ interface AnalyticsProviderProps {
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const gaId = GA_MEASUREMENT_ID;
+  // Trim to remove any trailing newlines from env var (causes JS syntax errors)
+  const gaId = GA_MEASUREMENT_ID?.trim();
   const scrollDepthsReached = useRef<Set<number>>(new Set());
   const pageStartTime = useRef<number>(0);
   const timeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
