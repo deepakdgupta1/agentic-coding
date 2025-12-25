@@ -360,9 +360,9 @@ export default function LearnDashboard() {
             {nextLesson && (
               <motion.div
                 className="mt-4"
-                initial={{ opacity: 0, y: 10 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ ...springs.smooth, delay: 0.6 }}
+                transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.6 }}
               >
                 <Button asChild className="w-full sm:w-auto">
                   <Link href={`/learn/${nextLesson.slug}`}>
@@ -378,9 +378,9 @@ export default function LearnDashboard() {
         {/* Lessons grid */}
         <motion.div
           className="mb-8"
-          initial={{ opacity: 0 }}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ ...springs.smooth, delay: 0.3 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.3 }}
         >
           <h2 className="mb-4 text-xl font-semibold">All Lessons</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -397,6 +397,7 @@ export default function LearnDashboard() {
                   status={status}
                   index={index}
                   isSelected={accessibleIndex === selectedIndex}
+                  prefersReducedMotion={prefersReducedMotion}
                 />
               );
             })}
@@ -405,9 +406,9 @@ export default function LearnDashboard() {
 
         {/* Quick reference links */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springs.smooth, delay: 0.5 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.5 }}
         >
           <Card className="group relative overflow-hidden p-6 transition-all duration-300 hover:border-primary/30">
             {/* Subtle hover glow */}
@@ -443,10 +444,10 @@ export default function LearnDashboard() {
               ].map((item, index) => (
                 <motion.div
                   key={item.href}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...springs.smooth, delay: 0.6 + index * 0.05 }}
-                  whileHover={{ y: -2 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.6 + index * 0.05 }}
+                  whileHover={prefersReducedMotion ? undefined : { y: -2 }}
                 >
                   <Link
                     href={item.href}
@@ -469,9 +470,9 @@ export default function LearnDashboard() {
         {/* Footer */}
         <motion.div
           className="mt-12 pb-24 text-center text-sm text-muted-foreground sm:pb-0"
-          initial={{ opacity: 0 }}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ ...springs.smooth, delay: 0.8 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.8 }}
         >
           <p>
             Need to set up your VPS first?{" "}
@@ -486,9 +487,9 @@ export default function LearnDashboard() {
       {nextLesson && (
         <motion.div
           className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-background/95 p-4 backdrop-blur-lg sm:hidden"
-          initial={{ y: 100 }}
+          initial={prefersReducedMotion ? false : { y: 100 }}
           animate={{ y: 0 }}
-          transition={{ ...springs.smooth, delay: 0.5 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { ...springs.smooth, delay: 0.5 }}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">

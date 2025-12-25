@@ -14,7 +14,7 @@ import {
   Terminal,
   Wrench,
 } from "lucide-react";
-import { motion, AnimatePresence } from "@/components/motion";
+import { motion } from "@/components/motion";
 import { Card } from "@/components/ui/card";
 import { CommandCard } from "@/components/command-card";
 import { springs, staggerDelay } from "@/lib/design-tokens";
