@@ -18,7 +18,7 @@ import {
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { CommandCard, CodeBlock } from "@/components/command-card";
-import { motion, springs, staggerContainer, fadeUp, AnimatePresence } from "@/components/motion";
+import { motion, springs, staggerContainer, fadeUp } from "@/components/motion";
 import { backgrounds } from "@/lib/design-tokens";
 import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 
