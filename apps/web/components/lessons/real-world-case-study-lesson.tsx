@@ -164,7 +164,7 @@ Write it to PLAN_FOR_CASS_MEMORY_SYSTEM.md"`}
         </div>
 
         <Paragraph>
-          The resulting plan was <strong>5,500+ lines</strong> - a comprehensive
+          The resulting plan was <strong>5,600+ lines</strong> - a comprehensive
           blueprint covering architecture, data models, CLI commands, the
           reflection pipeline, storage, and implementation roadmap.
         </Paragraph>
@@ -371,7 +371,7 @@ Write it to PLAN_FOR_CASS_MEMORY_SYSTEM.md"`}
         delay={0.25}
       >
         <Paragraph>
-          A 5,500-line markdown file is great for humans, but agents need{" "}
+          A 5,600-line markdown file is great for humans, but agents need{" "}
           <Highlight>structured, trackable tasks</Highlight>. This is where
           beads comes in.
         </Paragraph>
@@ -829,7 +829,7 @@ function SynthesisResultCard() {
       </h4>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="text-sm text-white/70">
-          <span className="text-violet-400 font-semibold">5,500+</span> lines
+          <span className="text-violet-400 font-semibold">5,600+</span> lines
         </div>
         <div className="text-sm text-white/70">
           <span className="text-violet-400 font-semibold">11</span> major
