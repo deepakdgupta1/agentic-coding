@@ -131,10 +131,10 @@ Try updating directly:
 claude update
 
 # Codex
-bun install -g @openai/codex@latest
+bun install -g --trust @openai/codex@latest
 
 # Gemini
-bun install -g @google/gemini-cli@latest
+bun install -g --trust @google/gemini-cli@latest
 ```
 
 ### Shell tools won't update
