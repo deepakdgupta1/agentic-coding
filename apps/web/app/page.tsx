@@ -918,7 +918,7 @@ export default function HomePage() {
             GitHub
           </a>
           <Link
-            href="/learn/welcome"
+            href="/learn"
             className="hidden items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground sm:flex"
           >
             <BookOpen className="h-4 w-4" />
@@ -1091,7 +1091,7 @@ export default function HomePage() {
                   GitHub
                 </a>
                 <Link
-                  href="/learn/welcome"
+                  href="/learn"
                   className="transition-colors hover:text-foreground"
                 >
                   Learning Hub
