@@ -290,19 +290,30 @@ check_auth_status() {
             if ! command -v claude &>/dev/null; then
                 return 2
             fi
-            # Check for claude config
+            # Directory existence is not enough; require a real config file.
             if [[ -s "$HOME/.claude/config.json" || -s "$HOME/.config/claude/config.json" ]]; then
                 return 0
             fi
-            [[ -d "$HOME/.claude" ]] && return 0 || return 1
+            return 1
             ;;
         codex)
             if ! command -v codex &>/dev/null; then
                 return 2
             fi
-            # Codex stores auth in ~/.codex
+            # Codex stores auth in ~/.codex/auth.json (or $CODEX_HOME/auth.json).
+            # File existence alone isn't enough; check for an access token field.
             local codex_home="${CODEX_HOME:-$HOME/.codex}"
-            [[ -s "$codex_home/auth.json" ]] && return 0 || return 1
+            local auth_file="$codex_home/auth.json"
+            [[ -s "$auth_file" ]] || return 1
+
+            if command -v jq &>/dev/null; then
+                local token=""
+                token="$(jq -r '.access_token // .accessToken // empty' "$auth_file" 2>/dev/null || true)"
+                [[ -n "$token" ]] && return 0 || return 1
+            fi
+
+            # Basic grep fallback if jq is unavailable.
+            grep -Eq '"access(_token|Token)"[[:space:]]*:[[:space:]]*"[^"]+"' "$auth_file" && return 0 || return 1
             ;;
         gemini)
             if ! command -v gemini &>/dev/null; then
@@ -310,10 +321,11 @@ check_auth_status() {
             fi
             # Gemini CLI uses OAuth web login (like Claude Code and Codex CLI)
             # Users authenticate via `gemini` command which opens browser login
-            if [[ -s "$HOME/.config/gemini/credentials.json" || -d "$HOME/.config/gemini" ]]; then
+            # Directory existence is not enough - require actual credential files.
+            if [[ -s "$HOME/.config/gemini/credentials.json" ]]; then
                 return 0
             fi
-            if [[ -f "$HOME/.gemini/config" ]]; then
+            if [[ -s "$HOME/.gemini/config" ]]; then
                 return 0
             fi
             return 1
@@ -352,7 +364,8 @@ check_auth_status() {
             if [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
                 return 0
             fi
-            if [[ -s "$HOME/.config/wrangler/config/default.toml" || -s "$HOME/.wrangler/config/default.toml" ]]; then
+            # Prefer the CLI check when available (more reliable than config file presence).
+            if wrangler whoami &>/dev/null; then
                 return 0
             fi
             return 1
