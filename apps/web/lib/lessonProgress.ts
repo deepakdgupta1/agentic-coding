@@ -164,19 +164,27 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 17,
+    slug: "prompt-engineering",
+    title: "The Art of Agent Direction",
+    description: "Prompting patterns that produce excellent results",
+    duration: "12 min",
+    file: "17_prompt_engineering.md",
+  },
+  {
+    id: 18,
     slug: "real-world-case-study",
     title: "Case Study: cass-memory",
     description: "Build a complex project in one day with agent swarms",
     duration: "15 min",
-    file: "17_real_world_case_study.md",
+    file: "18_real_world_case_study.md",
   },
   {
-    id: 18,
+    id: 19,
     slug: "slb-case-study",
     title: "Case Study: SLB",
     description: "From tweet to working tool in one evening",
     duration: "12 min",
-    file: "18_slb_case_study.md",
+    file: "19_slb_case_study.md",
   },
 ];
 

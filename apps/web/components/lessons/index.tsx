@@ -17,6 +17,7 @@ import { CassLesson } from "./cass-lesson";
 import { CmLesson } from "./cm-lesson";
 import { BeadsLesson } from "./beads-lesson";
 import { SafetyToolsLesson } from "./safety-tools-lesson";
+import { PromptEngineeringLesson } from "./prompt-engineering-lesson";
 import { RealWorldCaseStudyLesson } from "./real-world-case-study-lesson";
 import { SlbCaseStudyLesson } from "./slb-case-study-lesson";
 
@@ -58,6 +59,8 @@ export function renderLessonComponent(slug: string): React.ReactNode | null {
       return <BeadsLesson />;
     case "safety-tools":
       return <SafetyToolsLesson />;
+    case "prompt-engineering":
+      return <PromptEngineeringLesson />;
     case "real-world-case-study":
       return <RealWorldCaseStudyLesson />;
     case "slb-case-study":
@@ -86,6 +89,7 @@ export {
   CmLesson,
   BeadsLesson,
   SafetyToolsLesson,
+  PromptEngineeringLesson,
   RealWorldCaseStudyLesson,
   SlbCaseStudyLesson,
 };
