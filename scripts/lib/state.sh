@@ -226,32 +226,29 @@ state_write_atomic() {
         return 1
     fi
 
-    # Create temp file in same directory (ensures same filesystem for atomic rename)
-    # Use mktemp with template for unique, secure temp file
+    # Create temp file in same directory (ensures same filesystem for atomic rename).
+    # SECURITY: Never fall back to predictable temp paths (symlink/clobber risk under sudo/root).
     temp_file="$(mktemp "${target_dir}/.state.XXXXXX.tmp" 2>/dev/null)" || {
-        # Fallback to PID-based naming if mktemp fails
-        temp_file="${file_path}.tmp.$$.$RANDOM"
+        if [[ ! -w "$target_dir" ]]; then
+            declare -f log_error &>/dev/null && log_error "state_write_atomic: permission denied creating temp file in $target_dir"
+            return 2
+        fi
+        declare -f log_error &>/dev/null && log_error "state_write_atomic: failed to create temp file in $target_dir"
+        return 1
     }
 
     # Write content to temp file
     # Using printf for more reliable output than echo
     if ! printf '%s\n' "$content" > "$temp_file" 2>/dev/null; then
         local write_err=$?
-        rm -f "$temp_file" 2>/dev/null
+        rm -f "$temp_file" 2>/dev/null || true
 
-        # Detect disk full condition
-        # ENOSPC is error code 28, but bash may not preserve it
-        if [[ $write_err -ne 0 ]]; then
-            # Check if we can write a small test file
-            if ! echo "test" > "${target_dir}/.disktest.$$" 2>/dev/null; then
-                rm -f "${target_dir}/.disktest.$$" 2>/dev/null
-                declare -f log_error &>/dev/null && log_error "state_write_atomic: disk full or write error"
-                return 1
-            fi
-            rm -f "${target_dir}/.disktest.$$" 2>/dev/null
+        if [[ ! -w "$target_dir" ]]; then
+            declare -f log_error &>/dev/null && log_error "state_write_atomic: permission denied writing temp file in $target_dir"
+            return 2
         fi
 
-        declare -f log_error &>/dev/null && log_error "state_write_atomic: failed to write temp file"
+        declare -f log_error &>/dev/null && log_error "state_write_atomic: failed to write temp file (error $write_err)"
         return 1
     fi
 

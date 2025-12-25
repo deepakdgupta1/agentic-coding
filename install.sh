@@ -1212,7 +1212,7 @@ bootstrap_repo_archive() {
 
     local manifest_sha expected_sha
     manifest_sha="$(acfs_calculate_file_sha256 "$tmp_dir/acfs.manifest.yaml")" || return 1
-    expected_sha="$(grep -E '^ACFS_MANIFEST_SHA256=' "$tmp_dir/scripts/generated/manifest_index.sh" | head -n 1 | cut -d'=' -f2 | tr -d '\"')"
+    expected_sha="$(grep -E '^ACFS_MANIFEST_SHA256=' "$tmp_dir/scripts/generated/manifest_index.sh" | head -n 1 | cut -d'=' -f2 | tr -d '\"' || true)"
 
     if [[ -z "$expected_sha" ]]; then
         log_error "Bootstrap manifest index missing ACFS_MANIFEST_SHA256"
