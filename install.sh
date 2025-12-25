@@ -1254,11 +1254,26 @@ install_asset() {
     fi
 
     if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "$ACFS_BOOTSTRAP_DIR/$rel_path" ]]; then
-        cp "$ACFS_BOOTSTRAP_DIR/$rel_path" "$dest_path"
+        if ! cp "$ACFS_BOOTSTRAP_DIR/$rel_path" "$dest_path"; then
+            log_error "install_asset: Failed to copy from bootstrap: $rel_path"
+            return 1
+        fi
     elif [[ -f "$SCRIPT_DIR/$rel_path" ]]; then
-        cp "$SCRIPT_DIR/$rel_path" "$dest_path"
+        if ! cp "$SCRIPT_DIR/$rel_path" "$dest_path"; then
+            log_error "install_asset: Failed to copy from script dir: $rel_path"
+            return 1
+        fi
     else
-        acfs_curl -o "$dest_path" "$ACFS_RAW/$rel_path"
+        if ! acfs_curl -o "$dest_path" "$ACFS_RAW/$rel_path"; then
+            log_error "install_asset: Failed to download: $rel_path"
+            return 1
+        fi
+    fi
+
+    # Verify the file was actually created
+    if [[ ! -f "$dest_path" ]]; then
+        log_error "install_asset: File not created: $dest_path"
+        return 1
     fi
 }
 
@@ -2071,8 +2086,9 @@ setup_shell() {
         log_detail "Oh My Zsh already installed at $omz_dir"
     elif [[ -d "/root/.oh-my-zsh" ]] && [[ "$(whoami)" == "root" ]]; then
         # If running as root and oh-my-zsh exists in /root, copy it to target
+        # Use -rL to dereference symlinks (avoids broken symlinks pointing to /root/)
         log_detail "Oh My Zsh found in /root, copying to $TARGET_USER"
-        $SUDO cp -r /root/.oh-my-zsh "$omz_dir"
+        $SUDO cp -rL /root/.oh-my-zsh "$omz_dir"
         $SUDO chown -R "$TARGET_USER:$TARGET_USER" "$omz_dir"
         omz_installed=true
     elif [[ -f "$TARGET_HOME/.zshrc" ]] && grep -q "oh-my-zsh" "$TARGET_HOME/.zshrc" 2>/dev/null; then

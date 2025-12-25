@@ -384,7 +384,7 @@ setup_claude_git_guard() {
     local guard_path_py="$hooks_dir/git_safety_guard.py"
     local guard_path_sh="$hooks_dir/git_safety_guard.sh"
     local settings_file="$settings_dir/settings.json"
-    local source_py="$HOME/.acfs/claude/hooks/git_safety_guard.py"
+    local source_py="$TARGET_HOME/.acfs/claude/hooks/git_safety_guard.py"
 
     if [[ "$SERVICES_SETUP_NONINTERACTIVE" != "true" ]] && { [[ -t 0 ]] || [[ -r /dev/tty ]]; }; then
         gum_box "Claude Git Safety Guard" "This installs a Claude Code PreToolUse hook that blocks destructive git/filesystem commands before they run.
