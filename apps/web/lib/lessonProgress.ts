@@ -146,6 +146,14 @@ export const LESSONS: Lesson[] = [
     duration: "6 min",
     file: "14_safety_tools.md",
   },
+  {
+    id: 15,
+    slug: "real-world-case-study",
+    title: "Real-World Case Study",
+    description: "Build a complex project in one day with agent swarms",
+    duration: "15 min",
+    file: "15_real_world_case_study.md",
+  },
 ];
 
 /** Total number of lessons */
