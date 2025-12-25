@@ -131,17 +131,20 @@ function CategoryChip({
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={springs.snappy}
+      className={`min-h-[44px] rounded-full border px-4 py-2 text-sm transition-colors ${
         isSelected
           ? "border-primary/40 bg-primary/10 text-primary"
           : "border-border/50 bg-card/40 text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
       }`}
     >
       {label}
-    </button>
+    </motion.button>
   );
 }
 
@@ -191,40 +194,53 @@ export default function GlossaryPage() {
       {/* Background effects */}
       <div className="pointer-events-none fixed inset-0 bg-gradient-cosmic opacity-50" />
       <div className="pointer-events-none fixed inset-0 bg-grid-pattern opacity-20" />
+      {/* Floating orbs - hidden on mobile for performance */}
+      <div className="pointer-events-none fixed -left-40 top-1/4 hidden h-80 w-80 rounded-full bg-[oklch(0.75_0.18_195/0.08)] blur-[100px] sm:block" />
+      <div className="pointer-events-none fixed -right-40 bottom-1/3 hidden h-80 w-80 rounded-full bg-[oklch(0.7_0.2_330/0.08)] blur-[100px] sm:block" />
 
       <div className="relative mx-auto max-w-4xl px-6 py-8 md:px-12 md:py-12">
-        {/* Header */}
+        {/* Header - 48px touch targets */}
         <div className="mb-8 flex items-center justify-between">
           <Link
             href="/learn"
-            className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            className="flex min-h-[48px] items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm">Learning Hub</span>
           </Link>
           <Link
             href="/"
-            className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            className="flex min-h-[48px] items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
           >
             <Home className="h-4 w-4" />
             <span className="text-sm">Home</span>
           </Link>
         </div>
 
-        {/* Hero */}
-        <div className="mb-10 text-center">
-          <div className="mb-4 flex justify-center">
+        {/* Hero with animation */}
+        <motion.div
+          ref={heroRef as React.RefObject<HTMLDivElement>}
+          className="mb-10 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={springs.smooth}
+        >
+          <motion.div
+            className="mb-4 flex justify-center"
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            transition={springs.snappy}
+          >
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 shadow-lg shadow-primary/20">
               <BookOpen className="h-8 w-8 text-primary" />
             </div>
-          </div>
+          </motion.div>
           <h1 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
             Glossary
           </h1>
           <p className="mx-auto max-w-xl text-lg text-muted-foreground">
             Every term used throughout ACFS, explained in plain English.
           </p>
-        </div>
+        </motion.div>
 
         {/* Search */}
         <div className="relative mb-6">
@@ -265,27 +281,41 @@ export default function GlossaryPage() {
           terms.
         </p>
 
-        {/* Terms */}
-        <div className="space-y-4">
+        {/* Terms with animation */}
+        <motion.div
+          ref={contentRef as React.RefObject<HTMLDivElement>}
+          className="space-y-4"
+          initial="hidden"
+          animate={contentInView ? "visible" : "hidden"}
+          variants={staggerContainer}
+        >
           {filteredTerms.length > 0 ? (
             groupedTerms.map(([letter, terms]) => (
               <div key={letter} className="space-y-4">
-                <div className="sticky top-16 z-10 rounded-xl border border-border/50 bg-background/70 px-4 py-2 backdrop-blur-sm">
+                <motion.div
+                  className="sticky top-16 z-10 rounded-xl border border-border/50 bg-background/70 px-4 py-2 backdrop-blur-sm"
+                  variants={fadeUp}
+                >
                   <span className="font-mono text-sm font-bold text-primary">
                     {letter}
                   </span>
-                </div>
+                </motion.div>
                 {terms.map((term) => {
                   const anchorId = toAnchorId(term.term);
                   const inferredCategory = categorizeTerm(term);
                   const categoryMeta = CATEGORY_META.find((c) => c.id === inferredCategory);
 
                   return (
-                    <Card
+                    <motion.div
                       key={term.term}
-                      id={anchorId}
-                      className="border-border/50 bg-card/50 p-5 backdrop-blur-sm scroll-mt-28"
+                      variants={fadeUp}
+                      whileHover={{ y: -2, boxShadow: "0 10px 30px -10px oklch(0.75 0.18 195 / 0.1)" }}
+                      transition={springs.snappy}
                     >
+                      <Card
+                        id={anchorId}
+                        className="border-border/50 bg-card/50 p-5 backdrop-blur-sm scroll-mt-28 transition-colors hover:border-primary/20"
+                      >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -360,19 +390,42 @@ export default function GlossaryPage() {
                         </div>
                       </details>
                     </Card>
+                    </motion.div>
                   );
                 })}
               </div>
             ))
           ) : (
-            <div className="py-12 text-center">
-              <Search className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-              <p className="text-muted-foreground">
-                No terms match your search.
+            <motion.div
+              className="py-16 text-center"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={springs.smooth}
+            >
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-muted/30">
+                <FileQuestion className="h-12 w-12 text-muted-foreground/50" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                No terms found
+              </h3>
+              <p className="mx-auto max-w-sm text-muted-foreground">
+                Try adjusting your search or category filter to find what you&apos;re looking for.
               </p>
-            </div>
+              <motion.button
+                onClick={() => {
+                  setSearchQuery("");
+                  setCategory("all");
+                }}
+                className="mt-6 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springs.snappy}
+              >
+                Clear filters
+              </motion.button>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
