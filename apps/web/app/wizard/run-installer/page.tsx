@@ -113,9 +113,9 @@ export default function RunInstallerPage() {
           </p>
           <OutputPreview title="You'll see something like:" className="my-3">
             <div className="space-y-1">
-              <p className="text-muted-foreground">╔══════════════════════════════════════════════════════════════╗</p>
-              <p className="text-muted-foreground">║  SSH Key Setup                                               ║</p>
-              <p className="text-muted-foreground">╚══════════════════════════════════════════════════════════════╝</p>
+              <p className="text-muted-foreground">╔════════════════════════════════╗</p>
+              <p className="text-muted-foreground">║  SSH Key Setup                 ║</p>
+              <p className="text-muted-foreground">╚════════════════════════════════╝</p>
               <p className="text-[oklch(0.78_0.16_75)]">Paste your public key: <span className="animate-pulse">_</span></p>
             </div>
           </OutputPreview>

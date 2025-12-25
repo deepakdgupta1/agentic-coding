@@ -132,7 +132,7 @@ export function OutputPreview({
           </span>
         </div>
       )}
-      <div className="rounded-lg bg-[oklch(0.08_0.015_260)] p-3 font-mono text-sm">
+      <div className="overflow-x-auto rounded-lg bg-[oklch(0.08_0.015_260)] p-3 font-mono text-sm">
         {children}
       </div>
     </div>
