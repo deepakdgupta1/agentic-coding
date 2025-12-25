@@ -250,6 +250,14 @@ acfs() {
         return 1
       fi
       ;;
+    session|sessions)
+      if [[ -f "$HOME/.acfs/scripts/lib/doctor.sh" ]]; then
+        bash "$HOME/.acfs/scripts/lib/doctor.sh" session "$@"
+      else
+        echo "Error: doctor.sh not found"
+        return 1
+      fi
+      ;;
     update)
       if [[ -f "$HOME/.acfs/scripts/lib/update.sh" ]]; then
         bash "$HOME/.acfs/scripts/lib/update.sh" "$@"
@@ -309,6 +317,7 @@ acfs() {
       echo "  continue        View installation progress (after Ubuntu upgrade)"
       echo "  services-setup  Configure AI agents and cloud services"
       echo "  doctor          Check system health and tool status"
+      echo "  session         List/export/import agent sessions (cass)"
       echo "  update          Update ACFS tools to latest versions"
       echo "  version         Show ACFS version"
       echo "  help            Show this help message"
