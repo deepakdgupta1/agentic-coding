@@ -108,7 +108,7 @@ export function BeadsLesson() {
                 description: "Detailed view with dependencies",
               },
               {
-                command: 'bd create --title="..." --type=task --priority=2',
+                command: 'bd create "..." -t task -p 2',
                 description: "Create a new issue",
               },
               {
@@ -317,10 +317,10 @@ $ bd ready
 $ bv --robot-triage | jq '.quick_ref'
 
 # Create a task
-$ bd create --title="Add login page" --type=feature --priority=2
+$ bd create "Add login page" -t feature -p 2
 
 # Start working on it
-$ bd update beads-1 --status=in_progress
+$ bd update bd-1 --status=in_progress
 
 # Sync when done
 $ bd sync`}
