@@ -469,7 +469,7 @@ modules:
       command: "command -v claude"
     install:
       # Official package (installs `claude` into ~/.bun/bin)
-      - ~/.bun/bin/bun install -g --trust @anthropic-ai/claude-code@stable
+      - ~/.bun/bin/bun add -g --trust @anthropic-ai/claude-code@stable
     verify:
       - claude --version || claude --help
     notes:
@@ -491,7 +491,7 @@ modules:
     install:
       # Install via bun, then create wrapper that uses bun as runtime (faster than node)
       # Use --trust to allow postinstall scripts
-      - ~/.bun/bin/bun install -g --trust @openai/codex@latest
+      - ~/.bun/bin/bun add -g --trust @openai/codex@latest
       - |
         mkdir -p ~/.local/bin
         cat > ~/.local/bin/codex << 'WRAPPER'
@@ -518,7 +518,7 @@ modules:
     install:
       # Install via bun, then create wrapper that uses bun as runtime (faster than node)
       # Use --trust to allow postinstall scripts
-      - ~/.bun/bin/bun install -g --trust @google/gemini-cli@latest
+      - ~/.bun/bin/bun add -g --trust @google/gemini-cli@latest
       - |
         mkdir -p ~/.local/bin
         cat > ~/.local/bin/gemini << 'WRAPPER'
@@ -599,7 +599,7 @@ modules:
       command: "command -v wrangler"
     install:
       # Use --trust to allow postinstall scripts (downloads native binary)
-      - ~/.bun/bin/bun install -g --trust wrangler
+      - ~/.bun/bin/bun add -g --trust wrangler
     verify:
       - wrangler --version
 
@@ -618,7 +618,7 @@ modules:
       command: "command -v supabase"
     install:
       # Use --trust to allow postinstall scripts (downloads native binary)
-      - ~/.bun/bin/bun install -g --trust supabase
+      - ~/.bun/bin/bun add -g --trust supabase
     verify:
       - supabase --version
 
@@ -637,7 +637,7 @@ modules:
       command: "command -v vercel"
     install:
       # Use --trust to allow postinstall scripts (downloads native binary)
-      - ~/.bun/bin/bun install -g --trust vercel
+      - ~/.bun/bin/bun add -g --trust vercel
     verify:
       - vercel --version
 

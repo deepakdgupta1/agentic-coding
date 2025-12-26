@@ -139,7 +139,7 @@ alias install='sudo apt install'
 alias search='apt search'
 
 # Update agent CLIs
-alias uca='claude update; bun install -g --trust @openai/codex@latest; bun install -g --trust @google/gemini-cli@latest'
+alias uca='claude update; bun add -g --trust @openai/codex@latest; bun add -g --trust @google/gemini-cli@latest'
 
 # --- Custom functions ---
 mkcd() { mkdir -p "$1" && cd "$1" || return; }

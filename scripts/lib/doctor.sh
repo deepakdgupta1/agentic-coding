@@ -693,8 +693,8 @@ check_agents() {
     section "Agents"
 
     check_command "agent.claude" "Claude Code" "claude"
-    check_command "agent.codex" "Codex CLI" "codex" "bun install -g --trust @openai/codex@latest"
-    check_command "agent.gemini" "Gemini CLI" "gemini" "bun install -g --trust @google/gemini-cli@latest"
+    check_command "agent.codex" "Codex CLI" "codex" "bun add -g --trust @openai/codex@latest"
+    check_command "agent.gemini" "Gemini CLI" "gemini" "bun add -g --trust @google/gemini-cli@latest"
 
     # Check aliases are defined in the zshrc
     if grep -q "^alias cc=" ~/.acfs/zsh/acfs.zshrc 2>/dev/null; then
@@ -801,9 +801,9 @@ check_cloud() {
 
     check_optional_command "cloud.vault" "Vault" "vault"
     check_optional_command "cloud.postgres" "PostgreSQL" "psql"
-    check_optional_command "cloud.wrangler" "Wrangler" "wrangler" "bun install -g --trust wrangler"
-    check_optional_command "cloud.supabase" "Supabase CLI" "supabase" "bun install -g --trust supabase"
-    check_optional_command "cloud.vercel" "Vercel CLI" "vercel" "bun install -g --trust vercel"
+    check_optional_command "cloud.wrangler" "Wrangler" "wrangler" "bun add -g --trust wrangler"
+    check_optional_command "cloud.supabase" "Supabase CLI" "supabase" "bun add -g --trust supabase"
+    check_optional_command "cloud.vercel" "Vercel CLI" "vercel" "bun add -g --trust vercel"
 
     # Tailscale VPN (bt5)
     if command -v tailscale &>/dev/null; then
@@ -1060,13 +1060,13 @@ deep_check_agent_auth() {
 check_claude_auth() {
     # Skip if not installed
     if ! command -v claude &>/dev/null; then
-        check "deep.agent.claude_auth" "Claude Code" "warn" "not installed" "bun install -g --trust @anthropic-ai/claude-code"
+        check "deep.agent.claude_auth" "Claude Code" "warn" "not installed" "bun add -g --trust @anthropic-ai/claude-code"
         return
     fi
 
     # Check if binary works
     if ! claude --version &>/dev/null; then
-        check "deep.agent.claude_auth" "Claude Code auth" "fail" "binary error" "Reinstall: bun install -g --trust @anthropic-ai/claude-code"
+        check "deep.agent.claude_auth" "Claude Code auth" "fail" "binary error" "Reinstall: bun add -g --trust @anthropic-ai/claude-code"
         return
     fi
 
@@ -1094,13 +1094,13 @@ check_claude_auth() {
 check_codex_auth() {
     # Skip if not installed
     if ! command -v codex &>/dev/null; then
-        check "deep.agent.codex_auth" "Codex CLI" "warn" "not installed" "bun install -g --trust @openai/codex@latest"
+        check "deep.agent.codex_auth" "Codex CLI" "warn" "not installed" "bun add -g --trust @openai/codex@latest"
         return
     fi
 
     # Check if binary works
     if ! codex --version &>/dev/null; then
-        check "deep.agent.codex_auth" "Codex CLI auth" "fail" "binary error" "Reinstall: bun install -g --trust @openai/codex@latest"
+        check "deep.agent.codex_auth" "Codex CLI auth" "fail" "binary error" "Reinstall: bun add -g --trust @openai/codex@latest"
         return
     fi
 
@@ -1153,13 +1153,13 @@ check_codex_auth() {
 check_gemini_auth() {
     # Skip if not installed
     if ! command -v gemini &>/dev/null; then
-        check "deep.agent.gemini_auth" "Gemini CLI" "warn" "not installed" "bun install -g --trust @google/gemini-cli@latest"
+        check "deep.agent.gemini_auth" "Gemini CLI" "warn" "not installed" "bun add -g --trust @google/gemini-cli@latest"
         return
     fi
 
     # Check if binary works
     if ! gemini --version &>/dev/null; then
-        check "deep.agent.gemini_auth" "Gemini CLI auth" "fail" "binary error" "Reinstall: bun install -g --trust @google/gemini-cli@latest"
+        check "deep.agent.gemini_auth" "Gemini CLI auth" "fail" "binary error" "Reinstall: bun add -g --trust @google/gemini-cli@latest"
         return
     fi
 
@@ -1333,7 +1333,7 @@ check_gh_auth() {
 # Enhanced: Caching and timeout support (bead lz1)
 check_wrangler_auth() {
     if ! command -v wrangler &>/dev/null; then
-        check "deep.cloud.wrangler_auth" "Wrangler (Cloudflare)" "warn" "not installed" "bun install -g --trust wrangler"
+        check "deep.cloud.wrangler_auth" "Wrangler (Cloudflare)" "warn" "not installed" "bun add -g --trust wrangler"
         return
     fi
 
@@ -1369,13 +1369,13 @@ check_wrangler_auth() {
 # Related: bead azw
 check_supabase_auth() {
     if ! command -v supabase &>/dev/null; then
-        check "deep.cloud.supabase" "Supabase CLI" "warn" "not installed" "bun install -g --trust supabase"
+        check "deep.cloud.supabase" "Supabase CLI" "warn" "not installed" "bun add -g --trust supabase"
         return
     fi
 
     # Check if binary works
     if ! timeout 5 supabase --version &>/dev/null; then
-        check "deep.cloud.supabase" "Supabase CLI" "fail" "binary error" "Reinstall: bun install -g --trust supabase"
+        check "deep.cloud.supabase" "Supabase CLI" "fail" "binary error" "Reinstall: bun add -g --trust supabase"
         return
     fi
 
@@ -1402,7 +1402,7 @@ check_supabase_auth() {
 # Enhanced: Caching and timeout support (bead lz1)
 check_vercel_auth() {
     if ! command -v vercel &>/dev/null; then
-        check "deep.cloud.vercel_auth" "Vercel CLI" "warn" "not installed" "bun install -g --trust vercel"
+        check "deep.cloud.vercel_auth" "Vercel CLI" "warn" "not installed" "bun add -g --trust vercel"
         return
     fi
 

@@ -69,13 +69,13 @@ install_agents_claude() {
     log_step "Installing agents.claude"
 
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @anthropic-ai/claude-code@stable (target_user)"
+        log_info "dry-run: install: ~/.bun/bin/bun add -g --trust @anthropic-ai/claude-code@stable (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CLAUDE'
-~/.bun/bin/bun install -g --trust @anthropic-ai/claude-code@stable
+~/.bun/bin/bun add -g --trust @anthropic-ai/claude-code@stable
 INSTALL_AGENTS_CLAUDE
         then
-            log_error "agents.claude: install command failed: ~/.bun/bin/bun install -g --trust @anthropic-ai/claude-code@stable"
+            log_error "agents.claude: install command failed: ~/.bun/bin/bun add -g --trust @anthropic-ai/claude-code@stable"
             return 1
         fi
     fi
@@ -103,13 +103,13 @@ install_agents_codex() {
     log_step "Installing agents.codex"
 
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @openai/codex@latest (target_user)"
+        log_info "dry-run: install: ~/.bun/bin/bun add -g --trust @openai/codex@latest (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CODEX'
-~/.bun/bin/bun install -g --trust @openai/codex@latest
+~/.bun/bin/bun add -g --trust @openai/codex@latest
 INSTALL_AGENTS_CODEX
         then
-            log_error "agents.codex: install command failed: ~/.bun/bin/bun install -g --trust @openai/codex@latest"
+            log_error "agents.codex: install command failed: ~/.bun/bin/bun add -g --trust @openai/codex@latest"
             return 1
         fi
     fi
@@ -153,13 +153,13 @@ install_agents_gemini() {
     log_step "Installing agents.gemini"
 
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @google/gemini-cli@latest (target_user)"
+        log_info "dry-run: install: ~/.bun/bin/bun add -g --trust @google/gemini-cli@latest (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_GEMINI'
-~/.bun/bin/bun install -g --trust @google/gemini-cli@latest
+~/.bun/bin/bun add -g --trust @google/gemini-cli@latest
 INSTALL_AGENTS_GEMINI
         then
-            log_error "agents.gemini: install command failed: ~/.bun/bin/bun install -g --trust @google/gemini-cli@latest"
+            log_error "agents.gemini: install command failed: ~/.bun/bin/bun add -g --trust @google/gemini-cli@latest"
             return 1
         fi
     fi

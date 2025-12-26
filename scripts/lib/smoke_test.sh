@@ -196,7 +196,7 @@ _check_agents() {
         _smoke_warn "Missing agents: ${missing[*]}" "May need manual installation"
         return 0
     else
-        _smoke_fail "Agents: none found" "bun install -g @openai/codex @google/gemini-cli"
+        _smoke_fail "Agents: none found" "bun add -g @openai/codex @google/gemini-cli"
         return 1
     fi
 }

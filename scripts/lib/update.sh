@@ -1259,9 +1259,9 @@ WHAT EACH CATEGORY UPDATES:
   shell:    Oh-My-Zsh, Powerlevel10k, zsh plugins (git pull)
             Atuin, Zoxide (reinstall from upstream)
   agents:   Claude Code (claude update)
-            Codex CLI (bun install -g @openai/codex@latest)
-            Gemini CLI (bun install -g @google/gemini-cli@latest)
-  cloud:    Wrangler, Supabase CLI, Vercel CLI (bun install -g @latest)
+            Codex CLI (bun add -g @openai/codex@latest)
+            Gemini CLI (bun add -g @google/gemini-cli@latest)
+  cloud:    Wrangler, Supabase CLI, Vercel CLI (bun add -g @latest)
   runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update), Go (apt-managed)
   stack:    NTM, UBS, BV, CASS, CM, CAAM, SLB (re-run upstream installers)
 
@@ -1281,7 +1281,7 @@ TROUBLESHOOTING:
 
   - If an agent update fails: try running the update command directly:
     claude update
-    bun install -g @openai/codex@latest
+    bun add -g @openai/codex@latest
 
   - If shell tools fail to update: check git remote access:
     git -C ~/.oh-my-zsh remote -v
