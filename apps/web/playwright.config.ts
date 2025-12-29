@@ -1,10 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
 
 /**
  * Playwright configuration for Agent Flywheel web e2e testing.
  * @see https://playwright.dev/docs/test-configuration
  */
 const isCI = !!process.env.CI;
+
+const DEFAULT_LOCAL_WORKERS = 4;
 
 const DEFAULT_PORT = 3000;
 const parsedPort = Number.parseInt(process.env.PW_PORT || process.env.PORT || "", 10);
@@ -14,6 +17,28 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${port}`;
 
 // Skip local webServer when testing against external URL (e.g., production)
 const isExternalUrl = !!process.env.PLAYWRIGHT_BASE_URL;
+
+const parsePositiveInt = (raw: string | undefined): number | undefined => {
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+const resolvedWorkers = (() => {
+  if (isCI) return 1;
+
+  // Allow local override for faster/slower runs.
+  const envWorkers = parsePositiveInt(process.env.PW_WORKERS);
+  if (envWorkers !== undefined) return envWorkers;
+
+  // Default local runs to a small pool to avoid overloading a single Next.js server
+  // (which can cause intermittent console/page errors in highly-parallel suites).
+  const available =
+    typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
+  const safeAvailable = Number.isFinite(available) && available > 0 ? available : DEFAULT_LOCAL_WORKERS;
+
+  return Math.min(DEFAULT_LOCAL_WORKERS, safeAvailable);
+})();
 
 const webServerCommand = (() => {
   // Default to production server for stability (matches CI behavior).
@@ -29,7 +54,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: resolvedWorkers,
   reporter: process.env.CI ? "github" : "html",
   // Increase timeout for CI environments
   timeout: process.env.CI ? 60000 : 30000,
@@ -76,6 +101,16 @@ export default defineConfig({
     : {
         command: webServerCommand,
         url: baseURL,
+        env: {
+          ...process.env,
+          // Disable third-party scripts during e2e to avoid flakiness from external requests.
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: "",
+          GA_API_SECRET: "",
+          NEXT_PUBLIC_GTM_ID: "",
+          NEXT_PUBLIC_CLARITY_PROJECT_ID: "",
+          NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS: "false",
+          NEXT_PUBLIC_ENABLE_SPEED_INSIGHTS: "false",
+        },
         reuseExistingServer: !isCI,
         timeout: 180000, // 3 minutes for build + start
       },

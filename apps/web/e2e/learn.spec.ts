@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Learning Hub", () => {
+test.describe.serial("Learning Hub", () => {
   test("learn dashboard loads without JS errors", async ({ page }) => {
     const errors: string[] = [];
 

@@ -1189,7 +1189,7 @@ test.describe("Edge Cases - Reload and Navigation", () => {
     await page.goForward();
 
     // Should end up on install-terminal
-    await expect(page).toHaveURL(/\/wizard\/install-terminal/);
+    await expect(page).toHaveURL(/\/wizard\/install-terminal/, { timeout: TIMEOUTS.PAGE_LOAD });
 
     // Page should still be functional
     await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
