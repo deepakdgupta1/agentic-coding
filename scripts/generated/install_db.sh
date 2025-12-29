@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_db_postgres18() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing db.postgres18"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p /etc/apt/keyrings (root)"
     else
         if ! run_as_root_shell <<'INSTALL_DB_POSTGRES18'
@@ -95,7 +95,7 @@ INSTALL_DB_POSTGRES18
             return 0
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: apt-get update (root)"
     else
         if ! run_as_root_shell <<'INSTALL_DB_POSTGRES18'
@@ -111,7 +111,7 @@ INSTALL_DB_POSTGRES18
             return 0
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: apt-get install -y postgresql-18 (root)"
     else
         if ! run_as_root_shell <<'INSTALL_DB_POSTGRES18'
@@ -129,7 +129,7 @@ INSTALL_DB_POSTGRES18
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: psql --version (root)"
     else
         if ! run_as_root_shell <<'INSTALL_DB_POSTGRES18'
@@ -145,7 +145,7 @@ INSTALL_DB_POSTGRES18
             return 0
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify (optional): systemctl status postgresql --no-pager (root)"
     else
         if ! run_as_root_shell <<'INSTALL_DB_POSTGRES18'
@@ -166,6 +166,6 @@ install_db() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_db
 fi

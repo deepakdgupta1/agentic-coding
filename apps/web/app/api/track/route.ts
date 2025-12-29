@@ -56,6 +56,48 @@ const MAX_USER_PROPERTY_KEY_LENGTH = 24;
 const MAX_USER_PROPERTY_STRING_LENGTH = 120;
 const GA_FETCH_TIMEOUT_MS = 3000;
 
+class PayloadTooLargeError extends Error {
+  override name = 'PayloadTooLargeError';
+}
+
+async function readJsonBodyWithLimit(request: NextRequest): Promise<unknown> {
+  const reader = request.body?.getReader();
+  if (!reader) {
+    // Fall back to the built-in helper when the body stream isn't available.
+    return request.json();
+  }
+
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    bytesRead += value.byteLength;
+    if (bytesRead > MAX_REQUEST_BODY_BYTES) {
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore
+      }
+      throw new PayloadTooLargeError();
+    }
+
+    text += decoder.decode(value, { stream: true });
+  }
+
+  text += decoder.decode();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    // Normalize error handling at the call site (e.g., SyntaxError -> 400).
+    throw error;
+  }
+}
+
 // Simple in-memory rate limiter (resets on server restart)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
@@ -292,7 +334,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const rawBody: unknown = await request.json();
+    const rawBody: unknown = await readJsonBodyWithLimit(request);
     if (!isPlainObject(rawBody)) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
@@ -410,6 +452,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Track API error:', error);
+    if (error instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }

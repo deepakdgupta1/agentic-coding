@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_acfs_workspace() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing acfs.workspace"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Create project directory (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -82,7 +82,7 @@ INSTALL_ACFS_WORKSPACE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Create workspace instructions file (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -121,7 +121,7 @@ INSTALL_ACFS_WORKSPACE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Create tmux session with agent panes (if not already running) (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -148,7 +148,7 @@ INSTALL_ACFS_WORKSPACE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Add agents alias to zshrc.local if not already present (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -167,7 +167,7 @@ INSTALL_ACFS_WORKSPACE
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -d /data/projects/my_first_project (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -178,7 +178,7 @@ INSTALL_ACFS_WORKSPACE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: grep -q \"alias agents=\" ~/.zshrc.local || grep -q \"alias agents=\" ~/.zshrc (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
@@ -199,7 +199,7 @@ install_acfs_onboard() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing acfs.onboard"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_ONBOARD'
@@ -210,7 +210,7 @@ INSTALL_ACFS_ONBOARD
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install onboard script (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_ONBOARD'
@@ -236,7 +236,7 @@ INSTALL_ACFS_ONBOARD
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: onboard --help || command -v onboard (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_ONBOARD'
@@ -257,7 +257,7 @@ install_acfs_update() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing acfs.update"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_UPDATE'
@@ -268,7 +268,7 @@ INSTALL_ACFS_UPDATE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install acfs-update wrapper (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_UPDATE'
@@ -294,7 +294,7 @@ INSTALL_ACFS_UPDATE
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: command -v acfs-update (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_UPDATE'
@@ -315,7 +315,7 @@ install_acfs_doctor() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing acfs.doctor"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_DOCTOR'
@@ -326,7 +326,7 @@ INSTALL_ACFS_DOCTOR
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install acfs CLI (doctor.sh entrypoint) (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_DOCTOR'
@@ -352,7 +352,7 @@ INSTALL_ACFS_DOCTOR
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: acfs doctor --help || command -v acfs (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_DOCTOR'
@@ -377,6 +377,6 @@ install_acfs() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_acfs
 fi

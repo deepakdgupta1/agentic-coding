@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_cloud_wrangler() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing cloud.wrangler"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.bun/bin/bun install -g --trust wrangler (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_WRANGLER'
@@ -86,7 +86,7 @@ INSTALL_CLOUD_WRANGLER
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: wrangler --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_WRANGLER'
@@ -112,7 +112,7 @@ install_cloud_supabase() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing cloud.supabase"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.bun/bin/bun install -g --trust supabase (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_SUPABASE'
@@ -130,7 +130,7 @@ INSTALL_CLOUD_SUPABASE
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: supabase --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_SUPABASE'
@@ -156,7 +156,7 @@ install_cloud_vercel() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing cloud.vercel"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.bun/bin/bun install -g --trust vercel (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_VERCEL'
@@ -174,7 +174,7 @@ INSTALL_CLOUD_VERCEL
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: vercel --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_CLOUD_VERCEL'
@@ -203,6 +203,6 @@ install_cloud() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_cloud
 fi

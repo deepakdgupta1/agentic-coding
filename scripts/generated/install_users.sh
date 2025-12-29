@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -70,7 +70,7 @@ install_users_ubuntu() {
 
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: id ubuntu (root)"
     else
         if ! run_as_root_shell <<'INSTALL_USERS_UBUNTU'
@@ -81,7 +81,7 @@ INSTALL_USERS_UBUNTU
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: sudo -n true (root)"
     else
         if ! run_as_root_shell <<'INSTALL_USERS_UBUNTU'
@@ -103,6 +103,6 @@ install_users() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_users
 fi

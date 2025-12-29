@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_lang_bun() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing lang.bun"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: lang.bun"
     else
         if ! {
@@ -112,7 +112,9 @@ install_lang_bun() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for lang.bun"
                 false
             fi
@@ -123,7 +125,7 @@ install_lang_bun() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.bun/bin/bun --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_BUN'
@@ -144,7 +146,7 @@ install_lang_uv() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing lang.uv"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: lang.uv"
     else
         if ! {
@@ -188,7 +190,9 @@ install_lang_uv() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for lang.uv"
                 false
             fi
@@ -199,7 +203,7 @@ install_lang_uv() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.local/bin/uv --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_UV'
@@ -220,7 +224,7 @@ install_lang_rust() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing lang.rust"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: lang.rust"
     else
         if ! {
@@ -264,7 +268,9 @@ install_lang_rust() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for lang.rust"
                 false
             fi
@@ -275,7 +281,7 @@ install_lang_rust() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.cargo/bin/cargo --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_RUST'
@@ -286,7 +292,7 @@ INSTALL_LANG_RUST
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.cargo/bin/rustup show | grep -q nightly (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_RUST'
@@ -307,7 +313,7 @@ install_lang_go() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing lang.go"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: apt-get install -y golang-go (root)"
     else
         if ! run_as_root_shell <<'INSTALL_LANG_GO'
@@ -320,7 +326,7 @@ INSTALL_LANG_GO
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: go version (root)"
     else
         if ! run_as_root_shell <<'INSTALL_LANG_GO'
@@ -341,7 +347,7 @@ install_lang_nvm() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing lang.nvm"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: lang.nvm"
     else
         if ! {
@@ -385,7 +391,9 @@ install_lang_nvm() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for lang.nvm"
                 false
             fi
@@ -394,7 +402,7 @@ install_lang_nvm() {
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: export NVM_DIR=\"\$HOME/.nvm\" (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_NVM'
@@ -410,7 +418,7 @@ INSTALL_LANG_NVM
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: export NVM_DIR=\"\$HOME/.nvm\" (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_LANG_NVM'
@@ -438,6 +446,6 @@ install_lang() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_lang
 fi

@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_agents_claude() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing agents.claude"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: agents.claude"
     else
         if ! {
@@ -112,7 +112,9 @@ install_agents_claude() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for agents.claude"
                 false
             fi
@@ -123,7 +125,7 @@ install_agents_claude() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.local/bin/claude --version || ~/.local/bin/claude --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CLAUDE'
@@ -144,7 +146,7 @@ install_agents_codex() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing agents.codex"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @openai/codex@latest (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CODEX'
@@ -155,7 +157,7 @@ INSTALL_AGENTS_CODEX
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CODEX'
@@ -173,7 +175,7 @@ INSTALL_AGENTS_CODEX
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.local/bin/codex --version || ~/.local/bin/codex --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_CODEX'
@@ -194,7 +196,7 @@ install_agents_gemini() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing agents.gemini"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @google/gemini-cli@latest (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_GEMINI'
@@ -205,7 +207,7 @@ INSTALL_AGENTS_GEMINI
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_GEMINI'
@@ -223,7 +225,7 @@ INSTALL_AGENTS_GEMINI
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.local/bin/gemini --version || ~/.local/bin/gemini --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_AGENTS_GEMINI'
@@ -247,6 +249,6 @@ install_agents() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_agents
 fi

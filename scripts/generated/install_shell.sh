@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_shell_zsh() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing shell.zsh"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: apt-get install -y zsh (root)"
     else
         if ! run_as_root_shell <<'INSTALL_SHELL_ZSH'
@@ -81,7 +81,7 @@ INSTALL_SHELL_ZSH
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: zsh --version (root)"
     else
         if ! run_as_root_shell <<'INSTALL_SHELL_ZSH'
@@ -102,7 +102,7 @@ install_shell_omz() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing shell.omz"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: shell.omz"
     else
         if ! {
@@ -146,7 +146,9 @@ install_shell_omz() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for shell.omz"
                 false
             fi
@@ -155,7 +157,7 @@ install_shell_omz() {
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install Powerlevel10k (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -169,7 +171,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install zsh-autosuggestions (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -183,7 +185,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install zsh-syntax-highlighting (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -197,7 +199,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install ACFS zshrc (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -215,7 +217,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install pre-configured Powerlevel10k settings (prevents config wizard on first login) (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -232,7 +234,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Setup loader .zshrc (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -251,7 +253,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Setup ~/.profile for bash login shells (prevents PATH warnings from installers) (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -272,7 +274,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Set default shell (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -303,7 +305,7 @@ INSTALL_SHELL_OMZ
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -d ~/.oh-my-zsh (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -314,7 +316,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -f ~/.acfs/zsh/acfs.zshrc (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -325,7 +327,7 @@ INSTALL_SHELL_OMZ
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -f ~/.p10k.zsh (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
@@ -348,6 +350,6 @@ install_shell() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_shell
 fi

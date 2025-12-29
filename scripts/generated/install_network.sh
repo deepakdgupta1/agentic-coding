@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_network_tailscale() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing network.tailscale"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Add Tailscale apt repository (root)"
     else
         if ! run_as_root_shell <<'INSTALL_NETWORK_TAILSCALE'
@@ -97,7 +97,7 @@ INSTALL_NETWORK_TAILSCALE
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: tailscale version (root)"
     else
         if ! run_as_root_shell <<'INSTALL_NETWORK_TAILSCALE'
@@ -108,7 +108,7 @@ INSTALL_NETWORK_TAILSCALE
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: systemctl is-enabled tailscaled (root)"
     else
         if ! run_as_root_shell <<'INSTALL_NETWORK_TAILSCALE'
@@ -130,6 +130,6 @@ install_network() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_network
 fi

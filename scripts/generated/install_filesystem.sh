@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_base_filesystem() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing base.filesystem"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p /data/projects /data/cache (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -79,7 +79,7 @@ INSTALL_BASE_FILESYSTEM
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: chown -R \"\${TARGET_USER:-ubuntu}:\${TARGET_USER:-ubuntu}\" /data (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -90,7 +90,7 @@ INSTALL_BASE_FILESYSTEM
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p \"\${TARGET_HOME:-/home/ubuntu}/.acfs\" (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -101,7 +101,7 @@ INSTALL_BASE_FILESYSTEM
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: chown -R \"\${TARGET_USER:-ubuntu}:\${TARGET_USER:-ubuntu}\" \"\${TARGET_HOME:-/home/ubuntu}/.acfs\" (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -114,7 +114,7 @@ INSTALL_BASE_FILESYSTEM
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -d /data/projects (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -125,7 +125,7 @@ INSTALL_BASE_FILESYSTEM
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: test -d \"\${TARGET_HOME:-/home/ubuntu}/.acfs\" (root)"
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
@@ -147,6 +147,6 @@ install_filesystem() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_filesystem
 fi

@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_stack_ntm() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.ntm"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.ntm"
     else
         if ! {
@@ -112,7 +112,9 @@ install_stack_ntm() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.ntm"
                 false
             fi
@@ -123,7 +125,7 @@ install_stack_ntm() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ntm --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_NTM'
@@ -144,7 +146,7 @@ install_stack_mcp_agent_mail() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.mcp_agent_mail"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.mcp_agent_mail"
     else
         if ! {
@@ -225,7 +227,7 @@ install_stack_ultimate_bug_scanner() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.ultimate_bug_scanner"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.ultimate_bug_scanner"
     else
         if ! {
@@ -269,7 +271,9 @@ install_stack_ultimate_bug_scanner() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.ultimate_bug_scanner"
                 false
             fi
@@ -280,7 +284,7 @@ install_stack_ultimate_bug_scanner() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ubs --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_ULTIMATE_BUG_SCANNER'
@@ -291,7 +295,7 @@ INSTALL_STACK_ULTIMATE_BUG_SCANNER
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify (optional): ubs doctor (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_ULTIMATE_BUG_SCANNER'
@@ -311,7 +315,7 @@ install_stack_beads_viewer() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.beads_viewer"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.beads_viewer"
     else
         if ! {
@@ -355,7 +359,9 @@ install_stack_beads_viewer() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.beads_viewer"
                 false
             fi
@@ -366,7 +372,7 @@ install_stack_beads_viewer() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: bv --help || bv --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_BEADS_VIEWER'
@@ -387,7 +393,7 @@ install_stack_cass() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.cass"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.cass"
     else
         if ! {
@@ -431,7 +437,9 @@ install_stack_cass() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.cass"
                 false
             fi
@@ -442,7 +450,7 @@ install_stack_cass() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: cass --help || cass --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_CASS'
@@ -463,7 +471,7 @@ install_stack_cm() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.cm"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.cm"
     else
         if ! {
@@ -507,7 +515,9 @@ install_stack_cm() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.cm"
                 false
             fi
@@ -518,7 +528,7 @@ install_stack_cm() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: cm --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_CM'
@@ -529,7 +539,7 @@ INSTALL_STACK_CM
             return 1
         fi
     fi
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify (optional): cm doctor --json (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_CM'
@@ -549,7 +559,7 @@ install_stack_caam() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.caam"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: stack.caam"
     else
         if ! {
@@ -593,7 +603,9 @@ install_stack_caam() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for stack.caam"
                 false
             fi
@@ -604,7 +616,7 @@ install_stack_caam() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: caam status || caam --help (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_CAAM'
@@ -625,7 +637,7 @@ install_stack_slb() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing stack.slb"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: mkdir -p ~/go/bin (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_SLB'
@@ -653,7 +665,7 @@ INSTALL_STACK_SLB
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: export PATH=\"\$HOME/go/bin:\$PATH\" && slb >/dev/null 2>&1 || slb --help >/dev/null 2>&1 (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_STACK_SLB'
@@ -687,6 +699,6 @@ install_stack() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_stack
 fi

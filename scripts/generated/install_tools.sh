@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ install_tools_atuin() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing tools.atuin"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: tools.atuin"
     else
         if ! {
@@ -112,7 +112,9 @@ install_tools_atuin() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for tools.atuin"
                 false
             fi
@@ -123,7 +125,7 @@ install_tools_atuin() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: ~/.atuin/bin/atuin --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_TOOLS_ATUIN'
@@ -144,7 +146,7 @@ install_tools_zoxide() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing tools.zoxide"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verified installer: tools.zoxide"
     else
         if ! {
@@ -188,7 +190,9 @@ install_tools_zoxide() {
             fi
 
             # No unverified fallback: verified install is required
-            if [[ "$install_success" != "true" ]]; then
+            if [[ "$install_success" = "true" ]]; then
+                true
+            else
                 log_error "Verified install failed for tools.zoxide"
                 false
             fi
@@ -199,7 +203,7 @@ install_tools_zoxide() {
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: command -v zoxide (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_TOOLS_ZOXIDE'
@@ -220,7 +224,7 @@ install_tools_ast_grep() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing tools.ast_grep"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: ~/.cargo/bin/cargo install ast-grep --locked (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_TOOLS_AST_GREP'
@@ -233,7 +237,7 @@ INSTALL_TOOLS_AST_GREP
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: sg --version (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_TOOLS_AST_GREP'
@@ -254,7 +258,7 @@ install_tools_vault() {
     acfs_require_contract "module:${module_id}" || return 1
     log_step "Installing tools.vault"
 
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # HashiCorp doesn't always publish packages for newest Ubuntu versions. (root)"
     else
         if ! run_as_root_shell <<'INSTALL_TOOLS_VAULT'
@@ -291,7 +295,7 @@ INSTALL_TOOLS_VAULT
     fi
 
     # Verify
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: verify: vault --version (root)"
     else
         if ! run_as_root_shell <<'INSTALL_TOOLS_VAULT'
@@ -321,6 +325,6 @@ install_tools() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     install_tools
 fi

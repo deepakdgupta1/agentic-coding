@@ -36,7 +36,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -139,7 +139,7 @@ run_manifest_checks() {
         if bash -o pipefail -c "$cmd" &>/dev/null; then
             echo -e "\033[0;32m[ok]\033[0m $id - $desc"
             ((passed += 1))
-        elif [[ "$optional" == "optional" ]]; then
+        elif [[ "$optional" = "optional" ]]; then
             echo -e "\033[0;33m[skip]\033[0m $id - $desc"
             ((skipped += 1))
         else
@@ -154,6 +154,6 @@ run_manifest_checks() {
 }
 
 # Run if executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
     run_manifest_checks
 fi

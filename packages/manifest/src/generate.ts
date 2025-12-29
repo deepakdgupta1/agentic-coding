@@ -13,7 +13,11 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
-import { parseManifestFile, validateManifest } from './parser.js';
+import { parseManifestFile, validateManifest as validateManifestBasic } from './parser.js';
+import {
+  validateManifest as validateManifestAdvanced,
+  formatValidationErrors,
+} from './validate.js';
 import {
   getCategories,
   getModuleCategory,
@@ -70,7 +74,7 @@ fi
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
 acfs_security_init() {
-    if [[ "\${ACFS_SECURITY_READY}" == "true" ]]; then
+    if [[ "\${ACFS_SECURITY_READY}" = "true" ]]; then
         return 0
     fi
 
@@ -244,7 +248,11 @@ function escapeBash(str: string): string {
     .replace(/\\/g, '\\\\')  // Backslash first (order matters)
     .replace(/"/g, '\\"')    // Double quotes
     .replace(/\$/g, '\\$')   // Dollar sign (prevents variable expansion)
-    .replace(/`/g, '\\`');   // Backticks (prevents command substitution)
+    .replace(/`/g, '\\`')    // Backticks (prevents command substitution)
+    // Prevent accidental multiline/record breaks in generated bash strings.
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t');
 }
 
 /**
@@ -301,7 +309,7 @@ function wrapCommandBlock(
   const lines: string[] = [];
   const escapedSummary = escapeBash(summary);
 
-  lines.push('    if [[ "${DRY_RUN:-false}" == "true" ]]; then');
+  lines.push('    if [[ "${DRY_RUN:-false}" = "true" ]]; then');
   lines.push(`        log_info "dry-run: ${escapedSummary}"`);
   lines.push('    else');
   lines.push('        if ! {');
@@ -329,7 +337,7 @@ function wrapInstallHeredoc(
   const shellHelper = getRunAsShellHelper(module.run_as);
   const delimiter = toHeredocDelimiter(module.id);
 
-  lines.push('    if [[ "${DRY_RUN:-false}" == "true" ]]; then');
+  lines.push('    if [[ "${DRY_RUN:-false}" = "true" ]]; then');
   lines.push(`        log_info "dry-run: ${escapedSummary} (${module.run_as})"`);
   lines.push('    else');
   lines.push(`        if ! ${shellHelper} <<'${delimiter}'`);
@@ -356,7 +364,7 @@ function wrapOptionalVerifyHeredoc(
   const shellHelper = getRunAsShellHelper(module.run_as);
   const delimiter = toHeredocDelimiter(module.id);
 
-  lines.push('    if [[ "${DRY_RUN:-false}" == "true" ]]; then');
+  lines.push('    if [[ "${DRY_RUN:-false}" = "true" ]]; then');
   lines.push(`        log_info "dry-run: verify (optional): ${escapedSummary} (${module.run_as})"`);
   lines.push('    else');
   lines.push(`        if ! ${shellHelper} <<'${delimiter}'`);
@@ -597,9 +605,13 @@ function generateVerifiedInstallerSnippet(module: Module): string[] {
   ];
 
   lines.push('', '# No unverified fallback: verified install is required');
-  lines.push('if [[ "$install_success" != "true" ]]; then');
+  lines.push('if [[ "$install_success" = "true" ]]; then');
+  lines.push('    true');
+  lines.push('else');
   if (fallbackUrl) {
-    lines.push(`    log_error "Unverified fallback_url configured (refusing): ${escapeBash(fallbackUrl)}"`);
+    lines.push(
+      `    log_error "Unverified fallback_url configured (refusing): ${escapeBash(fallbackUrl)}"`
+    );
   }
   lines.push(`    log_error "Verified install failed for ${escapeBash(module.id)}"`);
   lines.push('    false');
@@ -899,7 +911,7 @@ function generateCategoryScript(manifest: Manifest, category: ModuleCategory): s
 
   // Add main execution
   lines.push('# Run if executed directly');
-  lines.push('if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then');
+  lines.push('if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then');
   lines.push(`    install_${category}`);
   lines.push('fi');
   lines.push('');
@@ -962,7 +974,7 @@ function generateDoctorChecks(manifest: Manifest): string {
   lines.push('        if bash -o pipefail -c "$cmd" &>/dev/null; then');
   lines.push('            echo -e "\\033[0;32m[ok]\\033[0m $id - $desc"');
   lines.push('            ((passed += 1))');
-  lines.push('        elif [[ "$optional" == "optional" ]]; then');
+  lines.push('        elif [[ "$optional" = "optional" ]]; then');
   lines.push('            echo -e "\\033[0;33m[skip]\\033[0m $id - $desc"');
   lines.push('            ((skipped += 1))');
   lines.push('        else');
@@ -979,7 +991,7 @@ function generateDoctorChecks(manifest: Manifest): string {
 
   // Add main execution
   lines.push('# Run if executed directly');
-  lines.push('if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then');
+  lines.push('if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then');
   lines.push('    run_manifest_checks');
   lines.push('fi');
   lines.push('');
@@ -1019,7 +1031,7 @@ function generateMasterInstaller(manifest: Manifest): string {
 
   // Add main execution
   lines.push('# Run if executed directly');
-  lines.push('if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then');
+  lines.push('if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then');
   lines.push('    install_all');
   lines.push('fi');
   lines.push('');
@@ -1083,22 +1095,34 @@ async function main(): Promise<void> {
   const manifest = result.data;
   console.log(`Parsed ${manifest.modules.length} modules`);
 
-  // Preflight: validate dependency graph invariants (missing deps, cycles, phase ordering).
-  // The Zod schema guarantees shape, but not relational correctness.
-  const validation = validateManifest(manifest);
-  if (!validation.valid) {
+  // Preflight: validate dependency graph + generator invariants.
+  // - Basic validation returns user-facing warnings (e.g., install steps that are descriptions).
+  // - Advanced validation catches generator-breaking issues (e.g., function-name collisions).
+  const basicValidation = validateManifestBasic(manifest);
+  if (!basicValidation.valid) {
     console.error('');
-    console.error(`Manifest validation failed with ${validation.errors.length} error(s):`);
-    for (const err of validation.errors) {
+    console.error(
+      `Manifest validation failed with ${basicValidation.errors.length} error(s):`
+    );
+    for (const err of basicValidation.errors) {
       console.error(`- ${err.path}: ${err.message}`);
     }
     console.error('');
     process.exit(1);
   }
-  if (validation.warnings.length > 0) {
+
+  const advancedValidation = validateManifestAdvanced(manifest);
+  if (!advancedValidation.valid) {
     console.error('');
-    console.error(`Manifest validation warnings (${validation.warnings.length}):`);
-    for (const warn of validation.warnings) {
+    console.error(formatValidationErrors(advancedValidation));
+    console.error('');
+    process.exit(1);
+  }
+
+  if (basicValidation.warnings.length > 0) {
+    console.error('');
+    console.error(`Manifest validation warnings (${basicValidation.warnings.length}):`);
+    for (const warn of basicValidation.warnings) {
       console.error(`- ${warn.path}: ${warn.message}`);
     }
     console.error('');
