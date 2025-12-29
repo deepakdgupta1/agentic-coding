@@ -255,15 +255,6 @@ readonly REDACT_PATTERNS=(
 
     # AWS Access Keys
     'AKIA[A-Z0-9]{16}'
-
-    # Generic password/secret patterns (key=value or key: value)
-    # Using [[:space:]] for portability instead of \s
-    'password["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
-    'secret["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
-    'api_key["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
-    'apikey["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
-    'auth_token["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
-    'access_token["[:space:]:=]+["'\'']?[^[:space:]"'\'']{8,}["'\'']?'
 )
 
 # Optional redaction patterns - applied when ACFS_SANITIZE_OPTIONAL=1
@@ -300,6 +291,24 @@ sanitize_content() {
             return 1
         fi
     done
+
+    # Redact common key/value secrets while preserving surrounding structure.
+    #
+    # Examples:
+    #   password="secret"         -> password="[REDACTED]"
+    #   {"password": "secret"}    -> {"password": "[REDACTED]"}
+    #
+    # We intentionally do this as a separate pass because we need capture groups
+    # in the replacement to keep the key/delimiter/quotes.
+    local kv_pattern
+    kv_pattern="([\"']?)(password|secret|api_key|apikey|auth_token|access_token)([\"']?)([[:space:]]*[:=][[:space:]]*)([\"']?)[^[:space:]\"']{8,}([\"']?)"
+    local next_kv_result
+    if next_kv_result=$(printf '%s' "$result" | sed -E "s/${kv_pattern}/\\1\\2\\3\\4\\5[REDACTED]\\6/${sed_flags}" 2>/dev/null); then
+        result="$next_kv_result"
+    else
+        log_error "Sanitization failed for key/value secrets"
+        return 1
+    fi
 
     # Apply optional patterns if enabled
     if [[ "${ACFS_SANITIZE_OPTIONAL:-0}" == "1" ]]; then
@@ -420,6 +429,11 @@ JQ_TAIL
 # Returns: 0 if secrets detected, 1 if clean
 contains_secrets() {
     local content="$1"
+
+    # Match common key/value secrets (preserve case-insensitive detection).
+    if printf '%s' "$content" | grep -qiE '(password|secret|api_key|apikey|auth_token|access_token)[\"[:space:]:=]+[\"'\''"]?[^[:space:]\"'\''"]{8,}[\"'\''"]?' 2>/dev/null; then
+        return 0
+    fi
 
     for pattern in "${REDACT_PATTERNS[@]}"; do
         if printf '%s' "$content" | grep -qE "$pattern" 2>/dev/null; then
