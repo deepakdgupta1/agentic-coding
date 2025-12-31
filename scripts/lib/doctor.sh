@@ -889,12 +889,6 @@ check_cloud() {
 check_stack() {
     section "Dicklesworthstone stack"
 
-    # Detect ARM64 for custom guidance
-    local is_arm64=false
-    local arch=""
-    arch="$(uname -m 2>/dev/null)" || true
-    [[ "$arch" == "aarch64" || "$arch" == "arm64" ]] && is_arm64=true
-
     check_command "stack.ntm" "NTM" "ntm"
     check_command "stack.slb" "SLB" "slb"
 
