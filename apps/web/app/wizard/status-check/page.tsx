@@ -257,7 +257,7 @@ export default function StatusCheckPage() {
             <p className="text-sm font-medium mt-2">Option 2: SSH Tunnel</p>
             <ol className="list-decimal list-inside space-y-1 text-sm pl-2">
               <li>On your laptop: <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ssh -L 1455:localhost:1455 ubuntu@YOUR_VPS_IP</code></li>
-              <li>Then run: <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">codex login</code></li>
+              <li>In that SSH session (on VPS): <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">codex login</code></li>
               <li>The OAuth redirect will reach your VPS through the tunnel</li>
             </ol>
           </div>
