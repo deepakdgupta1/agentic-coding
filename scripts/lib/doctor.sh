@@ -681,13 +681,15 @@ check_shell() {
     if [[ -d "$plugins_dir/zsh-autosuggestions" ]]; then
         check "shell.plugins.zsh_autosuggestions" "zsh-autosuggestions" "pass"
     else
-        check "shell.plugins.zsh_autosuggestions" "zsh-autosuggestions" "warn"
+        check "shell.plugins.zsh_autosuggestions" "zsh-autosuggestions" "warn" "not installed" \
+            "git clone https://github.com/zsh-users/zsh-autosuggestions \${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
     fi
 
     if [[ -d "$plugins_dir/zsh-syntax-highlighting" ]]; then
         check "shell.plugins.zsh_syntax_highlighting" "zsh-syntax-highlighting" "pass"
     else
-        check "shell.plugins.zsh_syntax_highlighting" "zsh-syntax-highlighting" "warn"
+        check "shell.plugins.zsh_syntax_highlighting" "zsh-syntax-highlighting" "warn" "not installed" \
+            "git clone https://github.com/zsh-users/zsh-syntax-highlighting \${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
     fi
 
     # Check modern CLI tools
