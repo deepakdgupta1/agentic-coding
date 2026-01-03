@@ -277,10 +277,8 @@ export default function StatusCheckPage() {
               <li>Create a token with the permissions you need (e.g., Workers, Pages)</li>
               <li>Add to your <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">~/.zshrc</code>:</li>
             </ol>
-            <pre className="rounded bg-muted p-2 text-xs font-mono mt-1">
-              export CLOUDFLARE_API_TOKEN=&quot;your-token-here&quot;{'\n'}
-              export CLOUDFLARE_ACCOUNT_ID=&quot;your-account-id&quot;
-            </pre>
+            <pre className="rounded bg-muted p-2 text-xs font-mono mt-1">{`export CLOUDFLARE_API_TOKEN="your-token-here"
+export CLOUDFLARE_ACCOUNT_ID="your-account-id"`}</pre>
             <p className="text-xs text-muted-foreground mt-1">
               Then run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">source ~/.zshrc</code> or start a new shell.
             </p>
