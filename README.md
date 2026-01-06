@@ -886,12 +886,37 @@ CLI instruction cards with:
 - Platform-specific variations (bash/zsh/PowerShell)
 - Expandable explanations
 
-**Jargon Tooltips:**
-Hover over technical terms to see definitions:
-- One-liner for quick understanding
-- Full explanation for deeper context
-- "Think of it like..." analogies
-- Links to related terms
+**Jargon Component (Responsive Technical Terms):**
+A sophisticated tooltip system that adapts to device capabilities:
+
+*Desktop behavior:*
+- Hover reveals floating tooltip with term definition
+- Radix UI Tooltip for accessible ARIA-compliant overlays
+- Viewport-aware positioning (auto-flips when near edges)
+- 200ms hover delay prevents tooltip spam
+
+*Mobile behavior:*
+- Tap opens bottom sheet drawer (Vaul library)
+- Full definition visible without tiny tap targets
+- Swipe-to-dismiss gesture support
+- Snap points for partial/full expansion
+
+*Visual features:*
+- Gradient underline indicates tappable term
+- Each term gets unique gradient based on slug hash
+- Consistent color scheme with OKLCH tokens
+
+*Content structure per term:*
+```typescript
+{
+  term: "VPS",
+  short: "Virtual Private Server - a remote computer you rent",
+  long: "A VPS is your own slice of a powerful computer...",
+  analogy: "Think of it like renting an apartment in a building",
+  whyWeUseIt: "You get root access, dedicated resources...",
+  relatedTerms: ["SSH", "Ubuntu", "RAM"]
+}
+```
 
 **Confetti Celebration:**
 On lesson completion:
@@ -1275,6 +1300,77 @@ Next.js 16 (App Router)
 - URL query parameters
 - localStorage (`agent-flywheel-user-os`, `agent-flywheel-vps-ip`, `agent-flywheel-wizard-completed-steps`)
 
+### Wizard State Management
+
+The wizard uses **TanStack Query** for state management with optimistic updates and cross-tab synchronization:
+
+**Architecture:**
+```typescript
+// Query-based state with localStorage persistence
+const { data: steps } = useQuery({
+  queryKey: ['wizardSteps', 'completed'],
+  queryFn: getCompletedSteps,  // Reads from localStorage
+  staleTime: 0,                // Always check for updates
+  gcTime: Infinity,            // Never garbage collect
+});
+```
+
+**Optimistic Updates with Rollback:**
+```typescript
+const mutation = useMutation({
+  mutationFn: async (stepId) => {
+    const newSteps = addCompletedStep(currentSteps, stepId);
+    setCompletedSteps(newSteps);  // Persist to localStorage
+    return newSteps;
+  },
+  onMutate: (stepId) => {
+    // Optimistically update cache immediately
+    const previousSteps = queryClient.getQueryData(queryKey);
+    queryClient.setQueryData(queryKey, addCompletedStep(baseSteps, stepId));
+    return { previousSteps };  // For rollback
+  },
+  onError: (_err, _stepId, context) => {
+    // Rollback on failure
+    queryClient.setQueryData(queryKey, context.previousSteps);
+  },
+});
+```
+
+**Cross-Tab Synchronization:**
+The wizard maintains sync across browser tabs via two mechanisms:
+1. **Custom DOM events** for same-tab coordination between components
+2. **Storage events** for cross-tab updates when localStorage changes
+
+```typescript
+// Same-tab: custom event dispatch
+window.dispatchEvent(new CustomEvent('acfs:wizard:completed-steps-changed', {
+  detail: { steps }
+}));
+
+// Cross-tab: storage event listener
+window.addEventListener('storage', (event) => {
+  if (event.key === COMPLETED_STEPS_KEY) {
+    queryClient.setQueryData(queryKey, getCompletedSteps());
+  }
+});
+```
+
+**Safe localStorage Utilities:**
+All localStorage access is wrapped in safe utilities that handle SSR, private browsing, and quota exceeded errors:
+
+```typescript
+// Safe read (returns null on any error)
+export function safeGetJSON<T>(key: string): T | null;
+
+// Safe write (returns boolean success)
+export function safeSetJSON(key: string, value: unknown): boolean;
+
+// URL preservation for state fallback
+export function withCurrentSearch(path: string): string;
+```
+
+This architecture ensures the wizard progress survives browser refreshes, works across tabs, and degrades gracefully when localStorage is unavailable.
+
 ---
 
 ## Configuration Files
@@ -1341,23 +1437,83 @@ eval "$(direnv hook zsh)"
 source /usr/share/doc/fzf/examples/key-bindings.zsh
 ```
 
+**Shell Keybindings (Quality of Life):**
+
+| Keybind | Action | Notes |
+|---------|--------|-------|
+| `Ctrl+→` | Forward word | Navigate by word |
+| `Ctrl+←` | Backward word | Navigate by word |
+| `Alt+→` | Forward word | Alternative binding |
+| `Alt+←` | Backward word | Alternative binding |
+| `Ctrl+Backspace` | Delete word backward | Fast deletion |
+| `Ctrl+Delete` | Delete word forward | Fast deletion |
+| `Home` | Beginning of line | Works in all terminals |
+| `End` | End of line | Works in all terminals |
+| `Ctrl+R` | Atuin history search | Interactive fuzzy search |
+
+**Atuin History Bindings:**
+The config forces Atuin bindings to load last (after OMZ plugins) ensuring `Ctrl+R` triggers Atuin's fuzzy history search rather than zsh's default:
+
+```bash
+# Forced at end of zshrc
+bindkey -e  # Emacs mode
+bindkey -M emacs '^R' atuin-search
+bindkey -M viins '^R' atuin-search-viins
+bindkey -M vicmd '^R' atuin-search-vicmd
+```
+
 ### `~/.acfs/tmux/tmux.conf`
 
-An optimized tmux configuration:
+A tmux configuration specifically optimized for NTM and multi-agent workflows:
 
 **Key Bindings:**
 ```
-Prefix: Ctrl+a (not Ctrl+b)
-Split horizontal: |
-Split vertical: -
+Prefix: Ctrl+a (not Ctrl+b - more ergonomic)
+Split horizontal: |  (preserves working directory)
+Split vertical: -    (preserves working directory)
 Navigate panes: h/j/k/l (vim-style)
+Resize panes: H/J/K/L (repeatable with -r flag)
+Reload config: r
+New window: c (preserves working directory)
 ```
 
-**Features:**
-- Mouse support enabled
-- Catppuccin-inspired colors
-- Status bar at top
-- Larger scrollback buffer (50,000 lines)
+**Copy Mode (vim-style):**
+```
+Enter copy mode: prefix + [
+Begin selection: v
+Rectangle selection: r
+Copy and exit: y
+```
+
+**Agent Workflow Optimizations:**
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `history-limit` | 50,000 | Extended scrollback for long agent sessions |
+| `escape-time` | 10ms | Faster key response (reduced from default 500ms) |
+| `focus-events` | on | Enables vim/neovim autoread in agent windows |
+| `detach-on-destroy` | off | NTM compatibility—don't detach when session ends |
+| `monitor-activity` | on | Track agent window activity |
+| `visual-activity` | off | Silent monitoring (no bell) |
+
+**Catppuccin-Inspired Theme:**
+```bash
+# Status bar (top position, less intrusive)
+status-style: bg=#1e1e2e, fg=#cdd6f4
+
+# Session indicator (blue accent)
+status-left: #[fg=#89b4fa,bold] #S
+
+# Active window highlight (pink accent)
+window-status-current-format: #[fg=#f5c2e7,bold] #I:#W
+
+# Pane borders
+pane-border-style: fg=#313244
+pane-active-border-style: fg=#89b4fa  # Blue highlight
+```
+
+**Local Overrides:**
+The config sources `~/.tmux.conf.local` if it exists, allowing personal customizations without modifying ACFS defaults.
 
 ---
 
@@ -2435,6 +2591,61 @@ cd packages/manifest
 bun run generate           # Full regeneration
 bun run generate:dry       # Preview without writing
 ```
+
+### Generated Manifest Index
+
+The generator produces `manifest_index.sh`, a comprehensive bash metadata file that provides programmatic access to manifest data at runtime:
+
+**Associative Arrays:**
+```bash
+# Module metadata lookup
+declare -A ACFS_MODULE_DESCRIPTION
+ACFS_MODULE_DESCRIPTION["lang.bun"]="Bun JavaScript/TypeScript runtime..."
+ACFS_MODULE_DESCRIPTION["agents.claude"]="Claude Code CLI agent..."
+
+# Phase mapping (determines install order)
+declare -A ACFS_MODULE_PHASE
+ACFS_MODULE_PHASE["base.apt"]="1"
+ACFS_MODULE_PHASE["lang.bun"]="3"
+ACFS_MODULE_PHASE["agents.claude"]="5"
+
+# Dependency relationships (space-separated)
+declare -A ACFS_MODULE_DEPENDENCIES
+ACFS_MODULE_DEPENDENCIES["agents.claude"]="lang.bun base.system"
+
+# Generated function name mapping
+declare -A ACFS_MODULE_FUNCTION
+ACFS_MODULE_FUNCTION["lang.bun"]="install_lang_bun"
+
+# Category grouping
+declare -A ACFS_MODULE_CATEGORY
+ACFS_MODULE_CATEGORY["lang.bun"]="lang"
+
+# Default inclusion in install
+declare -A ACFS_MODULE_DEFAULT
+ACFS_MODULE_DEFAULT["lang.bun"]="true"
+ACFS_MODULE_DEFAULT["db.postgres18"]="true"
+```
+
+**Runtime Query Functions:**
+```bash
+# Get all modules in a category
+get_modules_by_category "agents"  # Returns: agents.claude agents.codex agents.gemini
+
+# Check if module is default-installed
+is_default_module "tools.vault"   # Returns: true
+
+# Get installation phase
+get_module_phase "stack.ntm"      # Returns: 6
+```
+
+**Use Cases:**
+- `acfs doctor` queries module metadata for health checks
+- `install.sh --list-modules` displays available modules
+- `--skip <module>` validates module existence before skipping
+- `--only-phase <n>` uses phase mapping for selective installs
+
+The manifest index bridges the TypeScript generator with bash runtime, enabling sophisticated module selection logic while keeping the bash scripts simple.
 
 ### Progressive Disclosure in the Wizard
 
