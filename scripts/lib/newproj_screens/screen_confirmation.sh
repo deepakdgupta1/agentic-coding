@@ -140,7 +140,7 @@ render_confirmation_screen() {
         for tech in $tech_stack; do
             local name
             name=$(get_tech_option_display "$tech" 2>/dev/null || echo "$tech")
-            display_tech+="$tech, "
+            display_tech+="$name, "
         done
         display_tech="${display_tech%, }"
         echo -e "  Tech:       ${TUI_CYAN}$display_tech${TUI_NC}"
