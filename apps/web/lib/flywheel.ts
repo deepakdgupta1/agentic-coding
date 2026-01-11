@@ -385,6 +385,24 @@ export const synergyExplanations = [
     example:
       "Agent A claims repo-1, Agent B claims repo-2. Both run agent-sweep in parallel. No conflicts, clear ownership.",
   },
+  {
+    tools: ["dcg", "slb"],
+    title: "Layered Safety Net",
+    description:
+      "DCG blocks dangerous commands before execution. SLB provides a human-in-the-loop confirmation after Claude proposes risky operations. Together they create defense in depth - DCG catches obvious destructive patterns, SLB catches contextual risks that require human judgment.",
+    multiplier: "Defense in Depth",
+    example:
+      "Claude proposes 'rm -rf ./old_code' - DCG blocks it instantly. Claude rephrases to 'mv ./old_code ./archive' - SLB prompts for confirmation before the move.",
+  },
+  {
+    tools: ["dcg", "ntm", "mail"],
+    title: "Protected Agent Fleet",
+    description:
+      "NTM spawns multiple Claude agents. Each agent runs under DCG protection. If one agent attempts something dangerous, DCG blocks it and can notify via Mail so other agents (or you) know what happened.",
+    multiplier: "Fleet-wide protection",
+    example:
+      "Agent 1 working on repo cleanup tries 'git clean -fdx'. DCG blocks it. Mail notification: 'Agent 1 attempted blocked command in project-x'.",
+  },
 ];
 
 // ============================================================
@@ -695,6 +713,45 @@ export const flywheelTools: FlywheelTool[] = [
     language: "Go",
   },
   {
+    id: "dcg",
+    name: "Destructive Command Guard",
+    shortName: "DCG",
+    href: "https://github.com/Dicklesworthstone/destructive_command_guard",
+    icon: "ShieldAlert",
+    color: "from-red-400 to-rose-500",
+    tagline: "Pre-execution safety net",
+    description:
+      "A Claude Code hook that blocks dangerous commands BEFORE they execute. Catches git resets, force pushes, rm -rf, DROP TABLE, and more. Fail-open design ensures you're never blocked by errors.",
+    deepDescription:
+      "DCG is the safety layer that protects your codebase from destructive operations. It intercepts commands as a PreToolUse hook in Claude Code, checking against 50+ protection packs covering git, filesystem, databases, Kubernetes, and cloud operations. When a dangerous command is detected, DCG blocks it and suggests safer alternatives. The allow-once workflow enables legitimate bypasses with time-limited short codes.",
+    connectsTo: ["slb", "ntm", "mail"],
+    connectionDescriptions: {
+      slb: "DCG and SLB form a two-layer safety system - DCG blocks pre-execution, SLB validates post-execution",
+      ntm: "Agents spawned by NTM are protected by DCG hooks in Claude Code",
+      mail: "DCG denials can be logged to Mail for agent coordination",
+    },
+    stars: 50,
+    features: [
+      "Pre-execution blocking: Catches commands before damage",
+      "50+ protection packs: git, database, k8s, cloud, filesystem",
+      "Allow-once workflow: Legitimate bypasses with short codes",
+      "Fail-open design: Never blocks on errors or timeouts",
+      "Pack configuration: Enable packs relevant to your workflow",
+      "Explain mode: Understand why commands are blocked",
+    ],
+    cliCommands: [
+      "dcg test 'command'        # Test if command would be blocked",
+      "dcg test 'command' --explain  # Detailed explanation",
+      "dcg packs                 # List available packs",
+      "dcg doctor                # Check installation health",
+      "dcg install               # Register Claude Code hook",
+      "dcg allow-once CODE       # Bypass for legitimate use",
+    ],
+    installCommand:
+      "curl --proto '=https' --proto-redir '=https' -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash",
+    language: "Rust",
+  },
+  {
     id: "ru",
     name: "Repo Updater",
     shortName: "RU",
@@ -768,14 +825,14 @@ export const flywheelDescription = {
   ],
   metrics: {
     totalStars: "2K+",
-    toolCount: 9,
+    toolCount: 10,
     languages: ["Go", "Rust", "TypeScript", "Python", "Bash"],
     avgInstallTime: "< 30s each",
     projectsSimultaneous: "8+",
     agentsParallel: "6+",
   },
   keyInsight:
-    "The power comes from how these tools work together. Agents figure out what to work on using BV, coordinate via Mail, search past sessions with CASS, learn from CM, stay protected by SLB, and sync repos with RU. NTM orchestrates everything.",
+    "The power comes from how these tools work together. Agents figure out what to work on using BV, coordinate via Mail, search past sessions with CASS, learn from CM, stay protected by SLB and DCG, and sync repos with RU. NTM orchestrates everything.",
 };
 
 // ============================================================

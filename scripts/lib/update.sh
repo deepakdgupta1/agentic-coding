@@ -145,7 +145,7 @@ get_version() {
         vercel)
             version=$(vercel --version 2>/dev/null || echo "unknown")
             ;;
-        ntm|ubs|bv|cass|cm|caam|slb|ru)
+        ntm|ubs|bv|cass|cm|caam|slb|ru|dcg)
             version=$("$tool" --version 2>/dev/null | head -1 || echo "unknown")
             ;;
         atuin)
@@ -1119,6 +1119,15 @@ update_stack() {
     # RU (Repo Updater)
     if cmd_exists ru; then
         run_cmd "RU" update_run_verified_installer ru --easy-mode
+    fi
+
+    # DCG (Destructive Command Guard)
+    if cmd_exists dcg; then
+        run_cmd "DCG" update_run_verified_installer dcg
+        # Re-register hook after update to ensure latest version is active
+        if cmd_exists claude; then
+            run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
+        fi
     fi
 }
 

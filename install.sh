@@ -1609,7 +1609,7 @@ acfs_load_upstream_checksums() {
     acfs_parse_checksums_content "$content"
 
     local required_tools=(
-        atuin bun bv caam cass claude cm mcp_agent_mail ntm ohmyzsh rust slb ubs uv zoxide
+        atuin bun bv caam cass claude cm dcg mcp_agent_mail ntm ohmyzsh rust slb ubs uv zoxide
     )
     local missing_required_tools=false
     local tool
@@ -3539,6 +3539,30 @@ install_stack_phase() {
     else
         log_detail "Installing SLB"
         try_step "Installing SLB" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+    fi
+
+    # DCG (Destructive Command Guard)
+    if binary_installed "dcg"; then
+        log_detail "DCG already installed"
+    else
+        log_detail "Installing DCG"
+        try_step "Installing DCG" acfs_run_verified_upstream_script_as_target "dcg" "bash" || log_warn "DCG installation may have failed"
+    fi
+
+    # Best-effort hook registration (Claude Code)
+    local dcg_bin=""
+    if [[ -x "$TARGET_HOME/.local/bin/dcg" ]]; then
+        dcg_bin="$TARGET_HOME/.local/bin/dcg"
+    elif [[ -x "$TARGET_HOME/.cargo/bin/dcg" ]]; then
+        dcg_bin="$TARGET_HOME/.cargo/bin/dcg"
+    elif [[ -x "/usr/local/bin/dcg" ]]; then
+        dcg_bin="/usr/local/bin/dcg"
+    fi
+
+    if [[ -n "$dcg_bin" ]]; then
+        try_step "Registering DCG hook" run_as_target "$dcg_bin" install || log_warn "DCG hook registration failed"
+    else
+        log_warn "DCG hook not registered (dcg binary not found in standard paths)"
     fi
 
     log_success "Dicklesworthstone stack installed"

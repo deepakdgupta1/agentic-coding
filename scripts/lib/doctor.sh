@@ -916,6 +916,23 @@ check_stack() {
             "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/repo_updater/main/install.sh | bash"
     fi
 
+    # Check DCG (Destructive Command Guard)
+    if command -v dcg &>/dev/null; then
+        local version
+        version=$(get_version_line "dcg")
+        # Check if hook is registered with Claude Code
+        local settings_file="$HOME/.claude/settings.json"
+        if [[ -f "$settings_file" ]] && grep -q "dcg" "$settings_file" 2>/dev/null; then
+            check "stack.dcg" "DCG ($version)" "pass" "installed + hook registered"
+        else
+            check "stack.dcg" "DCG ($version)" "warn" "binary installed but hook not registered" \
+                "Run: dcg install"
+        fi
+    else
+        check "stack.dcg" "DCG" "warn" "not installed" \
+            "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash && dcg install"
+    fi
+
     blank_line
 }
 
