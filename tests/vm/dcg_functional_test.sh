@@ -354,6 +354,7 @@ main() {
     test_deny_message_quality && passed=$((passed + 1)) || failed=$((failed + 1))
     test_hook_blocks_rm_rf && passed=$((passed + 1)) || failed=$((failed + 1))
     test_hook_blocks_git_push_force && passed=$((passed + 1)) || failed=$((failed + 1))
+    test_hook_blocks_git_push_f_short && passed=$((passed + 1)) || failed=$((failed + 1))
     test_hook_blocks_git_clean_f && passed=$((passed + 1)) || failed=$((failed + 1))
 
     echo ""

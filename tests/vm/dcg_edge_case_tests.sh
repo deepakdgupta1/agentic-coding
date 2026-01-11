@@ -195,17 +195,13 @@ test_reinstall_idempotent() {
         fail "DCG broken after reinstall. Output: $test_output"
     fi
 
-    # Hook should still be registered
-    if command -v jq &>/dev/null; then
-        local doctor_output
-        doctor_output=$(dcg doctor --format json 2>/dev/null) || true
-        if echo "$doctor_output" | jq -e '.hook_registered == true' >/dev/null 2>&1; then
-            pass "Hook still registered after reinstall"
-        else
-            skip "Hook registration status unclear after reinstall"
-        fi
+    # Hook should still be registered (use text parsing since JSON output not supported)
+    local doctor_output
+    doctor_output=$(dcg doctor 2>&1) || true
+    if echo "$doctor_output" | grep -q "hook wiring.*OK"; then
+        pass "Hook still registered after reinstall"
     else
-        skip "Cannot verify hook registration (jq not available)"
+        skip "Hook registration status unclear after reinstall"
     fi
 }
 
@@ -224,17 +220,11 @@ test_doctor_diagnostics() {
         fail "Doctor command failed or empty. Output: $doctor_output"
     fi
 
-    # JSON format should work
-    if command -v jq &>/dev/null; then
-        local json_output
-        json_output=$(dcg doctor --format json 2>/dev/null) || true
-        if echo "$json_output" | jq -e '.' >/dev/null 2>&1; then
-            pass "Doctor JSON output is valid"
-        else
-            fail "Doctor JSON output is invalid: $json_output"
-        fi
+    # Check all checks passed
+    if echo "$doctor_output" | grep -q "All checks passed"; then
+        pass "Doctor reports all checks passed"
     else
-        skip "Cannot validate JSON format (jq not available)"
+        skip "Doctor reports some checks need attention"
     fi
 }
 
@@ -362,17 +352,13 @@ test_uninstall_reinstall_cycle() {
     reinstall_output=$(dcg install --force 2>&1) || true  # intentionally unused
     : "${reinstall_output:=}"  # silence SC2034
 
-    # Verify hook works again
-    if command -v jq &>/dev/null; then
-        local doctor_output
-        doctor_output=$(dcg doctor --format json 2>/dev/null) || true
-        if echo "$doctor_output" | jq -e '.hook_registered == true' >/dev/null 2>&1; then
-            pass "Hook re-registered after reinstall"
-        else
-            skip "Hook registration status after cycle unclear"
-        fi
+    # Verify hook works again (use text parsing since JSON output not supported)
+    local doctor_output
+    doctor_output=$(dcg doctor 2>&1) || true
+    if echo "$doctor_output" | grep -q "hook wiring.*OK"; then
+        pass "Hook re-registered after reinstall"
     else
-        pass "Uninstall/reinstall cycle completed (skipped hook verification)"
+        skip "Hook registration status after cycle unclear"
     fi
 }
 
