@@ -798,7 +798,7 @@ check_git_safety_guard() {
 check_dcg_hook_status() {
     if ! command -v dcg &>/dev/null; then
         check "stack.dcg" "DCG" "warn" "not installed" \
-            "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash && dcg install"
+            "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash && dcg install"
         return
     fi
 

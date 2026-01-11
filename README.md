@@ -1897,7 +1897,7 @@ Safe variants are allowlisted:
 ### Installation
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh?$(date +%s)" | bash
+curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh?$(date +%s)" | bash
 ```
 
 ### Claude Code Configuration

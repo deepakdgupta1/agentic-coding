@@ -1052,10 +1052,10 @@ update_stack() {
                     run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
                 fi
             else
-                log_item "skip" "DCG" "skipped (install later: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash)"
+                log_item "skip" "DCG" "skipped (install later: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
             fi
         else
-            log_item "skip" "DCG" "not installed (non-interactive; run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash)"
+            log_item "skip" "DCG" "not installed (non-interactive; run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
         fi
     fi
 

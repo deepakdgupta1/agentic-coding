@@ -19,7 +19,7 @@ installers:
     sha256: "9cc8832efa1305221911043a6cc7fe12683e07b56e4fca7a03d3f6081e81a69d"
 
   dcg:
-    url: "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh"
+    url: "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh"
     sha256: "e6f686709849ed8e8be854570b77774134295f4badccfc021667fbdf7a8dc3e6"
 
   claude:

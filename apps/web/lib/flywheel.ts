@@ -748,7 +748,7 @@ export const flywheelTools: FlywheelTool[] = [
       "dcg allow-once CODE       # Bypass for legitimate use",
     ],
     installCommand:
-      "curl --proto '=https' --proto-redir '=https' -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/master/install.sh | bash",
+      "curl --proto '=https' --proto-redir '=https' -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash",
     language: "Rust",
   },
   {
