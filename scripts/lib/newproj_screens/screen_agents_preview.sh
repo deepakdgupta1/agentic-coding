@@ -152,8 +152,14 @@ edit_content() {
 
     # Open in editor
     local editor="${EDITOR:-vim}"
-    if command -v "$editor" &>/dev/null; then
-        "$editor" "$tmpfile"
+    local -a editor_cmd=()
+    IFS=' ' read -r -a editor_cmd <<< "$editor"
+    if [[ ${#editor_cmd[@]} -eq 0 ]]; then
+        editor_cmd=("vim")
+    fi
+
+    if command -v "${editor_cmd[0]}" &>/dev/null; then
+        "${editor_cmd[@]}" "$tmpfile"
 
         # Read back edited content
         if [[ -f "$tmpfile" ]]; then
@@ -166,7 +172,7 @@ edit_content() {
             return 0
         fi
     else
-        echo -e "${TUI_ERROR}Editor '$editor' not found${TUI_NC}"
+        echo -e "${TUI_ERROR}Editor '${editor_cmd[0]}' not found${TUI_NC}"
         rm -f "$tmpfile"
         return 1
     fi

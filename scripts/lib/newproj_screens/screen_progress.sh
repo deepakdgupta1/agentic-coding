@@ -393,7 +393,9 @@ run_creation() {
     render_progress_screen
 
     # Begin transaction
-    begin_project_creation
+    local project_dir
+    project_dir=$(state_get "project_dir")
+    begin_project_creation "$project_dir"
 
     local failed=false
     local failed_step=""

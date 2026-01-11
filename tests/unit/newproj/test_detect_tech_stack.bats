@@ -396,6 +396,13 @@ teardown() {
     [[ "$output" == *"docker_workflow"* ]]
 }
 
+@test "get_agents_sections_for_stack maps java correctly" {
+    run get_agents_sections_for_stack "java"
+    assert_success
+
+    [[ "$output" == *"java_toolchain"* ]]
+}
+
 @test "get_agents_sections_for_stack deduplicates sections" {
     run get_agents_sections_for_stack "nodejs" "typescript"
 
@@ -430,6 +437,13 @@ teardown() {
     assert_success
 
     [[ "$output" == "TypeScript" ]]
+}
+
+@test "get_tech_display_name returns correct name for java" {
+    run get_tech_display_name "java"
+    assert_success
+
+    [[ "$output" == "Java (Maven/Gradle)" ]]
 }
 
 @test "get_tech_display_name returns correct name for python-legacy" {

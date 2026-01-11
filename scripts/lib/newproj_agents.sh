@@ -592,7 +592,7 @@ get_sections_for_tech_stack() {
             ruby)
                 section_id="ruby_toolchain"
                 ;;
-            java-maven|java-gradle)
+            java|java-maven|java-gradle)
                 section_id="java_toolchain"
                 ;;
             php)

@@ -34,6 +34,7 @@ declare -a WIZARD_CLEANUP_ITEMS=()
 # Transaction state
 WIZARD_TRANSACTION_ACTIVE=false
 declare -a WIZARD_CREATED_FILES=()
+WIZARD_PROJECT_ROOT=""
 
 # Saved terminal state
 SAVED_STTY=""
@@ -47,6 +48,80 @@ WIZARD_REDRAW_FUNCTION=""
 # ============================================================
 # Cleanup Registration
 # ============================================================
+
+# Normalize a path to an absolute form when possible.
+# Usage: normalize_path "/path/or/relative"
+normalize_path() {
+    local path="$1"
+
+    if [[ -z "$path" ]]; then
+        return 1
+    fi
+
+    # Expand ~
+    if [[ "$path" == "~" ]]; then
+        path="$HOME"
+    elif [[ "$path" == "~/"* ]]; then
+        path="${HOME}/${path#~/}"
+    fi
+
+    # Make absolute if relative
+    if [[ "$path" != /* ]]; then
+        path="$(pwd)/$path"
+    fi
+
+    # Resolve parent directory when possible
+    local parent
+    parent=$(dirname "$path")
+    if [[ -d "$parent" ]]; then
+        local resolved_parent
+        resolved_parent=$(cd "$parent" 2>/dev/null && pwd) || true
+        if [[ -n "$resolved_parent" ]]; then
+            path="$resolved_parent/$(basename "$path")"
+        fi
+    fi
+
+    # Strip trailing slashes (except root)
+    while [[ "$path" != "/" && "$path" == */ ]]; do
+        path="${path%/}"
+    done
+
+    printf '%s' "$path"
+}
+
+# Validate cleanup target to avoid catastrophic deletions.
+# Usage: safe_cleanup_target "/path"
+safe_cleanup_target() {
+    local raw="$1"
+    local target
+    target=$(normalize_path "$raw") || return 1
+
+    case "$target" in
+        ""|"/"|"."|".."|"/."|"/.." )
+            return 1
+            ;;
+    esac
+
+    if [[ -n "${HOME:-}" && "$target" == "$HOME" ]]; then
+        return 1
+    fi
+
+    if [[ -n "${WIZARD_PROJECT_ROOT:-}" ]]; then
+        local root
+        root=$(normalize_path "$WIZARD_PROJECT_ROOT") || return 1
+
+        # Refuse unsafe roots
+        if [[ "$root" == "/" || ( -n "${HOME:-}" && "$root" == "$HOME" ) ]]; then
+            return 1
+        fi
+
+        if [[ "$target" != "$root" && "$target" != "$root/"* ]]; then
+            return 1
+        fi
+    fi
+
+    printf '%s' "$target"
+}
 
 # Register an item for cleanup on exit
 # Usage: register_cleanup "/path/to/file_or_dir"
@@ -83,8 +158,13 @@ cleanup_on_exit() {
     # Clean up registered items if we're exiting with error
     if [[ "$exit_code" -ne 0 && "$WIZARD_TRANSACTION_ACTIVE" == "true" ]]; then
         for item in "${WIZARD_CLEANUP_ITEMS[@]}"; do
-            log_debug "Cleaning up: $item" 2>/dev/null || true
-            rm -rf "$item" 2>/dev/null || true
+            local safe_item
+            safe_item=$(safe_cleanup_target "$item") || {
+                log_warn "Skipping unsafe cleanup target: $item" 2>/dev/null || true
+                continue
+            }
+            log_debug "Cleaning up: $safe_item" 2>/dev/null || true
+            rm -rf "$safe_item" 2>/dev/null || true
         done
     fi
 
@@ -390,7 +470,7 @@ try_write_file() {
     fi
 
     # Write the file
-    if ! echo "$content" > "$file" 2>/dev/null; then
+    if ! printf '%s' "$content" > "$file" 2>/dev/null; then
         local errno=$?
         log_error "Failed to write file: $file (errno: $errno)" 2>/dev/null || true
         show_error_with_recovery "write" "Failed to write file: $file"
@@ -409,8 +489,10 @@ try_write_file() {
 # Begin a transaction for project creation
 # All files created after this will be tracked for rollback
 begin_project_creation() {
+    local project_root="${1:-}"
     WIZARD_TRANSACTION_ACTIVE=true
     WIZARD_CREATED_FILES=()
+    WIZARD_PROJECT_ROOT="$project_root"
     log_info "Beginning project creation transaction" 2>/dev/null || true
 }
 
@@ -432,6 +514,7 @@ commit_project_creation() {
 
     WIZARD_CLEANUP_ITEMS=()
     WIZARD_CREATED_FILES=()
+    WIZARD_PROJECT_ROOT=""
 
     log_info "Project creation committed successfully" 2>/dev/null || true
 }
@@ -444,12 +527,18 @@ rollback_project_creation() {
     local i
     for ((i=${#WIZARD_CREATED_FILES[@]}-1; i>=0; i--)); do
         local file="${WIZARD_CREATED_FILES[i]}"
-        log_debug "Removing: $file" 2>/dev/null || true
-        rm -rf "$file" 2>/dev/null || true
+        local safe_file
+        safe_file=$(safe_cleanup_target "$file") || {
+            log_warn "Skipping unsafe rollback target: $file" 2>/dev/null || true
+            continue
+        }
+        log_debug "Removing: $safe_file" 2>/dev/null || true
+        rm -rf "$safe_file" 2>/dev/null || true
     done
 
     WIZARD_CREATED_FILES=()
     WIZARD_TRANSACTION_ACTIVE=false
+    WIZARD_PROJECT_ROOT=""
 
     echo -e "${NEWPROJ_YELLOW}Project creation rolled back.${NEWPROJ_NC}"
 }

@@ -309,7 +309,7 @@ get_agents_sections_for_stack() {
             ruby)
                 section="ruby_toolchain"
                 ;;
-            java-maven|java-gradle)
+            java|java-maven|java-gradle)
                 section="java_toolchain"
                 ;;
             php)
@@ -373,6 +373,7 @@ get_tech_display_name() {
         rust) echo "Rust" ;;
         go) echo "Go" ;;
         ruby) echo "Ruby" ;;
+        java) echo "Java (Maven/Gradle)" ;;
         java-maven) echo "Java (Maven)" ;;
         java-gradle) echo "Java (Gradle)" ;;
         php) echo "PHP" ;;
@@ -416,7 +417,7 @@ get_tech_display_list() {
 get_tech_priority() {
     local tech="$1"
     case "$tech" in
-        nodejs|python|rust|go|ruby|java-maven|java-gradle|php|elixir)
+        nodejs|python|rust|go|ruby|java|java-maven|java-gradle|php|elixir)
             echo "1"
             ;;
         typescript|nextjs|nuxt|svelte|astro|remix|docker|cmake|terraform)

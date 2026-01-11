@@ -158,7 +158,7 @@ setup_box_chars() {
         BOX_CROSS='x'
         BOX_BULLET='*'
         BOX_ARROW='->'
-        SPINNER_FRAMES=('|' '/' '-' '\')
+        SPINNER_FRAMES=('|' '/' '-' '\\')
     fi
 }
 
@@ -341,6 +341,9 @@ render_progress() {
     local current="$1"
     local total="$2"
     local width="${3:-20}"
+
+    # Guard against division by zero
+    [[ "$total" -le 0 ]] && total=1
 
     local percent=$((current * 100 / total))
     local filled=$((percent * width / 100))
