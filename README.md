@@ -717,6 +717,8 @@ This wizard will help you set up a new project with:
 ──────────────────── Review & Confirm ────────────────────
                                               Step 7 of 9
 
+Please review your selections before creating the project.
+
 Project Summary
 ──────────────────────────────────────────────────────────
   Name:       myapp
