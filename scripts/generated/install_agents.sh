@@ -144,7 +144,7 @@ install_agents_claude() {
                 log_error "agents.claude: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else

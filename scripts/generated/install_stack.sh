@@ -144,7 +144,7 @@ install_stack_ntm() {
                 log_error "stack.ntm: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -303,7 +303,7 @@ install_stack_ultimate_bug_scanner() {
                 log_error "stack.ultimate_bug_scanner: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -391,7 +391,7 @@ install_stack_beads_viewer() {
                 log_error "stack.beads_viewer: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -469,7 +469,7 @@ install_stack_cass() {
                 log_error "stack.cass: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -547,7 +547,7 @@ install_stack_cm() {
                 log_error "stack.cm: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -635,7 +635,7 @@ install_stack_caam() {
                 log_error "stack.caam: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -767,7 +767,7 @@ install_stack_dcg() {
                 log_error "stack.dcg: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -864,7 +864,7 @@ install_stack_ru() {
                 log_error "stack.ru: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else

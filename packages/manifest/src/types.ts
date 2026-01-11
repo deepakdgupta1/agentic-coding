@@ -36,8 +36,6 @@ export interface VerifiedInstaller {
   runner: VerifiedInstallerRunner;
   /** Optional additional args for runner */
   args?: string[];
-  /** Fallback URL for direct install if verified install fails */
-  fallback_url?: string;
   /** If true, run installer in detached tmux session (prevents blocking) */
   run_in_tmux?: boolean;
 }

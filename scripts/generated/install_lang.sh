@@ -144,7 +144,7 @@ install_lang_bun() {
                 log_error "lang.bun: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -222,7 +222,7 @@ install_lang_uv() {
                 log_error "lang.uv: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -300,7 +300,7 @@ install_lang_rust() {
                 log_error "lang.rust: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else
@@ -423,7 +423,7 @@ install_lang_nvm() {
                 log_error "lang.nvm: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else

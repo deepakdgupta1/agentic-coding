@@ -178,7 +178,7 @@ install_shell_omz() {
                 log_error "shell.omz: acfs_security_init failed - check security.sh and checksums.yaml"
             fi
 
-            # No unverified fallback: verified install is required
+            # Verified install is required - no fallback
             if [[ "$install_success" = "true" ]]; then
                 true
             else

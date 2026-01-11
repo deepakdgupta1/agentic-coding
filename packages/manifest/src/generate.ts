@@ -525,7 +525,6 @@ function sortModulesByPhaseAndDependency(manifest: Manifest): Module[] {
 function generateVerifiedInstallerSnippet(module: Module): string[] {
   const vi = module.verified_installer!;
   const tool = vi.tool;
-  const fallbackUrl = vi.fallback_url;
   const runInTmux = vi.run_in_tmux === true;
 
   // Build the args string for the installer runner invocation.
@@ -677,15 +676,10 @@ function generateVerifiedInstallerSnippet(module: Module): string[] {
     'fi',
   ];
 
-  lines.push('', '# No unverified fallback: verified install is required');
+  lines.push('', '# Verified install is required - no fallback');
   lines.push('if [[ "$install_success" = "true" ]]; then');
   lines.push('    true');
   lines.push('else');
-  if (fallbackUrl) {
-    lines.push(
-      `    log_error "Unverified fallback_url configured (refusing): ${escapeBash(fallbackUrl)}"`
-    );
-  }
   lines.push(`    log_error "Verified install failed for ${escapeBash(module.id)}"`);
   lines.push('    false');
   lines.push('fi');
