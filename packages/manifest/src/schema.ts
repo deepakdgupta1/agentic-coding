@@ -41,7 +41,16 @@ export const ModuleSchema = z
       ),
     description: z.string().min(1, 'Description cannot be empty'),
 
-    category: z.string().optional(),
+    // SECURITY: Category is used in generated script filenames (install_<category>.sh)
+    // and function names (install_<category>). Must be validated to prevent path traversal
+    // or command injection in generated scripts.
+    category: z
+      .string()
+      .regex(
+        /^[a-z][a-z0-9_]*$/,
+        'Category must be lowercase alphanumeric with underscores (e.g., "shell", "lang_tools")'
+      )
+      .optional(),
 
     // Execution context
     run_as: RunAsSchema.default('target_user'),
