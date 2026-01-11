@@ -47,8 +47,11 @@ teardown() {
         "$ACFS_LIB_DIR/newproj.sh" \
         "escape_cancel"
 
-    # Should exit cleanly (exit code 0 or 1 depending on implementation)
-    [[ "$output" == *"cancel"* ]] || [[ "$output" == *"exit"* ]] || true
+    # Should exit cleanly - either with cancel message or clean exit
+    # Note: Exit codes 0 or 1 are both acceptable for cancellation
+    [[ "$status" -le 1 ]]
+    # Output should indicate cancellation or clean exit
+    [[ "$output" == *"cancel"* ]] || [[ "$output" == *"exit"* ]] || [[ "$output" == *"abort"* ]] || [[ -z "$output" ]]
 }
 
 # ============================================================
@@ -136,9 +139,15 @@ teardown() {
 @test "CLI rejects project name with slashes" {
     run bash "$ACFS_LIB_DIR/newproj.sh" "test/project" "$E2E_TEST_DIR/slash-test"
 
-    # Should either reject or handle specially
-    # The exact behavior depends on implementation
-    true
+    # Slashes in project names should be rejected (invalid characters)
+    # OR the project should be created with the slash escaped/replaced
+    if [[ "$status" -eq 0 ]]; then
+        # If it succeeded, verify a project was actually created
+        [[ -d "$E2E_TEST_DIR/slash-test" ]] || [[ -d "$E2E_TEST_DIR/test/project" ]]
+    else
+        # If it failed, verify appropriate error message
+        [[ "$output" == *"invalid"* ]] || [[ "$output" == *"slash"* ]] || [[ "$output" == *"character"* ]] || [[ "$output" == *"name"* ]]
+    fi
 }
 
 # ============================================================

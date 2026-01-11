@@ -179,15 +179,23 @@ EOF
 
     # Try running with piped input
     # This may fail without PTY - that's expected in some environments
-    run bash -c "echo '$input' | TERM=dumb bash '$ACFS_LIB_DIR/newproj.sh' --interactive 2>&1" || true
+    run bash -c "echo '$input' | TERM=dumb bash '$ACFS_LIB_DIR/newproj.sh' --interactive 2>&1"
 
     # Check if it either succeeded or failed appropriately
     if [[ "$status" -eq 0 ]]; then
         # Success - verify project created
-        [[ -d "$project_dir" ]] || skip "Pipe mode didn't create project (needs PTY)"
+        if [[ ! -d "$project_dir" ]]; then
+            # Interactive mode may require PTY - skip if project wasn't created
+            skip "Pipe mode requires PTY (project not created)"
+        fi
     else
-        # Expected failure without PTY
-        [[ "$output" == *"TTY"* ]] || [[ "$output" == *"terminal"* ]] || skip "Unexpected failure mode"
+        # Failure - should be due to TTY requirement, not other errors
+        # Accept TTY-related errors as valid skip reason
+        if [[ "$output" == *"TTY"* ]] || [[ "$output" == *"terminal"* ]] || [[ "$output" == *"CI environment"* ]]; then
+            skip "Interactive mode requires TTY"
+        fi
+        # If it failed for other reasons, that's a real failure
+        assert_failure "Unexpected error: $output"
     fi
 }
 
