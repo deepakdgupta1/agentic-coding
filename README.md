@@ -1936,7 +1936,7 @@ mcp.macro_contact_handshake(...)  # Request contact permissions
 
 ## Destructive Command Guard (dcg)
 
-**dcg** is a high-performance Claude Code hook that blocks dangerous git and filesystem commands before they execute. It replaces the simpler Python-based guard with a Rust implementation optimized for sub-millisecond latency.
+**dcg** is a high-performance Claude Code hook that blocks dangerous git and filesystem commands before they execute. Built in Rust for sub-millisecond latency, it provides mechanical enforcement of safety rules that instructions alone cannot guarantee.
 
 ### Why dcg Exists
 
