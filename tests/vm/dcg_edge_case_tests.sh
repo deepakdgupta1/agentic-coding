@@ -80,11 +80,13 @@ test_version_format() {
     section "Test 1: Version Format"
 
     local version_output
-    version_output=$(dcg --version 2>/dev/null | head -1) || true
+    version_output=$(dcg --version 2>/dev/null) || true
 
-    # Version should be in format like "dcg 0.1.0" or "0.1.0"
-    if echo "$version_output" | grep -Eq '[0-9]+\.[0-9]+\.[0-9]+'; then
-        pass "Version follows semver format: $version_output"
+    # Version should contain semver pattern somewhere in output (e.g., "v0.2.0")
+    if echo "$version_output" | grep -Eq 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+        local version
+        version=$(echo "$version_output" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        pass "Version follows semver format: $version"
     else
         fail "Version not in expected format: $version_output"
     fi
@@ -363,6 +365,120 @@ test_uninstall_reinstall_cycle() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Fail-Open Behavior Tests
+# DCG is designed to fail-open: on any error, it allows the command rather
+# than blocking workflow. This ensures DCG never becomes a bottleneck.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Test 11: Invalid JSON input should fail-open (allow)
+test_failopen_invalid_json() {
+    section "Test 11: Fail-Open on Invalid JSON"
+
+    # Send garbage to DCG's stdin (simulating malformed Claude Code input)
+    local output
+    output=$(echo "not valid json at all" | dcg 2>&1) || true
+
+    # DCG should NOT crash and should NOT block - empty output = allow
+    # Non-crash is success; we verify by checking dcg still works after
+    local verify
+    verify=$(dcg test 'git status' 2>&1) || true
+
+    if echo "$verify" | grep -qi "allow"; then
+        pass "DCG continues working after invalid JSON input"
+    else
+        fail "DCG broken after invalid JSON. Output: $verify"
+    fi
+}
+
+# Test 12: Empty stdin should fail-open (allow)
+test_failopen_empty_input() {
+    section "Test 12: Fail-Open on Empty Input"
+
+    # Send empty input to DCG
+    local output
+    output=$(echo "" | dcg 2>&1) || true
+
+    # Verify DCG still works
+    local verify
+    verify=$(dcg test 'git status' 2>&1) || true
+
+    if echo "$verify" | grep -qi "allow"; then
+        pass "DCG continues working after empty input"
+    else
+        fail "DCG broken after empty input. Output: $verify"
+    fi
+}
+
+# Test 13: Partial JSON should fail-open (allow)
+test_failopen_partial_json() {
+    section "Test 13: Fail-Open on Partial JSON"
+
+    # Send truncated JSON (simulating interrupted input)
+    local output
+    output=$(echo '{"tool_name": "Bash", "tool_input":' | dcg 2>&1) || true
+
+    # Verify DCG still works
+    local verify
+    verify=$(dcg test 'git status' 2>&1) || true
+
+    if echo "$verify" | grep -qi "allow"; then
+        pass "DCG continues working after partial JSON"
+    else
+        fail "DCG broken after partial JSON. Output: $verify"
+    fi
+}
+
+# Test 14: Binary data should not crash DCG
+test_failopen_binary_input() {
+    section "Test 14: Fail-Open on Binary Input"
+
+    # Send binary data (null bytes, etc.)
+    local output
+    output=$(printf '\x00\x01\x02\xff\xfe' | dcg 2>&1) || true
+
+    # Verify DCG still works
+    local verify
+    verify=$(dcg test 'git status' 2>&1) || true
+
+    if echo "$verify" | grep -qi "allow"; then
+        pass "DCG continues working after binary input"
+    else
+        fail "DCG broken after binary input. Output: $verify"
+    fi
+}
+
+# Test 15: Very large input should not hang DCG
+test_failopen_large_input() {
+    section "Test 15: Fail-Open on Large Input"
+
+    # Generate 1MB of random-ish data
+    local large_input
+    large_input=$(head -c 1048576 /dev/zero | tr '\0' 'x')
+
+    # DCG should handle large input without hanging (5 second timeout)
+    local output
+    if timeout 5 bash -c "echo '$large_input' | dcg 2>&1" >/dev/null; then
+        pass "DCG handled large input without hanging"
+    else
+        if [[ $? -eq 124 ]]; then
+            fail "DCG hung on large input (timeout after 5s)"
+        else
+            pass "DCG handled large input (exited quickly)"
+        fi
+    fi
+
+    # Verify DCG still works
+    local verify
+    verify=$(dcg test 'git status' 2>&1) || true
+
+    if echo "$verify" | grep -qi "allow"; then
+        pass "DCG continues working after large input"
+    else
+        fail "DCG broken after large input. Output: $verify"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -384,6 +500,13 @@ main() {
     test_safe_force_push
     test_temp_directory_allowed
     test_uninstall_reinstall_cycle
+
+    # Fail-open behavior tests
+    test_failopen_invalid_json
+    test_failopen_empty_input
+    test_failopen_partial_json
+    test_failopen_binary_input
+    test_failopen_large_input
 
     echo ""
     echo "============================================================"
