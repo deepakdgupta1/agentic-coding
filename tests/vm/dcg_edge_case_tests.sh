@@ -545,12 +545,8 @@ test_failopen_binary_input() {
 test_failopen_large_input() {
     section "Test 16: Fail-Open on Large Input"
 
-    # Generate 1MB of random-ish data
-    local large_input
-    large_input=$(head -c 1048576 /dev/zero | tr '\0' 'x')
-
     # DCG should handle large input without hanging (5 second timeout)
-    if timeout 5 bash -c "echo '$large_input' | dcg 2>&1" >/dev/null; then
+    if timeout 5 bash -c "head -c 1048576 /dev/zero | tr '\0' 'x' | dcg 2>&1" >/dev/null; then
         pass "DCG handled large input without hanging"
     else
         if [[ $? -eq 124 ]]; then
@@ -577,9 +573,9 @@ test_failopen_large_input() {
 # checkpoint/resume system.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Test 16: Binary installed but hook not registered (partial install state)
+# Test 17: Binary installed but hook not registered (partial install state)
 test_checkpoint_binary_without_hook() {
-    section "Test 16: Checkpoint - Binary Without Hook"
+    section "Test 17: Checkpoint - Binary Without Hook"
 
     # Uninstall hook to simulate partial install
     dcg uninstall >/dev/null 2>&1 || true
@@ -616,9 +612,9 @@ test_checkpoint_binary_without_hook() {
     dcg install --force >/dev/null 2>&1 || true
 }
 
-# Test 17: Hook registration is idempotent
+# Test 18: Hook registration is idempotent
 test_checkpoint_hook_idempotency() {
-    section "Test 17: Checkpoint - Hook Idempotency"
+    section "Test 18: Checkpoint - Hook Idempotency"
 
     # Run install multiple times in succession
     local install1 install2 install3
@@ -661,9 +657,9 @@ test_checkpoint_hook_idempotency() {
     fi
 }
 
-# Test 18: State consistency after uninstall/reinstall cycle
+# Test 19: State consistency after uninstall/reinstall cycle
 test_checkpoint_state_consistency() {
-    section "Test 18: Checkpoint - State Consistency"
+    section "Test 19: Checkpoint - State Consistency"
 
     # Record initial state
     local initial_version

@@ -44,48 +44,6 @@ dcg_test_command() {
     fi
 }
 
-# Hook simulation for core pack tests (git patterns)
-build_hook_input() {
-    local command="$1"
-    cat <<EOF
-{
-    "tool_name": "Bash",
-    "tool_input": {
-        "command": "$command"
-    }
-}
-EOF
-}
-
-is_deny_output() {
-    echo "$1" | grep -Eqi '"permissionDecision"[[:space:]]*:[[:space:]]*"deny"'
-}
-
-simulate_hook_call() {
-    local command="$1"
-    local hook_input
-    hook_input=$(build_hook_input "$command")
-    detail "Hook input: $hook_input"
-
-    local hook_output
-    local exit_code=0
-    hook_output=$(echo "$hook_input" | dcg 2>/dev/null) || exit_code=$?
-
-    detail "Hook output: $hook_output"
-    detail "Exit code: $exit_code"
-
-    if is_deny_output "$hook_output"; then
-        echo "DENIED"
-        return 0
-    elif [[ -z "$hook_output" ]] && [[ $exit_code -eq 0 ]]; then
-        echo "ALLOWED"
-        return 0
-    else
-        echo "UNKNOWN"
-        return 1
-    fi
-}
-
 # ============================================================
 # PACK INSPECTION TESTS
 # ============================================================
