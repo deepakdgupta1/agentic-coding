@@ -144,6 +144,15 @@ run_screen() {
         return 1
     fi
 
+    # Track current screen for signal handlers (resize/interrupt)
+    WIZARD_CURRENT_SCREEN="$screen_id"
+    local redraw="render_${screen_id}_screen"
+    if declare -f "$redraw" &>/dev/null; then
+        WIZARD_REDRAW_FUNCTION="$redraw"
+    else
+        WIZARD_REDRAW_FUNCTION=""
+    fi
+
     log_debug "Running screen: $screen_id via $runner"
 
     # Run the screen
