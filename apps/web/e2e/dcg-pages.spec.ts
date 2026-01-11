@@ -86,7 +86,7 @@ test.describe.serial("DCG Website Pages", () => {
       await page.waitForLoadState("networkidle");
 
       // Check DCG appears somewhere on the landing page
-      const dcgMention = page.getByText(/DCG|Dangerous Command Guard/i).first();
+      const dcgMention = page.getByText(/DCG|Destructive Command Guard/i).first();
       await expect(dcgMention).toBeVisible();
     });
   });
