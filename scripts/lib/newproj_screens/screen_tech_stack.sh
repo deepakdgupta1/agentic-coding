@@ -114,7 +114,20 @@ render_tech_stack_screen() {
     local detected
     detected=$(state_get "detected_tech")
     if [[ -n "$detected" ]]; then
-        echo -e "${TUI_SUCCESS}${BOX_CHECK} Auto-detected: $(echo "$detected" | tr ' ' ', ')${TUI_NC}"
+        local detected_labels=()
+        local tech
+        for tech in $detected; do
+            detected_labels+=("$(get_tech_option_display "$tech")")
+        done
+        local detected_display=""
+        for tech in "${detected_labels[@]}"; do
+            if [[ -z "$detected_display" ]]; then
+                detected_display="$tech"
+            else
+                detected_display+=", $tech"
+            fi
+        done
+        echo -e "${TUI_SUCCESS}${BOX_CHECK} Auto-detected: ${detected_display}${TUI_NC}"
         echo ""
     fi
 
