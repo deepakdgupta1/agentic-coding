@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { type ReactNode, use } from "react";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useEffect } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -256,15 +256,38 @@ function RelatedToolCard({ toolId }: { toolId: ToolId }) {
 }
 
 interface Props {
-  params: Promise<{ tool: string }>;
+  params: { tool: string };
 }
 
 export default function ToolCardPage({ params }: Props) {
-  const { tool } = use(params);
+  const router = useRouter();
+  const { tool } = params;
   const doc = TOOLS[tool as ToolId];
 
+  useEffect(() => {
+    if (!doc) {
+      router.replace("/learn");
+    }
+  }, [doc, router]);
+
   if (!doc) {
-    notFound();
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-10 text-center">
+          <h1 className="text-2xl font-semibold">Tool not found</h1>
+          <p className="mt-2 text-sm text-white/60">
+            The tool you requested doesn&apos;t exist. Redirecting to the Learning Hub...
+          </p>
+          <Link
+            href="/learn"
+            className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm text-white/80 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Learning Hub
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
