@@ -419,9 +419,8 @@ test_failopen_empty_input() {
 test_failopen_partial_json() {
     section "Test 13: Fail-Open on Partial JSON"
 
-    # Send truncated JSON (simulating interrupted input)
-    local output
-    output=$(echo '{"tool_name": "Bash", "tool_input":' | dcg 2>&1) || true
+    # Send truncated JSON (simulating interrupted input) - DCG should handle
+    echo '{"tool_name": "Bash", "tool_input":' | dcg >/dev/null 2>&1 || true
 
     # Verify DCG still works
     local verify
@@ -438,9 +437,8 @@ test_failopen_partial_json() {
 test_failopen_binary_input() {
     section "Test 14: Fail-Open on Binary Input"
 
-    # Send binary data (null bytes, etc.)
-    local output
-    output=$(printf '\x00\x01\x02\xff\xfe' | dcg 2>&1) || true
+    # Send binary data (null bytes, etc.) - DCG should handle without crashing
+    printf '\x00\x01\x02\xff\xfe' | dcg >/dev/null 2>&1 || true
 
     # Verify DCG still works
     local verify
@@ -462,7 +460,6 @@ test_failopen_large_input() {
     large_input=$(head -c 1048576 /dev/zero | tr '\0' 'x')
 
     # DCG should handle large input without hanging (5 second timeout)
-    local output
     if timeout 5 bash -c "echo '$large_input' | dcg 2>&1" >/dev/null; then
         pass "DCG handled large input without hanging"
     else
@@ -588,12 +585,14 @@ test_checkpoint_state_consistency() {
     # Reinstall hook
     dcg install --force >/dev/null 2>&1 || true
 
-    # Version should be consistent
+    # Version should be consistent after cycle
     local final_version
     final_version=$(dcg --version 2>/dev/null || echo "unknown")
 
-    # Just verify we can still get version (format may vary with TTY)
-    if [[ "$final_version" != "unknown" ]] || dcg --version >/dev/null 2>&1; then
+    # Verify version is accessible and consistent (format may vary with TTY)
+    if [[ "$final_version" != "unknown" ]] && [[ "$initial_version" == "$final_version" ]]; then
+        pass "Version consistent after uninstall/reinstall cycle ($final_version)"
+    elif [[ "$final_version" != "unknown" ]] || dcg --version >/dev/null 2>&1; then
         pass "Version accessible after uninstall/reinstall cycle"
     else
         fail "Version inaccessible after cycle"
