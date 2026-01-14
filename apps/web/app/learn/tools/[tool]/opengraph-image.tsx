@@ -47,8 +47,9 @@ function getToolIconPath(toolId: ToolId): string {
   }
 }
 
-export default async function Image({ params }: { params: { tool: string } }) {
-  const toolId = params.tool as ToolId;
+export default async function Image({ params }: { params: Promise<{ tool: string }> }) {
+  const { tool: toolParam } = await params;
+  const toolId = toolParam as ToolId;
   const tool = TOOLS[toolId];
   const colors = TOOL_COLORS[toolId] || { primary: "#22d3ee", secondary: "#a855f7" };
 

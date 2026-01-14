@@ -12,13 +12,14 @@ export const contentType = "image/png";
 
 export const alt = "ACFS Learning Hub Lesson";
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const lesson = getLessonBySlug(params.slug);
-  const lessonIndex = LESSONS.findIndex((l) => l.slug === params.slug);
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const lesson = getLessonBySlug(slug);
+  const lessonIndex = LESSONS.findIndex((l) => l.slug === slug);
   // Handle not-found case: show lesson 1 as fallback instead of 0
   const lessonNumber = lessonIndex >= 0 ? lessonIndex + 1 : 1;
   const totalLessons = LESSONS.length;
-  const primaryColor = getLessonColor(params.slug);
+  const primaryColor = getLessonColor(slug);
 
   // Fallback for unknown lessons
   const title = lesson?.title || "Lesson";
@@ -350,7 +351,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
             color: "#4b5563",
           }}
         >
-          <span style={{ display: "flex" }}>agent-flywheel.com/learn/{params.slug}</span>
+          <span style={{ display: "flex" }}>agent-flywheel.com/learn/{slug}</span>
         </div>
       </div>
     ),
