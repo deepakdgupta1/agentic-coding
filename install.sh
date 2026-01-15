@@ -3456,7 +3456,7 @@ install_stack_phase() {
         if [[ ! -f "$ntm_config_file" ]]; then
             log_detail "Creating NTM config with current model defaults"
             run_as_target mkdir -p "$ntm_config_dir" || true
-            run_as_target cat > "$ntm_config_file" << 'NTM_CONFIG_EOF'
+            if run_as_target cat > "$ntm_config_file" << 'NTM_CONFIG_EOF'
 # NTM Configuration - created by ACFS
 # Updated model defaults for ChatGPT Pro and Gemini accounts
 
@@ -3470,7 +3470,7 @@ default_gemini = "gemini-3-pro-preview"
 # Claude model - Opus 4.5 (most capable)
 default_claude = "claude-opus-4-5"
 NTM_CONFIG_EOF
-            if [[ $? -eq 0 ]]; then
+            then
                 log_success "NTM config created with current model defaults"
             else
                 log_warn "Failed to create NTM config"
