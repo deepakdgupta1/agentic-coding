@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Terminal, CheckCircle2, Server, Monitor } from "lucide-react";
 import { motion, AnimatePresence } from "@/components/motion";
@@ -89,7 +89,17 @@ export function CommandCard({
 }: CommandCardProps) {
   const [copied, setCopied] = useState(false);
   const [copyAnimation, setCopyAnimation] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [storedOS] = useUserOS();
   const detectedOS = useDetectedOS();
@@ -132,11 +142,16 @@ export function CommandCard({
   })();
 
   const handleCopy = useCallback(async () => {
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+
     setCopyAnimation(true);
     try {
       await navigator.clipboard.writeText(displayCommand);
       setCopied(true);
-      setTimeout(() => {
+      copyTimeoutRef.current = setTimeout(() => {
         setCopied(false);
         setCopyAnimation(false);
       }, 2000);
@@ -151,7 +166,7 @@ export function CommandCard({
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
-      setTimeout(() => {
+      copyTimeoutRef.current = setTimeout(() => {
         setCopied(false);
         setCopyAnimation(false);
       }, 2000);
@@ -316,12 +331,27 @@ export function CodeBlock({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = useCallback(async () => {
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback
       const textarea = document.createElement("textarea");
@@ -333,7 +363,7 @@ export function CodeBlock({
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }, [code]);
 

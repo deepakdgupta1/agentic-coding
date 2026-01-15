@@ -59,13 +59,15 @@ export function TldrSynergyDiagram({
     return positions;
   }, [coreTools]);
 
-  // Generate connection lines
+  // Generate connection lines with colors from connected tools
   const connections = useMemo(() => {
     const lines: Array<{
       from: string;
       to: string;
       fromPos: NodePosition;
       toPos: NodePosition;
+      fromColor: { from: string; to: string };
+      toColor: { from: string; to: string };
     }> = [];
 
     coreTools.forEach((tool) => {
@@ -84,6 +86,8 @@ export function TldrSynergyDiagram({
               to: synergy.toolId,
               fromPos: nodePositions[tool.id],
               toPos: nodePositions[synergy.toolId],
+              fromColor: getColorDefinition(tool.color),
+              toColor: getColorDefinition(targetTool.color),
             });
           }
         }
@@ -108,102 +112,188 @@ export function TldrSynergyDiagram({
         >
           {/* All gradient definitions */}
           <defs>
+            {/* Background glow */}
             <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.15" />
+              <stop offset="50%" stopColor="#22d3ee" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
             </radialGradient>
-            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.5" />
-              <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.5" />
-            </linearGradient>
+
+            {/* Glow filter for lines */}
+            <filter id="lineGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            {/* Node shadow */}
+            <filter id="nodeShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
+            </filter>
+
             {/* Tool-specific gradients */}
-            {coreTools.map((tool) => (
+            {coreTools.map((tool) => {
+              const colors = getColorDefinition(tool.color);
+              return (
+                <linearGradient
+                  key={`gradient-${tool.id}`}
+                  id={`gradient-${tool.id}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor={colors.from} />
+                  <stop offset="100%" stopColor={colors.to} />
+                </linearGradient>
+              );
+            })}
+
+            {/* Connection-specific gradients - coordinates match line positions */}
+            {connections.map((conn) => (
               <linearGradient
-                key={`gradient-${tool.id}`}
-                id={`gradient-${tool.id}`}
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop
-                  offset="0%"
-                  stopColor={getColorDefinition(tool.color).from}
-                />
-                <stop
-                  offset="100%"
-                  stopColor={getColorDefinition(tool.color).to}
-                />
-              </linearGradient>
-            ))}
-          </defs>
-
-          {/* Center glow */}
-          <circle cx="200" cy="200" r="180" fill="url(#centerGlow)" />
-
-          {/* Connection lines */}
-          <g className="connections">
-            {connections.map((conn, index) => (
-              <motion.line
-                key={`${conn.from}-${conn.to}`}
+                key={`line-gradient-${conn.from}-${conn.to}`}
+                id={`line-gradient-${conn.from}-${conn.to}`}
                 x1={conn.fromPos.x}
                 y1={conn.fromPos.y}
                 x2={conn.toPos.x}
                 y2={conn.toPos.y}
-                stroke="url(#lineGradient)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                initial={reducedMotion ? {} : { opacity: 0 }}
-                animate={isInView ? { opacity: 1 } : {}}
-                transition={{
-                  duration: reducedMotion ? 0 : 0.8,
-                  delay: reducedMotion ? 0 : 0.3 + index * 0.05,
-                }}
-              />
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor={conn.fromColor.from} stopOpacity="0.7" />
+                <stop offset="50%" stopColor={conn.toColor.from} stopOpacity="0.9" />
+                <stop offset="100%" stopColor={conn.toColor.to} stopOpacity="0.7" />
+              </linearGradient>
+            ))}
+          </defs>
+
+          {/* Background glow */}
+          <circle cx="200" cy="200" r="190" fill="url(#centerGlow)" />
+
+          {/* Outer ring decoration */}
+          <circle
+            cx="200"
+            cy="200"
+            r="175"
+            fill="none"
+            stroke="url(#centerGlow)"
+            strokeWidth="1"
+            opacity="0.3"
+            strokeDasharray="4 4"
+          />
+
+          {/* Connection lines - rendered first so they're behind nodes */}
+          <g className="connections">
+            {connections.map((conn, index) => (
+              <motion.g key={`${conn.from}-${conn.to}`}>
+                {/* Glow line (behind) */}
+                <motion.line
+                  x1={conn.fromPos.x}
+                  y1={conn.fromPos.y}
+                  x2={conn.toPos.x}
+                  y2={conn.toPos.y}
+                  stroke={`url(#line-gradient-${conn.from}-${conn.to})`}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  filter="url(#lineGlow)"
+                  initial={reducedMotion ? { opacity: 0.3 } : { opacity: 0 }}
+                  animate={isInView ? { opacity: 0.3 } : {}}
+                  transition={{
+                    duration: reducedMotion ? 0 : 0.8,
+                    delay: reducedMotion ? 0 : 0.3 + index * 0.03,
+                  }}
+                />
+                {/* Main line */}
+                <motion.line
+                  x1={conn.fromPos.x}
+                  y1={conn.fromPos.y}
+                  x2={conn.toPos.x}
+                  y2={conn.toPos.y}
+                  stroke={`url(#line-gradient-${conn.from}-${conn.to})`}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  initial={reducedMotion ? {} : { opacity: 0, pathLength: 0 }}
+                  animate={isInView ? { opacity: 1, pathLength: 1 } : {}}
+                  transition={{
+                    duration: reducedMotion ? 0 : 0.6,
+                    delay: reducedMotion ? 0 : 0.3 + index * 0.03,
+                  }}
+                />
+              </motion.g>
             ))}
           </g>
 
-          {/* Center "Flywheel" label */}
+          {/* Center "Flywheel" hub */}
           <motion.g
             initial={reducedMotion ? {} : { opacity: 0, scale: 0.8 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: reducedMotion ? 0 : 0.5, delay: reducedMotion ? 0 : 0.2 }}
+            style={{ transformOrigin: "200px 200px" }}
           >
+            {/* Center glow effect */}
             <circle
               cx="200"
               cy="200"
-              r="35"
-              fill="hsl(var(--card))"
-              stroke="hsl(var(--primary) / 0.3)"
+              r="45"
+              fill="none"
+              stroke="url(#centerGlow)"
+              strokeWidth="10"
+              opacity="0.5"
+            />
+            {/* Main circle */}
+            <circle
+              cx="200"
+              cy="200"
+              r="38"
+              fill="#0d1117"
+              stroke="#a855f7"
               strokeWidth="2"
+              strokeOpacity="0.5"
+              filter="url(#nodeShadow)"
+            />
+            {/* Inner ring */}
+            <circle
+              cx="200"
+              cy="200"
+              r="32"
+              fill="none"
+              stroke="#22d3ee"
+              strokeWidth="1"
+              strokeOpacity="0.3"
             />
             <text
               x="200"
               y="196"
               textAnchor="middle"
-              className="fill-primary text-xs font-bold uppercase tracking-wider"
+              fill="#a855f7"
+              fontSize="11"
+              fontWeight="bold"
+              letterSpacing="0.1em"
             >
-              Flywheel
+              FLYWHEEL
             </text>
             <text
               x="200"
-              y="210"
+              y="212"
               textAnchor="middle"
-              className="fill-muted-foreground text-[9px]"
+              fill="#94a3b8"
+              fontSize="9"
             >
               {coreTools.length} Core Tools
             </text>
           </motion.g>
 
-          {/* Tool nodes - smaller when more tools */}
+          {/* Tool nodes */}
           {coreTools.map((tool, index) => {
             const pos = nodePositions[tool.id];
             if (!pos) return null;
+            const colors = getColorDefinition(tool.color);
             // Smaller nodes when we have more tools
-            const nodeRadius = coreTools.length > 8 ? 22 : 28;
-            const ringRadius = coreTools.length > 8 ? 20 : 26;
-            const fontSize = coreTools.length > 8 ? "9px" : "11px";
+            const nodeRadius = coreTools.length > 8 ? 22 : 26;
+            const ringRadius = coreTools.length > 8 ? 20 : 24;
+            const fontSize = coreTools.length > 8 ? "8px" : "10px";
 
             return (
               <motion.g
@@ -212,20 +302,28 @@ export function TldrSynergyDiagram({
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{
                   duration: reducedMotion ? 0 : 0.4,
-                  delay: reducedMotion ? 0 : 0.4 + index * 0.05,
+                  delay: reducedMotion ? 0 : 0.4 + index * 0.04,
                   type: "spring",
                   stiffness: 200,
                 }}
+                style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}
               >
+                {/* Outer glow */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={nodeRadius + 8}
+                  fill={colors.from}
+                  opacity="0.1"
+                />
+
                 {/* Node background */}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
                   r={nodeRadius}
-                  fill="hsl(var(--card))"
-                  stroke="hsl(var(--border) / 0.5)"
-                  strokeWidth="1"
-                  className="transition-all duration-300 hover:stroke-border"
+                  fill="#0d1117"
+                  filter="url(#nodeShadow)"
                 />
 
                 {/* Gradient ring */}
@@ -235,8 +333,18 @@ export function TldrSynergyDiagram({
                   r={ringRadius}
                   fill="none"
                   stroke={`url(#gradient-${tool.id})`}
-                  strokeWidth="2"
-                  opacity="0.6"
+                  strokeWidth="2.5"
+                />
+
+                {/* Inner accent */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={ringRadius - 4}
+                  fill="none"
+                  stroke={colors.from}
+                  strokeWidth="0.5"
+                  strokeOpacity="0.3"
                 />
 
                 {/* Tool label */}
@@ -244,8 +352,9 @@ export function TldrSynergyDiagram({
                   x={pos.x}
                   y={pos.y + 3}
                   textAnchor="middle"
-                  className="fill-white font-bold"
-                  style={{ fontSize }}
+                  fill="#ffffff"
+                  fontWeight="bold"
+                  fontSize={fontSize}
                 >
                   {tool.shortName}
                 </text>
@@ -262,7 +371,7 @@ export function TldrSynergyDiagram({
           className="mt-6 text-center"
         >
           <p className="text-xs text-muted-foreground">
-            Lines represent data flow and integration between tools
+            Lines show data flow and integration between tools
           </p>
         </motion.div>
       </motion.div>

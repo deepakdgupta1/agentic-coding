@@ -117,19 +117,20 @@ export function TldrToolCard({
   allTools,
 }: TldrToolCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const isTouchDeviceRef = useRef(false);
   const [spotlightOpacity, setSpotlightOpacity] = useState(0);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = prefersReducedMotion ?? false;
 
   // Detect touch device to disable spotlight effect (better mobile performance)
+  // Using ref instead of state since this doesn't affect rendering
   useEffect(() => {
-    setIsTouchDevice(window.matchMedia("(hover: none)").matches);
+    isTouchDeviceRef.current = window.matchMedia("(hover: none)").matches;
   }, []);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!cardRef.current || reducedMotion || isTouchDevice) return;
+      if (!cardRef.current || reducedMotion || isTouchDeviceRef.current) return;
       const rect = cardRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -139,7 +140,7 @@ export function TldrToolCard({
         cardRef.current?.style.setProperty("--mouse-y", `${y}px`);
       });
     },
-    [reducedMotion, isTouchDevice]
+    [reducedMotion]
   );
 
   const spotlightRgb = getColorDefinition(tool.color).rgb;

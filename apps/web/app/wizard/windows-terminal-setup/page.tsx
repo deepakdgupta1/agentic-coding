@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Terminal,
@@ -29,7 +29,17 @@ export default function WindowsTerminalSetupPage() {
   const router = useRouter();
   const [vpsIP, , vpsIPLoaded] = useVPSIP();
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const ready = vpsIPLoaded;
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Analytics tracking for this wizard step
   useWizardAnalytics({
@@ -54,10 +64,15 @@ export default function WindowsTerminalSetupPage() {
   const sshCommandLine = `ssh -i %USERPROFILE%\\.ssh\\acfs_ed25519 ubuntu@${displayIP}`;
 
   const handleCopy = useCallback(async () => {
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+
     try {
       await navigator.clipboard.writeText(sshCommandLine);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback
       const textarea = document.createElement("textarea");
@@ -69,7 +84,7 @@ export default function WindowsTerminalSetupPage() {
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }, [sshCommandLine]);
 

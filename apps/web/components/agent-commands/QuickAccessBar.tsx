@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Check, Terminal } from "lucide-react";
 import { motion, AnimatePresence, springs } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -22,9 +22,24 @@ const quickCommands: QuickCommand[] = [
 
 export function QuickAccessBar() {
   const [copiedAlias, setCopiedAlias] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async (command: QuickCommand, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
 
     try {
       await navigator.clipboard.writeText(command.alias);
@@ -35,7 +50,7 @@ export function QuickAccessBar() {
         navigator.vibrate(10);
       }
 
-      setTimeout(() => setCopiedAlias(null), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopiedAlias(null), 2000);
     } catch {
       const textarea = document.createElement("textarea");
       textarea.value = command.alias;
@@ -46,7 +61,7 @@ export function QuickAccessBar() {
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopiedAlias(command.alias);
-      setTimeout(() => setCopiedAlias(null), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopiedAlias(null), 2000);
     }
   };
 

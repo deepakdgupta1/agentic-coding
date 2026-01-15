@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
   Terminal,
@@ -304,12 +304,27 @@ function WorkflowSection() {
 
 function PromptCard({ prompt, index }: { prompt: AgentPrompt; index: number }) {
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const copyPrompt = async () => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const copyPrompt = useCallback(async () => {
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+
     try {
       await navigator.clipboard.writeText(prompt.prompt);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for older browsers or when clipboard permission is denied
       const textArea = document.createElement("textarea");
@@ -321,13 +336,13 @@ function PromptCard({ prompt, index }: { prompt: AgentPrompt; index: number }) {
       try {
         document.execCommand("copy");
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
       } catch {
         // Silent fail - user can manually copy
       }
       document.body.removeChild(textArea);
     }
-  };
+  }, [prompt.prompt]);
 
   const categoryColors: Record<string, string> = {
     exploration: "from-cyan-400 to-sky-500",
@@ -504,14 +519,29 @@ function SynergySection() {
 function ToolCard({ tool, index }: { tool: FlywheelTool; index: number }) {
   const Icon = iconMap[tool.icon] || Zap;
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const copyInstall = async () => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const copyInstall = useCallback(async () => {
     if (!tool.installCommand) return;
+
+    // Clear any existing timeout
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
 
     try {
       await navigator.clipboard.writeText(tool.installCommand);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for older browsers or when clipboard permission is denied
       const textArea = document.createElement("textarea");
@@ -523,13 +553,13 @@ function ToolCard({ tool, index }: { tool: FlywheelTool; index: number }) {
       try {
         document.execCommand("copy");
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
       } catch {
         // Silent fail - user can manually copy
       }
       document.body.removeChild(textArea);
     }
-  };
+  }, [tool.installCommand]);
 
   return (
     <div
