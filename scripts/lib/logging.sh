@@ -64,7 +64,7 @@ fi
 # Usage: log_success "Installation complete"
 if ! declare -f log_success >/dev/null; then
     log_success() {
-        printf "${ACFS_GREEN}%s${ACFS_NC}\n" "$1" >&2
+        printf "${ACFS_GREEN}✓ %s${ACFS_NC}\n" "$1" >&2
     }
 fi
 
@@ -72,7 +72,7 @@ fi
 # Usage: log_warn "This may take a while"
 if ! declare -f log_warn >/dev/null; then
     log_warn() {
-        printf "${ACFS_YELLOW}%s${ACFS_NC}\n" "$1" >&2
+        printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$1" >&2
     }
 fi
 
@@ -80,7 +80,7 @@ fi
 # Usage: log_error "Failed to install package"
 if ! declare -f log_error >/dev/null; then
     log_error() {
-        printf "${ACFS_RED}%s${ACFS_NC}\n" "$1" >&2
+        printf "${ACFS_RED}✖ %s${ACFS_NC}\n" "$1" >&2
     }
 fi
 
