@@ -14,7 +14,7 @@
     "clean": "rm -rf apps/*/node_modules packages/*/node_modules node_modules"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   },
   "trustedDependencies": [
     "sharp",

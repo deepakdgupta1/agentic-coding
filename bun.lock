@@ -10,7 +10,7 @@
     },
     "apps/web": {
       "name": "@acfs/web",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "dependencies": {
         "@google-analytics/admin": "^9.0.1",
         "@google-analytics/data": "^5.2.1",
@@ -54,7 +54,7 @@
     },
     "packages/manifest": {
       "name": "@acfs/manifest",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "dependencies": {
         "yaml": "^2.7.0",
         "zod": "^3.24.1",
