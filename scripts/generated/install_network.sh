@@ -175,9 +175,9 @@ fi
 # ClientAliveInterval: send keepalive every 60 seconds
 # ClientAliveCountMax: disconnect after 3 missed (3 minutes of real disconnect)
 
-# Remove any existing ClientAlive settings
-sed -i '/^#*ClientAliveInterval/d' /etc/ssh/sshd_config
-sed -i '/^#*ClientAliveCountMax/d' /etc/ssh/sshd_config
+# Remove any existing ClientAlive settings (handle leading whitespace and comments)
+sed -i '/^[[:space:]]*#*[[:space:]]*ClientAliveInterval/d' /etc/ssh/sshd_config
+sed -i '/^[[:space:]]*#*[[:space:]]*ClientAliveCountMax/d' /etc/ssh/sshd_config
 
 # Add new settings at the end
 echo "" >> /etc/ssh/sshd_config

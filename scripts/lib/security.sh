@@ -17,6 +17,14 @@ if [[ -z "${ACFS_BLUE:-}" ]]; then
     source "$SECURITY_SCRIPT_DIR/logging.sh" 2>/dev/null || true
 fi
 
+# Color aliases for backward compatibility (used by display functions below)
+CYAN="${ACFS_BLUE:-\033[0;36m}"
+DIM="${ACFS_GRAY:-\033[0;90m}"
+NC="${ACFS_NC:-\033[0m}"
+RED="${ACFS_RED:-\033[0;31m}"
+GREEN="${ACFS_GREEN:-\033[0;32m}"
+YELLOW="${ACFS_YELLOW:-\033[0;33m}"
+
 # ============================================================
 # Configuration
 # ============================================================

@@ -16,11 +16,11 @@ installers:
 
   mcp_agent_mail:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/mcp_agent_mail/main/scripts/install.sh"
-    sha256: "9cc8832efa1305221911043a6cc7fe12683e07b56e4fca7a03d3f6081e81a69d"
+    sha256: "92fb23cc1ecdfaa30fb351d601125fd48e8c2f6fcea0df7a5ddf48e15e9631e2"
 
   dcg:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh"
-    sha256: "03bd75d76b8c99fdeebcb334e4c46378ff1379d0256348ebd0119cb1d39dcb8c"
+    sha256: "8a1cd1c91f40b1561a73f904d4809ee93e9ea9415f5cccaf8f996f095916f8c1"
 
   claude:
     url: "https://claude.ai/install.sh"
@@ -40,7 +40,7 @@ installers:
 
   ntm:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/ntm/main/install.sh"
-    sha256: "5bb60ed99251e36a24cd337fd1457b7d379fc4383b1d6612265e4c6a929a6c7f"
+    sha256: "ed9d1e4c4f84543c231f093d9e14e05ae335444440244556ee259bb91be74b2f"
 
   cm:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/cass_memory_system/main/install.sh"
