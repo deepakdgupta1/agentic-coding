@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutGrid,
   Search,
+  Shield,
   ShieldAlert,
   ShieldCheck,
   Wrench,
@@ -30,6 +31,7 @@ export type ToolId =
   | "apr"
   | "jfp"
   | "pt"
+  | "srps"
   | "xf";
 
 export type ToolCard = {
@@ -246,6 +248,18 @@ export const TOOLS: Record<ToolId, ToolCard> = {
     docsLabel: "GitHub",
     quickCommand: "pt --help",
     relatedTools: ["ntm", "slb", "dcg"],
+  },
+  srps: {
+    id: "srps",
+    title: "System Resource Protection Script",
+    tagline: "Keep your workstation responsive under heavy agent load",
+    icon: <Shield className="h-8 w-8" aria-hidden="true" />,
+    gradient: "from-yellow-500/20 via-orange-500/20 to-yellow-500/20",
+    glowColor: "rgba(234, 179, 8, 0.4)",
+    docsUrl: "https://github.com/Dicklesworthstone/system_resource_protection_script",
+    docsLabel: "GitHub",
+    quickCommand: "sysmoni",
+    relatedTools: ["ntm", "dcg", "slb"],
   },
   xf: {
     id: "xf",

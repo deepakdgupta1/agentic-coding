@@ -19,10 +19,15 @@ NEWPROJ_SCREENS_DIR="$NEWPROJ_LIB_DIR/newproj_screens"
 # ============================================================
 
 # Source core modules
+# shellcheck source=newproj_logging.sh
 source "$NEWPROJ_LIB_DIR/newproj_logging.sh"
+# shellcheck source=newproj_errors.sh
 source "$NEWPROJ_LIB_DIR/newproj_errors.sh"
+# shellcheck source=newproj_tui.sh
 source "$NEWPROJ_LIB_DIR/newproj_tui.sh"
+# shellcheck source=newproj_detect.sh
 source "$NEWPROJ_LIB_DIR/newproj_detect.sh"
+# shellcheck source=newproj_agents.sh
 source "$NEWPROJ_LIB_DIR/newproj_agents.sh"
 
 # ============================================================
@@ -42,6 +47,7 @@ load_screens() {
     for screen_file in "$screens_dir"/screen_*.sh; do
         if [[ -f "$screen_file" ]]; then
             log_debug "Loading screen: $screen_file"
+            # shellcheck disable=SC1090  # dynamic screen loader
             source "$screen_file"
         fi
     done
@@ -145,11 +151,14 @@ run_screen() {
     fi
 
     # Track current screen for signal handlers (resize/interrupt)
+    # shellcheck disable=SC2034  # used by newproj_errors.sh
     WIZARD_CURRENT_SCREEN="$screen_id"
     local redraw="render_${screen_id}_screen"
     if declare -f "$redraw" &>/dev/null; then
+        # shellcheck disable=SC2034  # used by newproj_errors.sh
         WIZARD_REDRAW_FUNCTION="$redraw"
     else
+        # shellcheck disable=SC2034  # used by newproj_errors.sh
         WIZARD_REDRAW_FUNCTION=""
     fi
 
@@ -180,6 +189,7 @@ run_wizard() {
 
     # Start at welcome screen
     CURRENT_SCREEN="welcome"
+    # shellcheck disable=SC2034  # used by newproj_tui.sh
     SCREEN_HISTORY=()
 
     # Main loop

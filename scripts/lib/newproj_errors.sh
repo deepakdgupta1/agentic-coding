@@ -17,7 +17,6 @@ _ACFS_NEWPROJ_ERRORS_SH_LOADED=1
 # Colors for error messages
 readonly NEWPROJ_RED='\033[0;31m'
 readonly NEWPROJ_YELLOW='\033[0;33m'
-readonly NEWPROJ_GREEN='\033[0;32m'
 readonly NEWPROJ_NC='\033[0m'
 
 # Minimum terminal size
@@ -61,7 +60,7 @@ normalize_path() {
     # Expand ~
     if [[ "$path" == "~" ]]; then
         path="$HOME"
-    elif [[ "$path" == "~/"* ]]; then
+    elif [[ ${path:0:1} == "~" && ${path:1:1} == "/" ]]; then
         path="${HOME}/${path#~/}"
     fi
 
@@ -694,8 +693,8 @@ validate_directory() {
     local expanded_dir
     if [[ "$dir" == "~" ]]; then
         expanded_dir="$HOME"
-    elif [[ "$dir" == "~/"* ]]; then
-        expanded_dir="${HOME}${dir:1}"
+    elif [[ ${dir:0:1} == "~" && ${dir:1:1} == "/" ]]; then
+        expanded_dir="${HOME}/${dir#~/}"
     else
         # No tilde expansion needed (or ~user form which we don't expand for security)
         expanded_dir="$dir"

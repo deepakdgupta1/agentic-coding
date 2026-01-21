@@ -235,6 +235,36 @@ export const workflowScenarios: WorkflowScenario[] = [
     outcome: "20+ repos committed with intelligent, contextual messages while you're away",
     timeframe: "30 mins - 2 hours depending on repo count",
   },
+  {
+    id: "resource-protected-swarm",
+    title: "Resource-Protected Agent Swarm",
+    description:
+      "Run multiple heavy agents simultaneously without your workstation becoming unresponsive. SRPS keeps everything smooth.",
+    steps: [
+      {
+        tool: "srps",
+        action: "Verify SRPS is running: `systemctl status ananicy-cpp`",
+        result: "ananicy-cpp daemon is active, auto-managing process priorities",
+      },
+      {
+        tool: "ntm",
+        action: "Launch heavy multi-agent session: `ntm spawn proj1 --cc=2 proj2 --cod=2`",
+        result: "4 agents start, each spawning compilers and test runners",
+      },
+      {
+        tool: "srps",
+        action: "Monitor in real-time: `sysmoni`",
+        result: "See agents' subprocesses being auto-deprioritized as they spawn",
+      },
+      {
+        tool: "slb",
+        action: "Add more agents safely: `slb run 'ntm spawn proj3 --gmi=2'`",
+        result: "Even with 6 agents, terminal stays responsive",
+      },
+    ],
+    outcome: "Run 6+ heavy agents simultaneously without system lockup - SRPS keeps your UI snappy",
+    timeframe: "Hours of unattended work without freezes",
+  },
 ];
 
 // ============================================================
@@ -422,13 +452,14 @@ export const flywheelTools: FlywheelTool[] = [
       "Transform tmux into a multi-agent command center. Spawn Claude, Codex, and Gemini agents in named panes. Broadcast prompts to specific agent types. Persistent sessions survive SSH disconnects.",
     deepDescription:
       "NTM is the orchestration layer that lets you run multiple AI agents in parallel. Spawn agents with type classification (cc/cod/gmi), broadcast prompts with filtering, use the command palette TUI for quick actions. Features include configurable hooks, robot mode for automation, and deep Agent Mail integration.",
-    connectsTo: ["slb", "mail", "cass", "caam", "ru"],
+    connectsTo: ["slb", "mail", "cass", "caam", "ru", "srps"],
     connectionDescriptions: {
       slb: "Routes dangerous commands through SLB safety checks",
       mail: "Spawned agents auto-register with Mail for coordination",
       cass: "All session history indexed for cross-agent search",
       caam: "Quick-switches credentials when spawning new agents",
       ru: "RU agent-sweep uses ntm robot mode for orchestration",
+      srps: "SRPS keeps tmux sessions responsive when agents spawn heavy builds",
     },
     stars: 16,
     features: [
@@ -687,11 +718,12 @@ export const flywheelTools: FlywheelTool[] = [
       "Safety friction for autonomous agents. Three-tier risk classification. Cryptographic command binding with SHA-256+HMAC. Dynamic quorum. Complete audit trails.",
     deepDescription:
       "SLB implements nuclear-launch-style safety for AI agents. CRITICAL commands need 2+ approvals from different models. Commands bound with SHA-256 hash. Reviews signed with HMAC. Self-review protection prevents agents from approving their own requests.",
-    connectsTo: ["mail", "ubs", "ntm"],
+    connectsTo: ["mail", "ubs", "ntm", "srps"],
     connectionDescriptions: {
       mail: "Approval requests sent as urgent messages",
       ubs: "Pre-flight scans before execution",
       ntm: "Coordinates quorum across agents",
+      srps: "SRPS prevents multi-agent sessions from overwhelming system resources",
     },
     stars: 23,
     features: [
@@ -724,11 +756,12 @@ export const flywheelTools: FlywheelTool[] = [
       "A Claude Code hook that blocks dangerous commands BEFORE they execute. Catches git resets, force pushes, rm -rf, DROP TABLE, and more. Fail-open design ensures you're never blocked by errors.",
     deepDescription:
       "DCG is the safety layer that protects your codebase from destructive operations. It intercepts commands as a PreToolUse hook in Claude Code, checking against 50+ protection packs covering git, filesystem, databases, Kubernetes, and cloud operations. When a dangerous command is detected, DCG blocks it and suggests safer alternatives. The allow-once workflow enables legitimate bypasses with time-limited short codes.",
-    connectsTo: ["slb", "ntm", "mail"],
+    connectsTo: ["slb", "ntm", "mail", "srps"],
     connectionDescriptions: {
       slb: "DCG and SLB form a two-layer safety system - DCG blocks pre-execution, SLB validates post-execution",
       ntm: "Agents spawned by NTM are protected by DCG hooks in Claude Code",
       mail: "DCG denials can be logged to Mail for agent coordination",
+      srps: "Together with SRPS: DCG blocks dangerous commands, SRPS blocks resource exhaustion",
     },
     stars: 50,
     features: [
@@ -826,6 +859,50 @@ export const flywheelTools: FlywheelTool[] = [
     ],
     installCommand: "cargo install --git https://github.com/Dicklesworthstone/meta_skill",
     language: "Rust",
+  },
+  {
+    id: "srps",
+    name: "System Resource Protection Script",
+    shortName: "SRPS",
+    href: "https://github.com/Dicklesworthstone/system_resource_protection_script",
+    icon: "Shield",
+    color: "from-yellow-400 to-orange-500",
+    tagline: "Keep your workstation responsive under heavy agent load",
+    description:
+      "Installs ananicy-cpp with 1700+ rules to automatically deprioritize background processes, plus sysmoni TUI for real-time monitoring.",
+    deepDescription: `When AI coding agents run cargo build, npm install, or spawn
+multiple parallel processes, your system can become unresponsive. SRPS solves this
+by automatically lowering the priority of known resource hogs (compilers, bundlers,
+test runners) while keeping your terminal and IDE snappy.
+
+Built on ananicy-cpp (a C++ replacement for the original ananicy) with curated rules
+for developer workloads. The sysmoni TUI shows real-time CPU/memory per process with
+ananicy rule status, so you can see exactly what's being managed.
+
+Key capabilities:
+- 1700+ pre-configured rules for compilers, browsers, IDEs, and common dev tools
+- Custom rule support for any process (add your own in /etc/ananicy.d/)
+- Sysctl kernel tweaks for better responsiveness under memory pressure
+- Zero configuration needed - just install and forget`,
+    connectsTo: ["ntm", "dcg", "slb"],
+    connectionDescriptions: {
+      ntm: "SRPS ensures tmux sessions stay responsive even during heavy builds - no frozen terminals",
+      dcg: "Combined safety: DCG prevents destructive commands, SRPS prevents resource exhaustion from runaway processes",
+      slb: "When SLB launches multiple agents, SRPS keeps them from starving each other for CPU/memory",
+    },
+    stars: 50,
+    features: [
+      "ananicy-cpp daemon with 1700+ process priority rules",
+      "sysmoni Go TUI for real-time resource monitoring",
+      "Auto-deprioritizes compilers, bundlers, test runners, browsers",
+      "Sysctl tweaks for better responsiveness under memory pressure",
+      "Custom rules: add any process to /etc/ananicy.d/",
+      "Zero-config: install once, benefits forever",
+    ],
+    cliCommands: ["sysmoni"],
+    installCommand:
+      "curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/system_resource_protection_script/main/install.sh | bash -s -- --install",
+    language: "Go + C++ + Bash",
   },
 ];
 

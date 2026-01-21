@@ -610,7 +610,7 @@ get_sections_for_tech_stack() {
         esac
 
         # Add if not already seen
-        if [[ -n "$section_id" ]] && [[ ! " ${seen[*]} " =~ " ${section_id} " ]]; then
+        if [[ -n "$section_id" ]] && [[ " ${seen[*]} " != *" ${section_id} "* ]]; then
             sections+=("$section_id")
             seen+=("$section_id")
         fi
@@ -730,23 +730,23 @@ validate_agents_md() {
     local errors=()
 
     # Check for required sections
-    if [[ ! "$content" =~ "# AGENTS.md" ]]; then
+    if [[ "$content" != *"# AGENTS.md"* ]]; then
         errors+=("Missing header: # AGENTS.md")
     fi
 
-    if [[ ! "$content" =~ "RULE 1" ]]; then
+    if [[ "$content" != *"RULE 1"* ]]; then
         errors+=("Missing required section: RULE 1 – ABSOLUTE")
     fi
 
-    if [[ ! "$content" =~ "IRREVERSIBLE" ]]; then
+    if [[ "$content" != *"IRREVERSIBLE"* ]]; then
         errors+=("Missing required section: IRREVERSIBLE GIT & FILESYSTEM ACTIONS")
     fi
 
-    if [[ ! "$content" =~ "Code Editing" ]]; then
+    if [[ "$content" != *"Code Editing"* ]]; then
         errors+=("Missing required section: Code Editing Discipline")
     fi
 
-    if [[ ! "$content" =~ "Landing the Plane" ]]; then
+    if [[ "$content" != *"Landing the Plane"* ]]; then
         errors+=("Missing required section: Landing the Plane")
     fi
 

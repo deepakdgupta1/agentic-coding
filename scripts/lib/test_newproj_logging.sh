@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2317  # test helpers are invoked by this script
 # ============================================================
 # Unit Tests for newproj_logging.sh
 # Run with: bash scripts/lib/test_newproj_logging.sh
@@ -8,6 +9,7 @@ set -uo pipefail
 # Note: Not using set -e because we want to continue running tests even if some fail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=newproj_logging.sh
 source "$SCRIPT_DIR/newproj_logging.sh"
 
 # Test counters

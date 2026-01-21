@@ -228,7 +228,7 @@ detect_tech_stack_monorepo() {
     local root_stack
     root_stack=$(detect_tech_stack "$dir")
     for tech in $root_stack; do
-        if [[ ! " ${seen[*]} " =~ " ${tech} " ]]; then
+        if [[ " ${seen[*]} " != *" ${tech} "* ]]; then
             detected+=("$tech")
             seen+=("$tech")
         fi
@@ -270,7 +270,7 @@ detect_tech_stack_monorepo() {
         local sub_stack
         sub_stack=$(detect_tech_stack "$subdir")
         for tech in $sub_stack; do
-            if [[ ! " ${seen[*]} " =~ " ${tech} " ]]; then
+            if [[ " ${seen[*]} " != *" ${tech} "* ]]; then
                 detected+=("$tech")
                 seen+=("$tech")
             fi
@@ -348,7 +348,7 @@ get_agents_sections_for_stack() {
         esac
 
         # Add section if not already seen
-        if [[ -n "$section" ]] && [[ ! " ${seen[*]} " =~ " ${section} " ]]; then
+        if [[ -n "$section" ]] && [[ " ${seen[*]} " != *" ${section} "* ]]; then
             sections+=("$section")
             seen+=("$section")
         fi
@@ -471,7 +471,9 @@ get_detection_summary() {
     sorted=$(sort_tech_by_priority "${stack[@]}")
 
     local display
-    display=$(get_tech_display_list $sorted)
+    local -a sorted_array=()
+    read -ra sorted_array <<< "$sorted"
+    display=$(get_tech_display_list "${sorted_array[@]}")
 
     local count=${#stack[@]}
     if [[ $count -eq 1 ]]; then

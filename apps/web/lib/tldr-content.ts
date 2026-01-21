@@ -575,6 +575,53 @@ export const tldrFlywheelTools: TldrFlywheelTool[] = [
     ],
   },
   {
+    id: "srps",
+    name: "System Resource Protection Script",
+    shortName: "SRPS",
+    href: "https://github.com/Dicklesworthstone/system_resource_protection_script",
+    icon: "Shield",
+    color: "from-yellow-400 to-orange-500",
+    category: "supporting",
+    stars: 50,
+    whatItDoes:
+      "Auto-deprioritizes background processes to keep your terminal responsive during heavy builds and multi-agent sessions.",
+    whyItsUseful:
+      "When running cargo build, npm install, or multiple AI agents simultaneously, SRPS prevents your system from becoming unresponsive by automatically lowering the priority of known resource hogs.",
+    implementationHighlights: [
+      "ananicy-cpp daemon with 1700+ process rules",
+      "sysmoni Go TUI for real-time monitoring",
+      "Sysctl tweaks for better responsiveness",
+      "Custom rule support for any process",
+    ],
+    synergies: [
+      {
+        toolId: "ntm",
+        description: "Keeps tmux sessions responsive during heavy workloads",
+      },
+      {
+        toolId: "slb",
+        description: "Prevents multiple agents from starving each other for resources",
+      },
+      {
+        toolId: "dcg",
+        description: "Combined safety: resource protection + command protection",
+      },
+    ],
+    techStack: ["Go", "C++", "ananicy-cpp", "systemd"],
+    keyFeatures: [
+      "Automatic process deprioritization",
+      "Real-time TUI monitoring",
+      "1700+ pre-configured rules",
+      "Custom rule creation",
+    ],
+    useCases: [
+      "Multi-agent coding sessions",
+      "Large compilation jobs",
+      "Heavy test suite runs",
+      "Background indexing (rust-analyzer, typescript server)",
+    ],
+  },
+  {
     id: "xf",
     name: "X Archive Search",
     shortName: "XF",
@@ -665,9 +712,9 @@ export const tldrPageData = {
     title: "The Agentic Coding Flywheel",
     subtitle: "TL;DR Edition",
     description:
-      "11 core tools and 3 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
+      "11 core tools and 4 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
     stats: [
-      { label: "Ecosystem Tools", value: "14" },
+      { label: "Ecosystem Tools", value: "15" },
       { label: "GitHub Stars", value: "3,600+" },
       { label: "Languages", value: "5" },
     ],
@@ -675,7 +722,7 @@ export const tldrPageData = {
   coreDescription:
     "The core flywheel tools form the backbone: Agent Mail for coordination, BV for graph-based prioritization, CASS for instant session search, CM for persistent memory, UBS for bug detection, MS for skill management with MCP integration, plus session management, safety guards, and automated setup.",
   supportingDescription:
-    "Supporting tools extend the ecosystem: GIIL for remote image debugging, XF for searching your X archive, and S2P for crafting prompts from source code.",
+    "Supporting tools extend the ecosystem: GIIL for remote image debugging, SRPS for system responsiveness under heavy load, XF for searching your X archive, and S2P for crafting prompts from source code.",
   flywheelExplanation: {
     title: "Why a Flywheel?",
     paragraphs: [

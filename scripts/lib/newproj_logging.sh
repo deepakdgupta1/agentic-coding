@@ -319,7 +319,8 @@ log_json() {
     {
         echo "[$timestamp] [JSON ] $label:"
         # Indent each line of JSON for readability
-        echo "$json" | sed 's/^/    /'
+        local indented="    ${json//$'\n'/$'\n    '}"
+        echo "$indented"
     } >> "$ACFS_SESSION_LOG" 2>/dev/null || true
 }
 

@@ -208,6 +208,14 @@ export const LESSONS: Lesson[] = [
     duration: "10 min",
     file: "22_meta_skill.md",
   },
+  {
+    id: 23,
+    slug: "srps",
+    title: "SRPS: System Protection",
+    description: "Keep your workstation responsive under heavy agent load",
+    duration: "8 min",
+    file: "23_srps.md",
+  },
 ];
 
 /** Total number of lessons */

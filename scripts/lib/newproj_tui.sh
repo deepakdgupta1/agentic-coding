@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # variables are consumed by screen modules
 # ============================================================
 # ACFS newproj TUI Wizard - Core Framework
 # Provides screen management, navigation, state, and styling
@@ -14,7 +15,9 @@ _ACFS_NEWPROJ_TUI_SH_LOADED=1
 NEWPROJ_LIB_DIR="${NEWPROJ_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 # Source dependencies
+# shellcheck source=newproj_logging.sh
 source "$NEWPROJ_LIB_DIR/newproj_logging.sh"
+# shellcheck source=newproj_errors.sh
 source "$NEWPROJ_LIB_DIR/newproj_errors.sh"
 
 # ============================================================
@@ -158,7 +161,7 @@ setup_box_chars() {
         BOX_CROSS='x'
         BOX_BULLET='*'
         BOX_ARROW='->'
-        SPINNER_FRAMES=('|' '/' '-' '\\')
+        SPINNER_FRAMES=('|' '/' '-' "\\")
     fi
 }
 
@@ -436,8 +439,7 @@ read_text_input() {
         # Validate if validator provided
         if [[ -n "$validator" ]]; then
             local error
-            error=$("$validator" "$input" 2>&1)
-            if [[ $? -eq 0 ]]; then
+            if error=$("$validator" "$input" 2>&1); then
                 valid=true
             else
                 echo -e "${TUI_ERROR}${error}${TUI_NC}"

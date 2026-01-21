@@ -177,6 +177,14 @@ export const COMMANDS: CommandRef[] = [
     example: "atuin search ssh",
   },
   {
+    name: "ananicy-cpp",
+    fullName: "Ananicy-CPP Daemon",
+    description: "Process priority daemon with 1700+ rules for auto-deprioritization.",
+    category: "system",
+    example: "systemctl status ananicy-cpp",
+    docsUrl: "https://gitlab.com/ananicy-cpp/ananicy-cpp",
+  },
+  {
     name: "direnv",
     fullName: "direnv",
     description: "Directory-specific env vars.",
@@ -287,6 +295,14 @@ export const COMMANDS: CommandRef[] = [
     category: "stack",
     example: "pt",
     aliases: ["process-triage"],
+  },
+  {
+    name: "sysmoni",
+    fullName: "SRPS System Monitor",
+    description: "Real-time TUI showing CPU/memory per process with ananicy rule status.",
+    category: "stack",
+    example: "sysmoni",
+    docsUrl: "https://github.com/Dicklesworthstone/system_resource_protection_script",
   },
   {
     name: "xf",
