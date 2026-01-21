@@ -799,6 +799,49 @@ export const tldrFlywheelTools: TldrFlywheelTool[] = [
       "Building a personal prompt library",
     ],
   },
+  {
+    id: "pt",
+    name: "Process Triage",
+    shortName: "PT",
+    href: "https://github.com/Dicklesworthstone/process_triage",
+    icon: "Activity",
+    color: "from-red-500 to-orange-600",
+    category: "supporting",
+    stars: 45,
+    whatItDoes:
+      "Find and terminate stuck or zombie processes with intelligent Bayesian scoring. Identifies resource hogs and helps clean up runaway processes.",
+    whyItsUseful:
+      "When cargo build hangs, or a test runner goes rogue, pt helps you identify and terminate the offending processes. Uses intelligent scoring to prioritize truly problematic processes.",
+    implementationHighlights: [
+      "Rust implementation for speed",
+      "Bayesian scoring for process prioritization",
+      "Interactive TUI for process selection",
+      "Robot mode for automation",
+    ],
+    synergies: [
+      {
+        toolId: "srps",
+        description: "PT terminates stuck processes, SRPS prevents them from hogging resources",
+      },
+      {
+        toolId: "ntm",
+        description: "Clean up runaway processes in tmux sessions",
+      },
+    ],
+    techStack: ["Rust", "Bayesian inference", "procfs"],
+    keyFeatures: [
+      "Intelligent process scoring",
+      "Interactive TUI selection",
+      "Robot mode for automation",
+      "Resource usage analysis",
+    ],
+    useCases: [
+      "Killing stuck build processes",
+      "Cleaning up zombie processes",
+      "Identifying memory hogs",
+      "Automated process cleanup",
+    ],
+  },
 ];
 
 export const tldrPageData = {

@@ -1000,6 +1000,47 @@ Key capabilities:
       "git clone https://github.com/Dicklesworthstone/jeffreysprompts.com.git ~/.local/share/jeffreysprompts.com && cd ~/.local/share/jeffreysprompts.com && bun install && bun run build:cli && cp jfp ~/.local/bin/",
     language: "TypeScript/Bun",
   },
+  {
+    id: "pt",
+    name: "Process Triage",
+    shortName: "PT",
+    href: "https://github.com/Dicklesworthstone/process_triage",
+    icon: "Activity",
+    color: "from-red-500 to-orange-600",
+    tagline: "Find and kill stuck/zombie processes with intelligent scoring",
+    description:
+      "Rust-based process manager with Bayesian scoring to identify and terminate problematic processes. TUI for interactive selection.",
+    deepDescription: `When builds hang, test runners go rogue, or processes zombie out, you need to find
+and terminate them quickly. PT uses intelligent Bayesian scoring to prioritize truly problematic
+processes - not just those using resources, but those that are actually stuck or misbehaving.
+
+The scoring algorithm considers CPU usage patterns, memory growth rate, file descriptor counts,
+and process state to identify processes that are genuinely problematic vs. those that are just
+doing heavy work.
+
+Key capabilities:
+- Bayesian scoring identifies stuck processes, not just heavy ones
+- Interactive TUI for selecting processes to terminate
+- Robot mode for automation: pt --robot list
+- Integration with SRPS for proactive resource management`,
+    connectsTo: ["srps", "ntm"],
+    connectionDescriptions: {
+      srps: "PT terminates stuck processes, SRPS prevents them from starving the system",
+      ntm: "Clean up runaway processes across all your tmux sessions",
+    },
+    stars: 45,
+    features: [
+      "Bayesian process scoring algorithm",
+      "Interactive TUI for process selection",
+      "Robot mode for automation",
+      "Resource usage trend analysis",
+      "Zombie process detection",
+      "Safe termination with confirmation",
+    ],
+    cliCommands: ["pt", "pt --robot list", "pt --help"],
+    installCommand: "cargo install --git https://github.com/Dicklesworthstone/process_triage",
+    language: "Rust",
+  },
 ];
 
 // ============================================================
