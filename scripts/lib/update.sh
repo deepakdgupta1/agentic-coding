@@ -1071,9 +1071,12 @@ update_agents() {
     fi
 
     # Codex CLI via bun (--trust allows postinstall scripts)
+    # Uses fallback chain: @latest -> unversioned -> pinned 0.87.0
+    # npm can 404 briefly after publishing; pinned version is reliable fallback
     if cmd_exists codex || [[ "$FORCE_MODE" == "true" ]]; then
         local codex_bin_local="$HOME/.local/bin/codex"
         local codex_bin_bun="$HOME/.bun/bin/codex"
+        local codex_fallback_version="0.87.0"
 
         capture_version_before "codex"
         run_cmd_bun_with_retry "Codex CLI" "$bun_bin" install -g --trust @openai/codex@latest
@@ -1081,6 +1084,11 @@ update_agents() {
         if [[ ! -x "$codex_bin_local" && ! -x "$codex_bin_bun" ]]; then
             log_item "warn" "Codex CLI" "latest tag failed; retrying @openai/codex"
             run_cmd_bun_with_retry "Codex CLI (fallback)" "$bun_bin" install -g --trust @openai/codex
+        fi
+
+        if [[ ! -x "$codex_bin_local" && ! -x "$codex_bin_bun" ]]; then
+            log_item "warn" "Codex CLI" "unversioned failed; retrying pinned $codex_fallback_version"
+            run_cmd_bun_with_retry "Codex CLI (pinned)" "$bun_bin" install -g --trust "@openai/codex@$codex_fallback_version"
         fi
 
         # Show version change without double-counting

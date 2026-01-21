@@ -3201,14 +3201,22 @@ install_agents_phase() {
     fi
 
     # Codex CLI (install as target user)
+    # Uses fallback chain: @latest -> unversioned -> pinned 0.87.0
+    # npm can 404 briefly after publishing; pinned version is reliable fallback
     log_detail "Installing Codex CLI for $TARGET_USER"
     try_step "Installing Codex CLI" run_as_target bash -c '
         set -euo pipefail
         bun_bin="$1"
-        if ! "$bun_bin" install -g --trust @openai/codex@latest; then
-            echo "WARN: Codex CLI latest tag install failed; retrying @openai/codex" >&2
-            "$bun_bin" install -g --trust @openai/codex
+        CODEX_FALLBACK_VERSION="0.87.0"
+        if "$bun_bin" install -g --trust @openai/codex@latest 2>/dev/null; then
+            exit 0
         fi
+        echo "WARN: Codex CLI @latest failed; retrying unversioned" >&2
+        if "$bun_bin" install -g --trust @openai/codex 2>/dev/null; then
+            exit 0
+        fi
+        echo "WARN: Codex CLI unversioned failed; retrying pinned $CODEX_FALLBACK_VERSION" >&2
+        "$bun_bin" install -g --trust "@openai/codex@$CODEX_FALLBACK_VERSION"
     ' _ "$bun_bin" || true
 
     # Create wrapper script that uses bun as runtime (avoids node PATH issues)
