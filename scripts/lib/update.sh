@@ -36,7 +36,7 @@ UPDATE_APT=true
 UPDATE_AGENTS=true
 UPDATE_CLOUD=true
 UPDATE_RUNTIME=true
-UPDATE_STACK=false
+UPDATE_STACK=true
 UPDATE_SHELL=true
 FORCE_MODE=false
 DRY_RUN=false
@@ -334,6 +334,115 @@ run_cmd() {
         fi
         return 0
     fi
+}
+
+# Run bun command with retry logic for transient failures
+# Usage: run_cmd_bun_with_retry "description" bun_bin install -g --trust pkg@latest
+run_cmd_bun_with_retry() {
+    local desc="$1"
+    shift
+    local max_attempts=3
+    local attempt=1
+    local exit_code=0
+    local output=""
+    local cmd_display=""
+    cmd_display=$(printf '%q ' "$@")
+
+    log_to_file "Running (with retry): $cmd_display"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_item "skip" "$desc" "dry-run: $cmd_display"
+        return 0
+    fi
+
+    log_item "run" "$desc"
+
+    while [[ $attempt -le $max_attempts ]]; do
+        exit_code=0
+        output=""
+
+        if [[ "$VERBOSE" == "true" ]]; then
+            if [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
+                {
+                    echo ""
+                    echo "----- COMMAND (attempt $attempt/$max_attempts): $cmd_display"
+                } >> "$UPDATE_LOG_FILE"
+            fi
+
+            if [[ "$QUIET" != "true" ]] && [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
+                output=$("$@" 2>&1 | tee -a "$UPDATE_LOG_FILE") || exit_code=${PIPESTATUS[0]}
+            elif [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
+                output=$("$@" 2>&1) || exit_code=$?
+                [[ -n "$output" ]] && echo "$output" >> "$UPDATE_LOG_FILE"
+            else
+                output=$("$@" 2>&1) || exit_code=$?
+            fi
+        else
+            output=$("$@" 2>&1) || exit_code=$?
+            [[ -n "$output" ]] && log_to_file "Output: $output"
+        fi
+
+        if [[ $exit_code -eq 0 ]]; then
+            if [[ "$QUIET" != "true" ]] && [[ "$VERBOSE" != "true" ]]; then
+                printf "\033[1A\033[2K  ${GREEN}[ok]${NC} %s\n" "$desc"
+            elif [[ "$QUIET" != "true" ]]; then
+                printf "  ${GREEN}[ok]${NC} %s\n" "$desc"
+            fi
+            log_to_file "Success: $desc"
+            ((SUCCESS_COUNT += 1))
+            return 0
+        fi
+
+        # Check for transient errors that warrant a retry
+        local is_transient=false
+        if echo "$output" | grep -qiE "failed to map segment|ENOENT|EACCES|EAGAIN|Connection reset|timed out|rate limit|503|502|500"; then
+            is_transient=true
+        fi
+
+        if [[ "$is_transient" == "true" ]] && [[ $attempt -lt $max_attempts ]]; then
+            local sleep_secs=$((attempt * 2))
+            log_to_file "Transient error detected, retrying in ${sleep_secs}s (attempt $attempt/$max_attempts)"
+
+            if [[ "$QUIET" != "true" ]] && [[ "$VERBOSE" != "true" ]]; then
+                printf "\033[1A\033[2K  ${YELLOW}[retry]${NC} %s (attempt %d/%d)\n" "$desc" "$attempt" "$max_attempts"
+            elif [[ "$QUIET" != "true" ]]; then
+                printf "  ${YELLOW}[retry]${NC} %s (attempt %d/%d)\n" "$desc" "$attempt" "$max_attempts"
+            fi
+
+            # Clear bun's tmp cache to avoid stale locks
+            local bun_cache_tmp="${HOME}/.bun/install/cache/.tmp"
+            if [[ -d "$bun_cache_tmp" ]]; then
+                rm -rf "$bun_cache_tmp" 2>/dev/null || true
+                log_to_file "Cleared bun cache .tmp directory"
+            fi
+
+            sleep "$sleep_secs"
+            ((attempt += 1))
+
+            # Re-display "running" status for the retry
+            if [[ "$QUIET" != "true" ]] && [[ "$VERBOSE" != "true" ]]; then
+                log_item "run" "$desc"
+            fi
+        else
+            break
+        fi
+    done
+
+    # Final failure
+    if [[ "$QUIET" != "true" ]] && [[ "$VERBOSE" != "true" ]]; then
+        printf "\033[1A\033[2K  ${RED}[fail]${NC} %s\n" "$desc"
+    else
+        printf "  ${RED}[fail]${NC} %s\n" "$desc"
+    fi
+    log_to_file "Failed: $desc (exit code: $exit_code after $attempt attempts)"
+    ((FAIL_COUNT += 1))
+
+    if [[ "$ABORT_ON_FAILURE" == "true" ]]; then
+        echo -e "${RED}Aborting due to failure (--abort-on-failure)${NC}"
+        log_to_file "ABORT: Stopping due to --abort-on-failure"
+        exit 1
+    fi
+    return 0
 }
 
 # Check if command exists
@@ -720,7 +829,7 @@ update_agents() {
     # Codex CLI via bun (--trust allows postinstall scripts)
     if cmd_exists codex || [[ "$FORCE_MODE" == "true" ]]; then
         capture_version_before "codex"
-        run_cmd "Codex CLI" "$bun_bin" install -g --trust @openai/codex@latest
+        run_cmd_bun_with_retry "Codex CLI" "$bun_bin" install -g --trust @openai/codex@latest
         # Show version change without double-counting
         if capture_version_after "codex"; then
             [[ "$QUIET" != "true" ]] && printf "       ${DIM}%s → %s${NC}\n" "${VERSION_BEFORE[codex]}" "${VERSION_AFTER[codex]}"
@@ -732,7 +841,7 @@ update_agents() {
     # Gemini CLI via bun (--trust allows postinstall scripts)
     if cmd_exists gemini || [[ "$FORCE_MODE" == "true" ]]; then
         capture_version_before "gemini"
-        run_cmd "Gemini CLI" "$bun_bin" install -g --trust @google/gemini-cli@latest
+        run_cmd_bun_with_retry "Gemini CLI" "$bun_bin" install -g --trust @google/gemini-cli@latest
         # Show version change without double-counting
         if capture_version_after "gemini"; then
             [[ "$QUIET" != "true" ]] && printf "       ${DIM}%s → %s${NC}\n" "${VERSION_BEFORE[gemini]}" "${VERSION_AFTER[gemini]}"
@@ -935,7 +1044,7 @@ update_cloud() {
     # Wrangler (--trust allows postinstall scripts for native binaries)
     if cmd_exists wrangler || [[ "$FORCE_MODE" == "true" ]]; then
         if [[ "$has_bun" == "true" ]]; then
-            run_cmd "Wrangler (Cloudflare)" "$bun_bin" install -g --trust wrangler@latest
+            run_cmd_bun_with_retry "Wrangler (Cloudflare)" "$bun_bin" install -g --trust wrangler@latest
         else
             log_item "fail" "Wrangler (Cloudflare)" "bun not installed (required)"
         fi
@@ -959,7 +1068,7 @@ update_cloud() {
     # Vercel (--trust allows postinstall scripts for native binaries)
     if cmd_exists vercel || [[ "$FORCE_MODE" == "true" ]]; then
         if [[ "$has_bun" == "true" ]]; then
-            run_cmd "Vercel CLI" "$bun_bin" install -g --trust vercel@latest
+            run_cmd_bun_with_retry "Vercel CLI" "$bun_bin" install -g --trust vercel@latest
         else
             log_item "fail" "Vercel CLI" "bun not installed (required)"
         fi
@@ -1120,7 +1229,7 @@ update_stack() {
     log_section "Dicklesworthstone Stack"
 
     if [[ "$UPDATE_STACK" != "true" ]]; then
-        log_item "skip" "stack update" "disabled (use --stack to enable)"
+        log_item "skip" "stack update" "disabled via --no-stack"
         return 0
     fi
 
@@ -1761,6 +1870,10 @@ main() {
                 ;;
             --no-runtime)
                 UPDATE_RUNTIME=false
+                shift
+                ;;
+            --no-stack)
+                UPDATE_STACK=false
                 shift
                 ;;
             --force)
