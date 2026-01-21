@@ -416,6 +416,10 @@ update_require_security() {
         return 0
     fi
 
+    # Refresh checksums from GitHub before loading
+    # This ensures we have the latest checksums when security verification is needed
+    refresh_checksums "${QUIET:-false}" || true
+
     # Check for security.sh in expected locations
     local security_script=""
     if [[ -f "$SCRIPT_DIR/security.sh" ]]; then
@@ -1112,10 +1116,6 @@ update_stack() {
         log_item "skip" "stack update" "disabled (use --stack to enable)"
         return 0
     fi
-
-    # Refresh checksums from GitHub to get latest versions
-    # This prevents checksum mismatch errors when install scripts have been updated
-    refresh_checksums "$QUIET" || true
 
     if ! update_require_security; then
         log_item "fail" "stack updates" "security verification unavailable (missing security.sh/checksums.yaml)"
