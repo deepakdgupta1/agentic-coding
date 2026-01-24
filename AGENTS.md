@@ -237,9 +237,12 @@ These are installed on target VPS (not development machine).
 - **bat** — Better cat
 
 ### Coding Agents
+- **Amp** — Sourcegraph's coding agent (**PRIMARY** — reasoning)
+- **Gemini CLI** — Google's coding agent (**PRIMARY** — coding & documentation)
+- **Codex CLI** — OpenAI's coding agent (**PRIMARY** — code review, bug fixes, enhancements)
 - **Claude Code** — Anthropic's coding agent
-- **Codex CLI** — OpenAI's coding agent
-- **Gemini CLI** — Google's coding agent
+
+> **Default agent ratio:** `ntm spawn <project> --amp=2 --gmi=2 --cod=1` (Amp + Gemini + Codex preferred)
 
 ### Cloud & Database
 - **PostgreSQL 18** — Database

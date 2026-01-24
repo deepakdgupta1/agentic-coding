@@ -131,7 +131,7 @@ bv                              # Check tasks
 bd ready                        # See what's ready to work on
 
 # 2. Start your agents
-ntm spawn myproject --cc=2 --cod=1
+ntm spawn myproject --amp=2 --gmi=2 --cod=1
 
 # 3. Set context
 cm context "Implementing user authentication" --json
@@ -190,7 +190,7 @@ git push -u origin beads-sync
 bd config set sync.branch beads-sync
 
 # 4. Spawn your agents
-ntm spawn my-first-project --cc=2 --cod=1 --gmi=1
+ntm spawn my-first-project --amp=2 --gmi=2 --cod=1
 
 # 5. Start building!
 ntm send my-first-project "Let's build something awesome.

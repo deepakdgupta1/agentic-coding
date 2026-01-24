@@ -4,21 +4,44 @@
 
 ---
 
-## The Three Agents
+## The Primary Agents
 
-You have three powerful coding agents installed:
+You have three primary coding agents (Amp + Gemini + Codex) and one secondary agent installed:
 
-| Agent | Command | Alias | Company |
-|-------|---------|-------|---------|
-| Claude Code | `claude` | `cc` | Anthropic |
-| Codex CLI | `codex` | `cod` | OpenAI |
-| Gemini CLI | `gemini` | `gmi` | Google |
+| Agent | Command | Alias | Company | Role |
+|-------|---------|-------|---------|------|
+| Amp | `amp` | `amp` | Sourcegraph | **PRIMARY** — reasoning |
+| Gemini CLI | `gemini` | `gmi` | Google | **PRIMARY** — coding & docs |
+| Codex CLI | `codex` | `cod` | OpenAI | **PRIMARY** — code review, bug fixes |
+| Claude Code | `claude` | `cc` | Anthropic | secondary |
 
 ---
 
 ## What The Aliases Do
 
 The aliases are configured for **maximum power** (vibe mode):
+
+### `amp` (Amp) — PRIMARY (reasoning)
+```bash
+amp
+```
+- Sourcegraph's AI coding agent
+- Excellent for reasoning and architecture
+
+### `gmi` (Gemini CLI) — PRIMARY (coding & docs)
+```bash
+gemini --yolo
+```
+- YOLO mode (no confirmations)
+- Great for coding and documentation
+
+### `cod` (Codex CLI) — PRIMARY (code review)
+```bash
+codex --dangerously-bypass-approvals-and-sandbox
+```
+- Bypass safety prompts
+- No approval/sandbox checks
+- Best for code review, bug fixes, enhancements
 
 ### `cc` (Claude Code)
 ```bash
@@ -28,19 +51,6 @@ NODE_OPTIONS="--max-old-space-size=32768" \
 - Extra memory for large projects
 - Background tasks enabled by default
 - No permission prompts
-
-### `cod` (Codex CLI)
-```bash
-codex --dangerously-bypass-approvals-and-sandbox
-```
-- Bypass safety prompts
-- No approval/sandbox checks
-
-### `gmi` (Gemini CLI)
-```bash
-gemini --yolo
-```
-- YOLO mode (no confirmations)
 
 ---
 
