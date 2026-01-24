@@ -520,19 +520,20 @@ check() {
 # assuming it supports `--version`.
 get_version_line() {
     local cmd="$1"
+    local timeout_secs=5  # Prevent hangs on slow/stuck commands
 
     local version=""
     # UBS has a directory size check that can block --version; bypass it
     if [[ "$cmd" == "ubs" ]]; then
-        version=$(UBS_MAX_DIR_SIZE_MB=10000 "$cmd" --version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" env UBS_MAX_DIR_SIZE_MB=10000 "$cmd" --version 2>/dev/null | head -n1) || true
     else
-        version=$("$cmd" --version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" --version 2>/dev/null | head -n1) || true
     fi
     if [[ -z "$version" ]]; then
-        version=$("$cmd" -V 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" -V 2>/dev/null | head -n1) || true
     fi
     if [[ -z "$version" ]]; then
-        version=$("$cmd" version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" version 2>/dev/null | head -n1) || true
     fi
 
     if [[ -z "$version" ]]; then
