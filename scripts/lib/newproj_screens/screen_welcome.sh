@@ -61,13 +61,13 @@ EOF
         echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Git repository initialization"
         echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} AGENTS.md for AI coding assistants"
         echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Beads issue tracking (optional)"
-        echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Claude Code settings (optional)"
+        echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Agent configurations (Claude, Gemini, Codex, AMP, Antigravity)"
     else
         echo "  [*] Project directory structure"
         echo "  [*] Git repository initialization"
         echo "  [*] AGENTS.md for AI coding assistants"
         echo "  [*] Beads issue tracking (optional)"
-        echo "  [*] Claude Code settings (optional)"
+        echo "  [*] Agent configurations (Claude, Gemini, Codex, AMP, Antigravity)"
     fi
 
     echo ""

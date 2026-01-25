@@ -295,6 +295,28 @@ acfs() {
         return 1
       fi
       ;;
+    agent-resources|agent_resources|agentres)
+      if [[ -f "$acfs_home/scripts/lib/agent_resources.sh" ]]; then
+        bash "$acfs_home/scripts/lib/agent_resources.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" agent-resources "$@"
+      else
+        echo "Error: agent_resources.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
+    newproj|new-project|new)
+      if [[ -f "$acfs_home/scripts/lib/newproj.sh" ]]; then
+        bash "$acfs_home/scripts/lib/newproj.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" newproj "$@"
+      else
+        echo "Error: newproj.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
     continue|status|progress)
       if [[ -f "$acfs_home/scripts/lib/continue.sh" ]]; then
         bash "$acfs_home/scripts/lib/continue.sh" "$@"
@@ -352,6 +374,8 @@ acfs() {
       echo "Usage: acfs <command>"
       echo ""
       echo "Commands:"
+      echo "  newproj         Create a new project (TUI or CLI)"
+      echo "  agent-resources Manage shared agent resources for projects"
       echo "  info            Quick system overview (hostname, IP, uptime, progress)"
       echo "  cheatsheet      Command reference (aliases, shortcuts)"
       echo "  dashboard, dash <generate|serve> - Static HTML dashboard"

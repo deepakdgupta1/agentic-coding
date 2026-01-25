@@ -10,6 +10,11 @@ if [[ -n "${_ACFS_NEWPROJ_AGENTS_SH_LOADED:-}" ]]; then
 fi
 _ACFS_NEWPROJ_AGENTS_SH_LOADED=1
 
+NEWPROJ_LIB_DIR="${NEWPROJ_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
+# shellcheck source=agent_resources.sh
+source "$NEWPROJ_LIB_DIR/agent_resources.sh"
+
 # ============================================================
 # Section Registry
 # ============================================================
@@ -17,6 +22,7 @@ _ACFS_NEWPROJ_AGENTS_SH_LOADED=1
 # All available section IDs in order
 declare -ga AGENTS_SECTION_ORDER=(
     "header"
+    "primary_agent"
     "rule_1_absolute"
     "irreversible_actions"
     "nodejs_toolchain"
@@ -37,6 +43,7 @@ declare -ga AGENTS_SECTION_ORDER=(
 # Section metadata: section_id -> "title|required|depends_on"
 declare -gA AGENTS_SECTION_META=(
     ["header"]="Header|true|"
+    ["primary_agent"]="Primary AI Agent|true|"
     ["rule_1_absolute"]="RULE 1 – ABSOLUTE|true|"
     ["irreversible_actions"]="IRREVERSIBLE GIT & FILESYSTEM ACTIONS|true|"
     ["nodejs_toolchain"]="Node / JS Toolchain|false|"
@@ -67,6 +74,9 @@ get_section_content() {
     case "$section_id" in
         header)
             _section_header "$project_name"
+            ;;
+        primary_agent)
+            _section_primary_agent
             ;;
         rule_1_absolute)
             _section_rule_1
@@ -136,6 +146,27 @@ Tech-dependent sections include toolchain and Docker workflow blocks.
 
 To regenerate with different options, move AGENTS.md aside and re-run:
   acfs newproj --interactive
+
+---
+EOF
+}
+
+_section_primary_agent() {
+    cat << 'EOF'
+
+## Primary AI Agent
+
+This project is configured to work with **any** of the following primary agents.
+Pick the one you want to drive the session:
+
+- **Gemini CLI**: `gemini` (alias: `gmi`)
+- **Codex CLI**: `codex` (alias: `cod`)
+- **AMP CLI**: `amp`
+- **Antigravity IDE**: open the project folder (reads `GEMINI.md` + `.agent/`)
+- **Claude Code CLI**: `claude` (alias: `cc`)
+
+`AGENTS.md` is the canonical instruction set. `GEMINI.md` is a symlink used by
+Gemini CLI and Antigravity to load the same rules.
 
 ---
 EOF
@@ -873,4 +904,13 @@ preview_agents_md() {
             fi
         done
     done
+}
+
+# ============================================================
+# Agent Resource Seeding (Antigravity + shared rules/skills)
+# ============================================================
+
+seed_agent_resources() {
+    local project_dir="$1"
+    agent_resources_seed "$project_dir"
 }

@@ -35,6 +35,7 @@ get_files_to_create() {
     # Based on features
     if [[ "$(state_get "enable_agents")" == "true" ]]; then
         files+=("$project_dir/AGENTS.md")
+        files+=("$project_dir/GEMINI.md")
     fi
 
     if [[ "$(state_get "enable_bd")" == "true" ]]; then
@@ -42,9 +43,19 @@ get_files_to_create() {
         files+=("$project_dir/.beads/beads.db")
     fi
 
-    if [[ "$(state_get "enable_claude")" == "true" ]]; then
+    if [[ "$(state_get "enable_agent_configs")" == "true" ]]; then
         files+=("$project_dir/.claude/")
         files+=("$project_dir/.claude/settings.local.json")
+        files+=("$project_dir/.gemini/")
+        files+=("$project_dir/.gemini/rules")
+        files+=("$project_dir/.codex/")
+        files+=("$project_dir/.codex/rules/ubs.md")
+        files+=("$project_dir/.amp/")
+        files+=("$project_dir/.amp/README.md")
+        files+=("$project_dir/.agent/")
+        files+=("$project_dir/.agent/rules/ubs.md")
+        files+=("$project_dir/.agent/skills/")
+        files+=("$project_dir/.agent/ACFS_AGENT_RESOURCES.lock")
     fi
 
     if [[ "$(state_get "enable_ubsignore")" == "true" ]]; then
@@ -152,7 +163,7 @@ render_confirmation_screen() {
     echo -e "${TUI_BOLD}Features${TUI_NC}"
     draw_line 50
 
-    local features=("bd:Beads tracking" "claude:Claude Code settings" "agents:AGENTS.md" "ubsignore:UBS ignore")
+    local features=("agent_configs:Agent configurations" "agents:AGENTS.md" "bd:Beads tracking" "ubsignore:UBS ignore")
     for feat in "${features[@]}"; do
         local id="${feat%%:*}"
         local name="${feat#*:}"

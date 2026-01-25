@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # ACFS newproj - Create a new project with full ACFS tooling
-# Creates a project with git, beads (bd), Claude settings, and AGENTS.md
+# Creates a project with git, beads (bd), multi-agent configs, and AGENTS.md
 # Supports both CLI mode and interactive TUI wizard mode
 # ============================================================
 
@@ -9,6 +9,9 @@ set -e
 
 # Get script directory for sourcing other modules
 NEWPROJ_SCRIPT_DIR="${NEWPROJ_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
+# shellcheck source=newproj_agents.sh
+source "$NEWPROJ_SCRIPT_DIR/newproj_agents.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -84,7 +87,7 @@ print_help() {
     echo "Usage: acfs newproj [options] <project-name> [directory]"
     echo "       acfs newproj --interactive"
     echo ""
-    echo "Create a new project with ACFS tooling (git, bd, claude settings, AGENTS.md)"
+    echo "Create a new project with ACFS tooling (git, bd, agent configs, AGENTS.md)"
     echo ""
     echo "Arguments:"
     echo "  project-name    Name of the project (required in CLI mode)"
@@ -96,7 +99,7 @@ print_help() {
     echo ""
     echo "CLI mode options:"
     echo "  --no-bd         Skip beads (bd) initialization"
-    echo "  --no-claude     Skip agent settings (Claude, Gemini, Codex)"
+    echo "  --no-agent-configs  Skip agent settings (Claude, Gemini, Codex, AMP, Antigravity)"
     echo "  --no-agents     Skip AGENTS.md template creation"
     echo "  -h, --help      Show this help message"
     echo ""
@@ -123,6 +126,22 @@ generic - edit or add sections as needed.
 
 To regenerate with different options, move this file aside and re-run:
   acfs newproj --interactive
+
+---
+
+## Primary AI Agent
+
+This project is configured to work with **any** of these primary agents.
+Pick the one you want to drive the session:
+
+- **Gemini CLI**: `gemini` (alias: `gmi`)
+- **Codex CLI**: `codex` (alias: `cod`)
+- **AMP CLI**: `amp`
+- **Antigravity IDE**: open the project folder (reads `GEMINI.md` + `.agent/`)
+- **Claude Code CLI**: `claude` (alias: `cc`)
+
+`AGENTS.md` is the canonical instruction set. `GEMINI.md` is a symlink used by
+Gemini CLI and Antigravity to load the same rules.
 
 ---
 
@@ -194,8 +213,13 @@ Example structure:
 PROJECT_NAME_PLACEHOLDER/
 ├── README.md
 ├── AGENTS.md
+├── GEMINI.md -> AGENTS.md         # Gemini CLI / Antigravity
+├── .agent/                        # Shared rules + skills (Antigravity)
 ├── .beads/                        # Issue tracking (bd)
 ├── .claude/                       # Claude Code settings
+├── .gemini/                       # Gemini CLI rules
+├── .codex/                        # Codex CLI rules
+├── .amp/                          # AMP notes
 │
 └── src/                           # Your source code
 ```
@@ -525,7 +549,7 @@ main() {
     local project_name=""
     local project_dir=""
     local skip_bd=false
-    local skip_claude=false
+    local skip_agent_configs=false
     local skip_agents=false
     local interactive_mode=false
 
@@ -544,8 +568,8 @@ main() {
                 skip_bd=true
                 shift
                 ;;
-            --no-claude)
-                skip_claude=true
+            --no-agent-configs)
+                skip_agent_configs=true
                 shift
                 ;;
             --no-agents)
@@ -755,55 +779,92 @@ EOF
         fi
     fi
 
-    # Create Claude settings if not skipped
-    if [[ "$skip_claude" == "false" ]]; then
+    # Create agent configurations if not skipped
+    if [[ "$skip_agent_configs" == "false" ]]; then
+        echo -e "${GREEN}Creating agent configurations...${NC}"
+
+        # Claude Code settings
         mkdir -p .claude/commands
-
-        if [[ ! -f .claude/settings.toml ]]; then
-            echo -e "${GREEN}Creating Claude settings...${NC}"
-            cat > .claude/settings.toml << 'EOF'
-# Claude Code project settings
-# See: https://docs.anthropic.com/en/docs/claude-code/settings
-
-[project]
-# Project-specific settings go here
-
-[permissions]
-# allow = ["Bash(npm:*)", "Bash(bun:*)"]
+        if [[ ! -f .claude/settings.local.json ]]; then
+            cat > .claude/settings.local.json << 'EOF'
+{
+  "model": "claude-sonnet-4-20250514",
+  "permissions": {
+    "allow_file_read": true,
+    "allow_file_write": true,
+    "allow_shell": true
+  }
+}
 EOF
             CREATED_ITEMS+=("Claude settings (.claude/)")
         else
             echo -e "${CYAN}Claude settings already exist, skipping${NC}"
         fi
 
-        # Create Gemini CLI rules directory
+        # Shared agent resources (Antigravity uses .agent/)
+        local had_agent=false
+        [[ -d .agent ]] && had_agent=true
+        if seed_agent_resources "$project_dir"; then
+            if [[ "$had_agent" != "true" ]]; then
+                CREATED_ITEMS+=("Shared agent resources (.agent/)")
+            fi
+        else
+            echo -e "${YELLOW}Warning: Failed to seed shared agent resources (.agent/)${NC}"
+        fi
+
+        # Gemini CLI rules
         mkdir -p .gemini
         if [[ ! -f .gemini/rules ]]; then
-            echo -e "${GREEN}Creating Gemini rules...${NC}"
             cat > .gemini/rules << 'EOF'
 # Gemini CLI rules - See AGENTS.md for full instructions
 
 ## Core Rules
+- Follow AGENTS.md (GEMINI.md is a symlink)
 - Never delete files without explicit user permission
 - Use bun for all JS/TS tooling
 - Run ubs before commits
 - Always push before ending session
 EOF
             CREATED_ITEMS+=("Gemini rules (.gemini/)")
+        else
+            echo -e "${CYAN}Gemini rules already exist, skipping${NC}"
         fi
 
-        # Create Codex CLI rules directory
+        # Codex CLI rules (symlink to shared UBS rules if possible)
         mkdir -p .codex/rules
-        if [[ ! -f .codex/rules/ubs.md ]]; then
-            echo -e "${GREEN}Creating Codex rules...${NC}"
-            cat > .codex/rules/ubs.md << 'EOF'
+        if [[ ! -f .codex/rules/ubs.md ]] && [[ ! -L .codex/rules/ubs.md ]]; then
+            if ! ln -s ../../.agent/rules/ubs.md .codex/rules/ubs.md 2>/dev/null; then
+                local codex_ubs
+                codex_ubs=$(agent_resources_read_file ".agent/rules/ubs.md" 2>/dev/null || true)
+                if [[ -n "$codex_ubs" ]]; then
+                    printf '%s\n' "$codex_ubs" > .codex/rules/ubs.md
+                else
+                    cat > .codex/rules/ubs.md << 'EOF'
 # UBS Quick Reference
 
 Run `ubs <changed-files>` before every commit.
 - Exit 0 = safe to commit
 - Exit >0 = fix issues and re-run
 EOF
+                fi
+            fi
             CREATED_ITEMS+=("Codex rules (.codex/)")
+        else
+            echo -e "${CYAN}Codex rules already exist, skipping${NC}"
+        fi
+
+        # AMP note (reads AGENTS.md natively)
+        mkdir -p .amp
+        if [[ ! -f .amp/README.md ]]; then
+            cat > .amp/README.md << 'EOF'
+# AMP Configuration
+
+AMP reads project instructions from AGENTS.md in the project root.
+No additional configuration is required.
+EOF
+            CREATED_ITEMS+=("AMP notes (.amp/)")
+        else
+            echo -e "${CYAN}AMP notes already exist, skipping${NC}"
         fi
     fi
 
@@ -846,7 +907,12 @@ EOF
         echo "  bd ready                    # Check for work"
         echo "  bd create --title=\"...\"    # Create tasks"
     fi
-    echo "  cc                          # Start Claude Code"
+    echo "  # Start coding with your preferred agent:"
+    echo "  gemini                      # Gemini CLI (alias: gmi)"
+    echo "  codex                       # Codex CLI (alias: cod)"
+    echo "  amp                         # AMP CLI"
+    echo "  claude                      # Claude Code CLI (alias: cc)"
+    echo "  # Antigravity IDE: open the project folder (reads GEMINI.md + .agent/)"
 }
 
 # Only run main if script is executed directly, not sourced

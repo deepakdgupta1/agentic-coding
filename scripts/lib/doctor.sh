@@ -144,7 +144,8 @@ print_acfs_help() {
     echo "  cheatsheet          Command reference (aliases, shortcuts)"
     echo "  continue [options]  View installation/upgrade progress"
     echo "  dashboard <command> Generate/view a static HTML dashboard"
-    echo "  newproj <name>      Create new project with git, bd, claude settings"
+    echo "  newproj <name>      Create new project with git, bd, and agent configs"
+    echo "  agent-resources     Manage shared agent resources for projects"
     echo "  update [options]    Update ACFS tools to latest versions"
     echo "  services-setup      Configure AI agents and cloud services"
     echo "  session <command>   Export/import/share agent sessions"
@@ -1709,6 +1710,22 @@ main() {
             fi
 
             echo "Error: update.sh not found" >&2
+            return 1
+            ;;
+        agent-resources|agent_resources|agentres)
+            shift
+            local agent_resources_script=""
+            if [[ -f "$HOME/.acfs/scripts/lib/agent_resources.sh" ]]; then
+                agent_resources_script="$HOME/.acfs/scripts/lib/agent_resources.sh"
+            elif [[ -f "$SCRIPT_DIR/agent_resources.sh" ]]; then
+                agent_resources_script="$SCRIPT_DIR/agent_resources.sh"
+            fi
+
+            if [[ -n "$agent_resources_script" ]]; then
+                exec bash "$agent_resources_script" "$@"
+            fi
+
+            echo "Error: agent_resources.sh not found" >&2
             return 1
             ;;
         newproj|new-project|new)

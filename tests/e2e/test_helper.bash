@@ -205,8 +205,14 @@ verify_feature_enabled() {
         beads|bd)
             [[ -d "$project_dir/.beads" ]] && [[ -f "$project_dir/.beads/beads.db" ]]
             ;;
-        claude)
-            [[ -d "$project_dir/.claude" ]] && [[ -f "$project_dir/.claude/settings.local.json" ]]
+        agent_configs)
+            [[ -d "$project_dir/.claude" ]] && \
+            [[ -f "$project_dir/.claude/settings.local.json" ]] && \
+            [[ -f "$project_dir/.gemini/rules" ]] && \
+            [[ -f "$project_dir/.codex/rules/ubs.md" ]] && \
+            [[ -f "$project_dir/.amp/README.md" ]] && \
+            [[ -f "$project_dir/.agent/rules/ubs.md" ]] && \
+            [[ -f "$project_dir/.agent/skills/beads/SKILL.md" ]]
             ;;
         ubsignore)
             [[ -f "$project_dir/.ubsignore" ]]

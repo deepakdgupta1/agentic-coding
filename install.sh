@@ -1399,6 +1399,44 @@ install_asset() {
     fi
 }
 
+install_agent_resources_templates() {
+    local dest_root="$ACFS_HOME/templates/agent-resources"
+    local manifest_rel="acfs/templates/agent-resources/manifest.txt"
+    local manifest_dest="$dest_root/manifest.txt"
+
+    local sudo_cmd="${SUDO:-}"
+    if [[ -z "$sudo_cmd" ]] && [[ $EUID -ne 0 ]] && command -v sudo &>/dev/null; then
+        sudo_cmd="sudo"
+    fi
+
+    if [[ -n "$sudo_cmd" ]]; then
+        $sudo_cmd mkdir -p "$dest_root"
+    else
+        mkdir -p "$dest_root"
+    fi
+
+    install_asset "$manifest_rel" "$manifest_dest" || return 1
+
+    local rel_path
+    while IFS= read -r rel_path; do
+        [[ -z "$rel_path" ]] && continue
+        local src_rel="acfs/templates/agent-resources/$rel_path"
+        local dest_path="$dest_root/$rel_path"
+        local dest_dir
+        dest_dir="$(dirname "$dest_path")"
+        if [[ -n "$sudo_cmd" ]]; then
+            $sudo_cmd mkdir -p "$dest_dir"
+        else
+            mkdir -p "$dest_dir"
+        fi
+        install_asset "$src_rel" "$dest_path" || return 1
+    done < <(awk 'found {print} /^files:/{found=1;next} /^[[:space:]]*#/ {next} NF==0{next}' "$manifest_dest")
+
+    if [[ -n "$sudo_cmd" ]]; then
+        $sudo_cmd chown -R "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/templates" 2>/dev/null || true
+    fi
+}
+
 install_checksums_yaml() {
     local dest_path="$1"
 
@@ -3872,6 +3910,8 @@ finalize() {
     try_step "Installing info.sh" install_asset "scripts/lib/info.sh" "$ACFS_HOME/scripts/lib/info.sh" || return 1
     try_step "Installing cheatsheet.sh" install_asset "scripts/lib/cheatsheet.sh" "$ACFS_HOME/scripts/lib/cheatsheet.sh" || return 1
     try_step "Installing dashboard.sh" install_asset "scripts/lib/dashboard.sh" "$ACFS_HOME/scripts/lib/dashboard.sh" || return 1
+    try_step "Installing agent_resources.sh" install_asset "scripts/lib/agent_resources.sh" "$ACFS_HOME/scripts/lib/agent_resources.sh" || return 1
+    try_step "Installing agent resources templates" install_agent_resources_templates || return 1
 
     # Install acfs-update wrapper command
     try_step "Installing acfs-update" install_asset "scripts/acfs-update" "$ACFS_HOME/bin/acfs-update" || return 1

@@ -127,7 +127,7 @@ For Claude: Use `@.agent/skills/<name>/SKILL.md` to load manually.
 ### Priority 1 (Medium Effort) — ✅ COMPLETE
 
 - [x] Update `acfs newproj` to create configs for ALL agents:
-  - Claude settings (`.claude/settings.toml`)
+  - Claude settings (`.claude/settings.local.json`)
   - Gemini rules (`.gemini/rules`)
   - Codex rules (`.codex/rules/ubs.md`)
   - GEMINI.md symlink → AGENTS.md
