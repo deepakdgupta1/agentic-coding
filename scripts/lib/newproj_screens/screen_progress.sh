@@ -53,9 +53,9 @@ init_creation_steps() {
         STEP_STATUS["init_bd"]="pending"
     fi
 
-    if [[ "$(state_get "enable_claude")" == "true" ]]; then
-        STEP_ORDER+=("create_claude")
-        STEP_STATUS["create_claude"]="pending"
+    if [[ "$(state_get "enable_agent_configs")" == "true" ]]; then
+        STEP_ORDER+=("create_agent_configs")
+        STEP_STATUS["create_agent_configs"]="pending"
     fi
 
     if [[ "$(state_get "enable_ubsignore")" == "true" ]]; then
@@ -78,7 +78,7 @@ get_step_name() {
         create_gitignore) echo "Creating .gitignore" ;;
         create_agents) echo "Generating AGENTS.md" ;;
         init_bd) echo "Initializing Beads tracking" ;;
-        create_claude) echo "Creating Claude Code settings" ;;
+        create_agent_configs) echo "Creating agent configurations (Claude, Gemini, Codex, Amp)" ;;
         create_ubsignore) echo "Creating .ubsignore" ;;
         finalize) echo "Finalizing project" ;;
         *) echo "$step" ;;
@@ -317,9 +317,12 @@ venv/
             fi
             ;;
 
-        create_claude)
+        create_agent_configs)
+            # Create configurations for all primary agents
+            local success=true
+            
+            # Claude Code settings
             mkdir -p "$project_dir/.claude" 2>/dev/null
-
             local claude_settings='{
   "model": "claude-sonnet-4-20250514",
   "permissions": {
@@ -328,7 +331,36 @@ venv/
     "allow_shell": true
   }
 }'
-            if try_write_file "$project_dir/.claude/settings.local.json" "$claude_settings"; then
+            try_write_file "$project_dir/.claude/settings.local.json" "$claude_settings" || success=false
+            
+            # Gemini CLI settings
+            mkdir -p "$project_dir/.gemini" 2>/dev/null
+            local gemini_settings='{
+  "model": "gemini-2.5-pro",
+  "safetySettings": "balanced"
+}'
+            try_write_file "$project_dir/.gemini/settings.json" "$gemini_settings" || success=false
+            
+            # Codex CLI settings
+            mkdir -p "$project_dir/.codex" 2>/dev/null
+            local codex_settings='{
+  "model": "o3",
+  "approvalMode": "auto-edit"
+}'
+            try_write_file "$project_dir/.codex/config.json" "$codex_settings" || success=false
+            
+            # Amp uses AGENTS.md natively - create a note file
+            mkdir -p "$project_dir/.amp" 2>/dev/null
+            local amp_readme="# Amp Configuration
+
+Amp reads project instructions from AGENTS.md in the project root.
+No additional configuration is required.
+
+See: https://ampcode.com/docs
+"
+            try_write_file "$project_dir/.amp/README.md" "$amp_readme" || success=false
+            
+            if [[ "$success" == "true" ]]; then
                 update_step "$step" "success"
                 return 0
             else
@@ -371,7 +403,8 @@ __pycache__/
 
 Created with ACFS newproj wizard.
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)" 2>/dev/null
+Configured for: Amp, Gemini CLI, Codex CLI, Claude Code
+See AGENTS.md for AI coding agent instructions." 2>/dev/null
                 ) || true
             fi
 
