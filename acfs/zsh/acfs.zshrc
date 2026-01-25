@@ -153,7 +153,7 @@ alias install='sudo apt install'
 alias search='apt search'
 
 # Update agent CLIs
-alias uca='~/.local/bin/claude update && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest'
+alias uca='~/.local/bin/claude update && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest && bun install -g --trust @anthropic/amp-cli@latest'
 
 # --- Custom functions ---
 mkcd() { mkdir -p "$1" && cd "$1" || return; }
@@ -375,6 +375,7 @@ acfs() {
 alias cc='NODE_OPTIONS="--max-old-space-size=32768" ~/.local/bin/claude --dangerously-skip-permissions'
 alias cod='codex --dangerously-bypass-approvals-and-sandbox'
 alias gmi='gemini --yolo'
+alias amp='~/.local/bin/amp'
 
 # bun project helpers (common)
 alias bdev='bun run dev'

@@ -702,6 +702,7 @@ check_agents() {
         "Re-run: curl -fsSL https://claude.ai/install.sh | bash"
     check_command "agent.codex" "Codex CLI" "codex" "bun install -g --trust @openai/codex@latest"
     check_command "agent.gemini" "Gemini CLI" "gemini" "bun install -g --trust @google/gemini-cli@latest"
+    check_optional_command "agent.amp" "Amp CLI" "amp" "bun install -g --trust @anthropic/amp-cli@latest"
 
     # Check aliases are defined in the zshrc
     if grep -q "^alias cc=" ~/.acfs/zsh/acfs.zshrc 2>/dev/null; then
@@ -720,6 +721,12 @@ check_agents() {
         check "agent.alias.gmi" "gmi alias" "pass"
     else
         check "agent.alias.gmi" "gmi alias" "warn" "not in zshrc"
+    fi
+
+    if grep -q "^alias amp=" ~/.acfs/zsh/acfs.zshrc 2>/dev/null; then
+        check "agent.alias.amp" "amp alias" "pass"
+    else
+        check "agent.alias.amp" "amp alias" "warn" "not in zshrc"
     fi
 
     # Check for PATH conflicts (bead hi7)

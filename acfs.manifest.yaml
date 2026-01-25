@@ -688,6 +688,35 @@ modules:
     verify:
       - ~/.local/bin/gemini --version || ~/.local/bin/gemini --help
 
+  - id: agents.amp
+    description: Sourcegraph Amp CLI
+    category: agents
+    phase: 7
+    run_as: target_user
+    optional: false
+    enabled_by_default: true
+    tags: [recommended, agent]
+    dependencies:
+      - lang.bun
+    installed_check:
+      run_as: target_user
+      command: "test -x ~/.local/bin/amp"
+    install:
+      # Install via bun, then create wrapper
+      - ~/.bun/bin/bun install -g --trust @anthropic/amp-cli@latest || ~/.bun/bin/bun install -g --trust amp-cli@latest || true
+      - |
+        mkdir -p ~/.local/bin
+        cat > ~/.local/bin/amp << 'WRAPPER'
+        #!/bin/bash
+        exec ~/.bun/bin/bun ~/.bun/bin/amp "$@"
+        WRAPPER
+        chmod +x ~/.local/bin/amp
+    verify:
+      - ~/.local/bin/amp --version || ~/.local/bin/amp --help || true
+    notes:
+      - "Uses bun global install with wrapper in ~/.local/bin"
+      - "Reads AGENTS.md natively for project instructions"
+
   # ============================================================
   # PHASE 8: Cloud & database tools
   # ============================================================

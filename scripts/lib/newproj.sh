@@ -96,7 +96,7 @@ print_help() {
     echo ""
     echo "CLI mode options:"
     echo "  --no-bd         Skip beads (bd) initialization"
-    echo "  --no-claude     Skip Claude settings creation"
+    echo "  --no-claude     Skip agent settings (Claude, Gemini, Codex)"
     echo "  --no-agents     Skip AGENTS.md template creation"
     echo "  -h, --help      Show this help message"
     echo ""
@@ -775,6 +775,36 @@ EOF
         else
             echo -e "${CYAN}Claude settings already exist, skipping${NC}"
         fi
+
+        # Create Gemini CLI rules directory
+        mkdir -p .gemini
+        if [[ ! -f .gemini/rules ]]; then
+            echo -e "${GREEN}Creating Gemini rules...${NC}"
+            cat > .gemini/rules << 'EOF'
+# Gemini CLI rules - See AGENTS.md for full instructions
+
+## Core Rules
+- Never delete files without explicit user permission
+- Use bun for all JS/TS tooling
+- Run ubs before commits
+- Always push before ending session
+EOF
+            CREATED_ITEMS+=("Gemini rules (.gemini/)")
+        fi
+
+        # Create Codex CLI rules directory
+        mkdir -p .codex/rules
+        if [[ ! -f .codex/rules/ubs.md ]]; then
+            echo -e "${GREEN}Creating Codex rules...${NC}"
+            cat > .codex/rules/ubs.md << 'EOF'
+# UBS Quick Reference
+
+Run `ubs <changed-files>` before every commit.
+- Exit 0 = safe to commit
+- Exit >0 = fix issues and re-run
+EOF
+            CREATED_ITEMS+=("Codex rules (.codex/)")
+        fi
     fi
 
     # Create AGENTS.md template if not skipped
@@ -785,6 +815,13 @@ EOF
             CREATED_ITEMS+=("AGENTS.md (template)")
         else
             echo -e "${CYAN}AGENTS.md already exists, skipping${NC}"
+        fi
+
+        # Create GEMINI.md symlink for Gemini CLI / Antigravity
+        if [[ ! -L GEMINI.md ]] && [[ ! -f GEMINI.md ]]; then
+            echo -e "${GREEN}Creating GEMINI.md symlink...${NC}"
+            ln -s AGENTS.md GEMINI.md
+            CREATED_ITEMS+=("GEMINI.md symlink")
         fi
     fi
 
