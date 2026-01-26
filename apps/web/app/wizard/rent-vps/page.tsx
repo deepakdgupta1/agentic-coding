@@ -7,6 +7,7 @@ import { ExternalLink, Check, Server, ChevronDown, Cloud, Heart, Info } from "lu
 import { Button } from "@/components/ui/button";
 import { AlertCard } from "@/components/alert-card";
 import { TrackedLink } from "@/components/tracked-link";
+import { VPSComparison } from "@/components/wizard/VPSComparison";
 import { cn } from "@/lib/utils";
 import { markStepComplete } from "@/lib/wizardSteps";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
@@ -250,6 +251,9 @@ export default function RentVPSPage() {
           ))}
         </div>
       </div>
+
+      {/* Quick comparison table */}
+      <VPSComparison />
 
       {/* Credit card and verification warning */}
       <AlertCard variant="warning" title="Before you sign up">
