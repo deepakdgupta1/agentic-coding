@@ -1325,10 +1325,13 @@ Doctor checks can be generated from the manifest (`scripts/generated/doctor_chec
 ### Options
 
 ```bash
-acfs doctor          # Interactive colorful output
-acfs doctor --json   # Machine-readable JSON output
-acfs doctor --quiet  # Exit code only (0=healthy, 1=issues)
-acfs doctor --deep   # Run functional tests (auth, connections)
+acfs doctor              # Interactive colorful output
+acfs doctor --json       # Machine-readable JSON output
+acfs doctor --quiet      # Exit code only (0=healthy, 1=issues)
+acfs doctor --deep       # Run functional tests (auth, connections)
+acfs doctor --fix        # Apply safe fixes for failed checks
+acfs doctor --dry-run    # Preview fixes without applying
+acfs doctor --no-cache   # Skip cache, run all checks fresh
 ```
 
 ### Deep Checks (`--deep`)
@@ -1353,6 +1356,80 @@ Deep Checks
   ✔ GitHub CLI authenticated
 
 8/9 functional tests passed in 3.2s
+```
+
+### Auto-Fix Mode (`--fix`)
+
+The `--fix` flag automatically applies safe, deterministic fixes for common issues:
+
+```bash
+acfs doctor --fix             # Apply safe fixes
+acfs doctor --fix --dry-run   # Preview fixes without applying
+```
+
+#### Safe Auto-Fixers
+
+These fixes are applied automatically when `--fix` is used:
+
+| Fix ID | Description | Undo Strategy |
+|--------|-------------|---------------|
+| `fix.path.ordering` | Prepend ACFS directories to PATH in .zshrc | Restore backup |
+| `fix.config.copy` | Copy missing ~/.acfs config files | Remove copied file |
+| `fix.dcg.hook` | Install DCG pre-tool-use hook | Run `dcg uninstall` |
+| `fix.symlink.create` | Create missing tool symlinks | Remove symlink |
+| `fix.plugin.clone` | Clone missing zsh plugins | Remove cloned directory |
+| `fix.acfs.sourcing` | Add ACFS sourcing to .zshrc | Restore backup |
+
+#### Safety Guarantees
+
+- **Never deletes user files** — Only creates, modifies, or symlinks
+- **Backups before modify** — SHA256-verified backups of all modified files
+- **Idempotent** — Safe to run multiple times
+- **Logged** — All changes recorded to `~/.local/share/acfs/doctor.log`
+- **Reversible** — Every fix has an undo command
+
+#### Example Dry-Run Output
+
+```
+DRY-RUN: acfs doctor --fix
+
+Would apply the following fixes:
+
+  [fix.path.ordering]
+    Action: Prepend PATH directories to ~/.zshrc
+    File: ~/.zshrc
+    Backup: Yes (SHA256 verified)
+
+  [fix.acfs.sourcing]
+    Action: Add ACFS sourcing to .zshrc
+    File: ~/.zshrc
+    Backup: Yes (SHA256 verified)
+
+Fixes that require manual action:
+  [shell.ohmyzsh]
+    Status: FAIL
+    Suggestion: curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | bash
+
+Summary: 2 auto-fixes, 0 prompted, 1 manual
+```
+
+#### Manual-Only Fixes
+
+Some operations are never auto-fixed and instead provide suggestions:
+
+- Package manager operations (`apt install ...`)
+- Anything requiring sudo
+- File deletions
+- Complex shell configuration changes
+
+#### Undoing Changes
+
+All changes made by `--fix` can be undone:
+
+```bash
+acfs undo --list      # List all changes
+acfs undo chg_0001    # Undo specific change
+acfs undo --all       # Undo all changes from last session
 ```
 
 ---
