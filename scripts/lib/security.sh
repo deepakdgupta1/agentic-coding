@@ -169,6 +169,13 @@ declare -gA KNOWN_INSTALLERS=(
     [giil]="https://raw.githubusercontent.com/Dicklesworthstone/giil/main/install.sh"
     [csctf]="https://raw.githubusercontent.com/Dicklesworthstone/chat_shared_conversation_to_file/main/install.sh"
     [jfp]="https://jeffreysprompts.com/install-cli.sh"
+    [br]="https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh"
+    [brenner_bot]="https://raw.githubusercontent.com/Dicklesworthstone/brenner_bot/main/install.sh"
+    [rch]="https://raw.githubusercontent.com/Dicklesworthstone/remote_compilation_helper/master/install.sh"
+    [tru]="https://raw.githubusercontent.com/Dicklesworthstone/toon_rust/master/install.sh"
+    [rano]="https://raw.githubusercontent.com/Dicklesworthstone/rano/main/install.sh"
+    [mdwb]="https://raw.githubusercontent.com/Dicklesworthstone/markdown_web_browser/main/install.sh"
+    [s2p]="https://raw.githubusercontent.com/Dicklesworthstone/source_to_prompt_tui/main/install.sh"
 )
 
 # ============================================================
