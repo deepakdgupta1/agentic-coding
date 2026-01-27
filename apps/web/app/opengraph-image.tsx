@@ -176,7 +176,7 @@ export default async function Image() {
                 fill="rgba(255,255,255,0.2)"
               />
 
-              {/* Flywheel nodes - 10 tools around the circle */}
+              {/* Flywheel nodes - sample tools in wheel formation */}
               {[0, 36, 72, 108, 144, 180, 216, 252, 288, 324].map((angle, i) => {
                 const rad = (angle * Math.PI) / 180;
                 const x = 50 + 40 * Math.cos(rad);

@@ -65,7 +65,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "Launched agents coordinate via mail threads",
       },
     ],
-    techStack: ["Python 3.14+", "FastMCP", "FastAPI", "SQLite"],
+    techStack: ["Python 3.11+", "FastMCP", "FastAPI", "SQLite"],
     keyFeatures: [
       "Threaded messaging between AI agents",
       "Advisory file reservations",
@@ -470,7 +470,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "Session history from all NTM panes is indexed for search",
       },
     ],
-    techStack: ["Go 1.25+", "Bubble Tea", "tmux 3.0+"],
+    techStack: ["Go 1.22+", "Bubble Tea", "tmux 3.0+"],
     keyFeatures: [
       "Spawn named agent panes with type classification",
       "Broadcast prompts to specific agent types",
@@ -713,52 +713,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       "Structured hypothesis generation",
       "Multi-model research synthesis",
       "Scientific methodology workflows",
-    ],
-  },
-  {
-    id: "ms",
-    name: "Meta Skill",
-    shortName: "MS",
-    href: "https://github.com/Dicklesworthstone/meta_skill",
-    icon: "BookMarked",
-    color: "from-indigo-500 to-blue-600",
-    category: "core",
-    stars: 35,
-    whatItDoes:
-      "Local-first skill management platform that turns operational knowledge into structured, searchable, reusable artifacts. Provides dual persistence (SQLite + Git), hybrid search, and native AI agent integration via MCP.",
-    whyItsUseful:
-      "As you build expertise across codebases, you need a way to capture and reuse successful patterns. MS indexes SKILL.md files, provides context-aware suggestions with bandit optimization, and exposes skills as native tools for AI agents.",
-    implementationHighlights: [
-      "Dual SQLite + Git persistence for speed and audit trails",
-      "Hybrid BM25 + hash embeddings with Reciprocal Rank Fusion",
-      "UCB bandit algorithm for adaptive suggestions",
-      "MCP server exposing skills as native AI tools",
-    ],
-    synergies: [
-      {
-        toolId: "cm",
-        description: "CM stores playbook rules that MS can query",
-      },
-      {
-        toolId: "cass",
-        description: "Skills can be mined from CASS session history",
-      },
-      {
-        toolId: "bv",
-        description: "Graph analysis via bv for dependency insights",
-      },
-    ],
-    techStack: ["Rust", "SQLite", "Git", "MCP", "Hash Embeddings"],
-    keyFeatures: [
-      "Skill indexing and semantic search",
-      "Context-aware adaptive suggestions",
-      "Multi-machine Git-based sync",
-      "MCP integration for AI agents",
-    ],
-    useCases: [
-      "Capturing operational knowledge as reusable skills",
-      "AI agent augmentation via MCP tools",
-      "Cross-project pattern distribution",
     ],
   },
   // ===========================================================================
@@ -1102,9 +1056,9 @@ export const tldrPageData = {
     title: "The Agentic Coding Flywheel",
     subtitle: "TL;DR Edition",
     description:
-      "11 core tools and 7 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
+      "15 core tools and 7 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
     stats: [
-      { label: "Ecosystem Tools", value: "18" },
+      { label: "Ecosystem Tools", value: "22" },
       { label: "GitHub Stars", value: "3,600+" },
       { label: "Languages", value: "5" },
     ],

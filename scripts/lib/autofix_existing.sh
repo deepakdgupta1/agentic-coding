@@ -433,10 +433,19 @@ clean_shell_configs() {
                 if [[ -n "$config_backup" ]]; then
                     log_info "[CLEAN] Cleaning ACFS entries from $config"
 
-                    # Create temp file and filter
+                    # Create temp file in same directory to preserve permissions on mv
                     local temp_file
-                    temp_file=$(mktemp)
+                    temp_file=$(mktemp -p "$(dirname "$config")" ".acfs-clean.XXXXXX")
+
+                    # Preserve original permissions by copying mode
+                    local orig_mode
+                    orig_mode=$(stat -c '%a' "$config" 2>/dev/null || stat -f '%Lp' "$config" 2>/dev/null)
+
                     grep -vE '# ACFS|\.acfs|acfs_' "$config" > "$temp_file" || true
+
+                    # Restore original permissions before move
+                    [[ -n "$orig_mode" ]] && chmod "$orig_mode" "$temp_file"
+
                     mv "$temp_file" "$config"
                 fi
             fi

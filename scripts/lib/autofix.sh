@@ -284,16 +284,25 @@ repair_state_files() {
 
     # Same for undos file
     if [[ -f "$ACFS_UNDOS_FILE" ]]; then
-        local temp_file
+        local temp_file repaired_undos=0
         temp_file=$(mktemp)
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
             if echo "$line" | jq -e . >/dev/null 2>&1; then
                 echo "$line" >> "$temp_file"
+            else
+                log_warn "[REPAIR] Discarding invalid undo line: ${line:0:50}..."
+                ((++repaired_undos))
             fi
         done < "$ACFS_UNDOS_FILE"
-        mv "$temp_file" "$ACFS_UNDOS_FILE"
-        fsync_file "$ACFS_UNDOS_FILE"
+
+        if [[ $repaired_undos -gt 0 ]]; then
+            mv "$temp_file" "$ACFS_UNDOS_FILE"
+            fsync_file "$ACFS_UNDOS_FILE"
+            log_info "[REPAIR] Removed $repaired_undos invalid lines from undos.jsonl"
+        else
+            rm -f "$temp_file"
+        fi
     fi
 
     log_info "[REPAIR] State file repair complete"
@@ -802,8 +811,26 @@ acfs_undo_command() {
             return 0
         fi
         echo "Recorded changes:"
-        jq -r '"\(.id)\t\(.category)\t\(.description)\t\(if .undone then "undone" else "active" end)"' "$ACFS_CHANGES_FILE" \
-            | column -t -s $'\t'
+        # Get list of undone change IDs from the undos file
+        local undone_ids=""
+        if [[ -f "$ACFS_UNDOS_FILE" ]] && [[ -s "$ACFS_UNDOS_FILE" ]]; then
+            undone_ids=$(jq -r '.undone // empty' "$ACFS_UNDOS_FILE" 2>/dev/null | sort -u | tr '\n' '|' | sed 's/|$//')
+        fi
+        # Display changes with correct undo status by cross-referencing with undos file
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local change_id category desc status
+            change_id=$(echo "$line" | jq -r '.id')
+            category=$(echo "$line" | jq -r '.category')
+            desc=$(echo "$line" | jq -r '.description')
+            # Check if this change_id is in the undone list
+            if [[ -n "$undone_ids" ]] && echo "$change_id" | grep -qE "^($undone_ids)$"; then
+                status="undone"
+            else
+                status="active"
+            fi
+            printf "%s\t%s\t%s\t%s\n" "$change_id" "$category" "$desc" "$status"
+        done < "$ACFS_CHANGES_FILE" | column -t -s $'\t'
         return 0
     fi
 

@@ -41,13 +41,13 @@ webhook_validate_url() {
 
     # Must start with https://
     if [[ ! "$url" =~ ^https:// ]]; then
-        log_warning "Webhook URL rejected: HTTPS required (got: ${url:0:50}...)"
+        log_warn "Webhook URL rejected: HTTPS required (got: ${url:0:50}...)"
         return 1
     fi
 
     # Basic URL structure check
     if [[ ! "$url" =~ ^https://[^/]+(/|$) ]]; then
-        log_warning "Webhook URL rejected: Invalid URL format"
+        log_warn "Webhook URL rejected: Invalid URL format"
         return 1
     fi
 
@@ -279,13 +279,13 @@ webhook_send() {
 
     # Require curl
     if ! command -v curl &>/dev/null; then
-        log_warning "Webhook skipped: curl not available"
+        log_warn "Webhook skipped: curl not available"
         return 0
     fi
 
     # Require jq for payload formatting
     if ! command -v jq &>/dev/null; then
-        log_warning "Webhook skipped: jq not available"
+        log_warn "Webhook skipped: jq not available"
         return 0
     fi
 
@@ -294,7 +294,7 @@ webhook_send() {
     # Format payload
     local payload
     payload=$(webhook_format_payload "$status" "$summary_file") || {
-        log_warning "Webhook skipped: failed to format payload"
+        log_warn "Webhook skipped: failed to format payload"
         return 0
     }
 

@@ -319,7 +319,7 @@ export default async function Image() {
             <circle cx="50" cy="50" r="14" fill="url(#tCenterGrad)" opacity="0.95" />
             <circle cx="50" cy="50" r="9" fill="rgba(255,255,255,0.2)" />
 
-            {/* Flywheel nodes - 10 tools */}
+            {/* Flywheel nodes - sample tools in wheel formation */}
             {[0, 36, 72, 108, 144, 180, 216, 252, 288, 324].map((angle, i) => {
               const rad = (angle * Math.PI) / 180;
               const x = 50 + 40 * Math.cos(rad);

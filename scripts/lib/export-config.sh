@@ -125,13 +125,13 @@ get_tool_version() {
             version=$(nvim --version 2>/dev/null | head -1 | awk '{print $2}' | sed 's/v//' || true)
             ;;
         claude|claude-code)
-            version=$(claude --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
+            version=$(claude --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         codex)
-            version=$(codex --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
+            version=$(codex --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         gemini)
-            version=$(gemini --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
+            version=$(gemini --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         zoxide)
             version=$(zoxide --version 2>/dev/null | awk '{print $2}' || true)
@@ -149,10 +149,10 @@ get_tool_version() {
             version=$(gh --version 2>/dev/null | head -1 | awk '{print $3}' || true)
             ;;
         docker)
-            version=$(docker --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
+            version=$(docker --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         postgresql|psql)
-            version=$(psql --version 2>/dev/null | grep -oP '\d+\.\d+' | head -1 || true)
+            version=$(psql --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         ntm)
             # ntm uses "ntm version" not --version
@@ -162,7 +162,7 @@ get_tool_version() {
             version=$(cass --version 2>/dev/null | awk '{print $2}' || true)
             ;;
         cm)
-            version=$(cm --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
+            version=$(cm --version 2>/dev/null | head -1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
             ;;
         bv)
             version=$(bv --version 2>/dev/null | awk '{print $2}' || true)
@@ -201,7 +201,7 @@ get_tool_version() {
             ;;
         *)
             # Generic version check
-            version=$($tool --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+(\.\d+)?' | head -1 || true)
+            version=$($tool --version 2>/dev/null | head -1 | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)
             ;;
     esac
 
@@ -214,7 +214,8 @@ get_mode() {
         if command -v jq &>/dev/null; then
             jq -r '.mode // "unknown"' "$STATE_FILE" 2>/dev/null || echo "unknown"
         else
-            grep -oP '"mode"\s*:\s*"\K[^"]+' "$STATE_FILE" 2>/dev/null | head -1 || echo "unknown"
+            # Use sed instead of grep -oP for portability (works on macOS/BSD)
+            sed -n 's/.*"mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$STATE_FILE" 2>/dev/null | head -1 || echo "unknown"
         fi
     else
         echo "unknown"
@@ -452,7 +453,7 @@ main() {
 
     if [[ -n "$OUTPUT_FILE" ]]; then
         echo "$output" > "$OUTPUT_FILE"
-        log_warn "Configuration exported to: $OUTPUT_FILE" >&2
+        echo "Configuration exported to: $OUTPUT_FILE" >&2
     else
         echo "$output"
     fi

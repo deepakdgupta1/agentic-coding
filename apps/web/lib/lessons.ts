@@ -248,6 +248,46 @@ export const LESSONS: Lesson[] = [
     duration: "6 min",
     file: "27_xf.md",
   },
+  {
+    id: 28,
+    slug: "rch",
+    title: "RCH: Remote Compilation",
+    description: "Offload Rust builds to remote workers for faster compilation",
+    duration: "8 min",
+    file: "28_rch.md",
+  },
+  {
+    id: 29,
+    slug: "wa",
+    title: "WA: WezTerm Automata",
+    description: "Real-time terminal observation and automation for AI agents",
+    duration: "8 min",
+    file: "29_wa.md",
+  },
+  {
+    id: 30,
+    slug: "brenner",
+    title: "Brenner Bot: Research",
+    description: "Coordinate multi-agent AI research with scientific methodology",
+    duration: "10 min",
+    file: "30_brenner.md",
+  },
+  {
+    id: 31,
+    slug: "giil",
+    title: "GIIL: Cloud Image Downloads",
+    description: "Download cloud-hosted images for visual debugging",
+    duration: "6 min",
+    file: "31_giil.md",
+  },
+  {
+    id: 32,
+    slug: "s2p",
+    title: "S2P: Source to Prompt",
+    description: "Combine source code into LLM-ready prompts with token counting",
+    duration: "6 min",
+    file: "32_s2p.md",
+  },
 ];
 
 /** Total number of lessons */

@@ -138,7 +138,7 @@ install_postgresql() {
     # Check if already installed
     if _cloud_command_exists psql; then
         local installed_version
-        installed_version=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "unknown")
+        installed_version=$(psql --version 2>/dev/null | grep -Eo '[0-9]+' | head -1 || echo "unknown")
         log_detail "PostgreSQL already installed (version $installed_version)"
         return 0
     fi
@@ -370,7 +370,7 @@ verify_cloud_db() {
         log_detail "  psql: skipped (SKIP_POSTGRES=true)"
     elif _cloud_command_exists psql; then
         local pg_version
-        pg_version=$(psql --version 2>/dev/null | grep -oP '\d+\.\d+' | head -1 || echo "installed")
+        pg_version=$(psql --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+' | head -1 || echo "installed")
         log_detail "  psql: $pg_version"
 
         # Check if service is running
