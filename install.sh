@@ -826,32 +826,34 @@ generate_resume_hint() {
 print_resume_hint() {
     local failed_phase="${1:-}"
     local failed_step="${2:-}"
-    local resume_cmd
-    resume_cmd=$(generate_resume_hint "$failed_phase" "$failed_step")
+    local resume_cmd=""
+    resume_cmd=$(generate_resume_hint "${failed_phase:-}" "${failed_step:-}" 2>/dev/null) || resume_cmd="bash install.sh --resume --yes"
 
     log_info ""
     log_info "╔══════════════════════════════════════════════════════════════╗"
     log_info "║  To resume installation from this point:                     ║"
     log_info "╚══════════════════════════════════════════════════════════════╝"
     log_info ""
-    log_info "  $resume_cmd"
+    log_info "  ${resume_cmd:-bash install.sh --resume --yes}"
     log_info ""
 
-    if [[ -n "$failed_phase" ]]; then
-        log_detail "Failed phase: $failed_phase"
+    if [[ -n "${failed_phase:-}" ]]; then
+        log_detail "Failed phase: ${failed_phase:-}"
     fi
-    if [[ -n "$failed_step" ]]; then
-        log_detail "Failed step: $failed_step"
+    if [[ -n "${failed_step:-}" ]]; then
+        log_detail "Failed step: ${failed_step:-}"
     fi
 
-    # Also update the summary JSON with the precise resume hint
+    # Also update the summary JSON with the precise resume hint.
+    # Wrap mktemp in || return 0: if /tmp is full, mktemp fails but
+    # cleanup must not abort — the user still needs to see the hint.
     if [[ -f "${ACFS_STATE_FILE:-}" ]] && command -v jq &>/dev/null; then
-        local tmp_state
-        tmp_state=$(mktemp)
-        if jq --arg hint "$resume_cmd" '.resume_hint = $hint' "$ACFS_STATE_FILE" > "$tmp_state" 2>/dev/null; then
-            mv "$tmp_state" "$ACFS_STATE_FILE"
+        local tmp_state=""
+        tmp_state=$(mktemp 2>/dev/null) || return 0
+        if jq --arg hint "${resume_cmd:-}" '.resume_hint = $hint' "${ACFS_STATE_FILE:-}" > "$tmp_state" 2>/dev/null; then
+            mv "$tmp_state" "${ACFS_STATE_FILE:-}" 2>/dev/null || true
         else
-            rm -f "$tmp_state"
+            rm -f "${tmp_state:-}" 2>/dev/null || true
         fi
     fi
 }
@@ -859,8 +861,34 @@ print_resume_hint() {
 # ============================================================
 # Error handling
 # ============================================================
+# Track whether cleanup was triggered by a signal (not a normal EXIT).
+_ACFS_SIGNAL_RECEIVED=""
+
+_acfs_signal_handler() {
+    _ACFS_SIGNAL_RECEIVED="$1"
+    # Exit with 128+signum (standard convention) to trigger the EXIT trap.
+    case "$1" in
+        TERM) exit 143 ;;
+        INT)  exit 130 ;;
+        HUP)  exit 129 ;;
+        *)    exit 1   ;;
+    esac
+}
+
 cleanup() {
+    # Cleanup must never abort — disable errexit for the entire function.
+    set +e
+
     local exit_code=$?
+
+    # If a signal triggered this cleanup, mark state as interrupted so
+    # resume logic does not see a partially-started phase.
+    if [[ -n "${_ACFS_SIGNAL_RECEIVED:-}" ]]; then
+        if type -t state_mark_interrupted &>/dev/null; then
+            state_mark_interrupted 2>/dev/null || true
+        fi
+    fi
+
     if [[ $exit_code -ne 0 ]]; then
         log_error ""
         if [[ "${SMOKE_TEST_FAILED:-false}" == "true" ]]; then
@@ -870,25 +898,25 @@ cleanup() {
         fi
         log_error ""
         log_error "To debug:"
-        if [[ -n "${ACFS_LOG_FILE:-}" ]] && [[ -f "${ACFS_LOG_FILE}" ]]; then
-            log_error "  1. Check the log: cat $ACFS_LOG_FILE"
-        elif [[ -n "${ACFS_LOG_DIR:-}" ]] && [[ -d "$ACFS_LOG_DIR" ]]; then
-            log_error "  1. Check the log: cat $ACFS_LOG_DIR/install.log"
+        if [[ -n "${ACFS_LOG_FILE:-}" ]] && [[ -f "${ACFS_LOG_FILE:-}" ]]; then
+            log_error "  1. Check the log: cat ${ACFS_LOG_FILE:-}"
+        elif [[ -n "${ACFS_LOG_DIR:-}" ]] && [[ -d "${ACFS_LOG_DIR:-}" ]]; then
+            log_error "  1. Check the log: cat ${ACFS_LOG_DIR:-}/install.log"
         else
             log_error "  1. Re-run with ACFS_DEBUG=true for detailed output"
         fi
-        log_error "  2. If installed, run: acfs doctor (try as $TARGET_USER)"
-        log_error "     (If you ran the installer as root: sudo -u $TARGET_USER -i bash -lc 'acfs doctor')"
+        log_error "  2. If installed, run: acfs doctor (try as ${TARGET_USER:-ubuntu})"
+        log_error "     (If you ran the installer as root: sudo -u ${TARGET_USER:-ubuntu} -i bash -lc 'acfs doctor')"
         log_error ""
         # Print precise resume hint if available (bd-31ps.9.1)
         # Get failed phase from state if available
         local failed_phase=""
         local failed_step=""
         if [[ -f "${ACFS_STATE_FILE:-}" ]] && command -v jq &>/dev/null; then
-            failed_phase=$(jq -r '.failed_phase // empty' "$ACFS_STATE_FILE" 2>/dev/null) || true
-            failed_step=$(jq -r '.failed_step // empty' "$ACFS_STATE_FILE" 2>/dev/null) || true
+            failed_phase=$(jq -r '.failed_phase // empty' "${ACFS_STATE_FILE:-}" 2>/dev/null) || true
+            failed_step=$(jq -r '.failed_step // empty' "${ACFS_STATE_FILE:-}" 2>/dev/null) || true
         fi
-        print_resume_hint "$failed_phase" "$failed_step"
+        print_resume_hint "${failed_phase:-}" "${failed_step:-}"
         log_error ""
         # Emit failure summary (best-effort)
         acfs_summary_emit "failure" 0 2>/dev/null || true
@@ -897,6 +925,9 @@ cleanup() {
     acfs_log_close 2>/dev/null || true
 }
 trap cleanup EXIT
+trap '_acfs_signal_handler TERM' TERM
+trap '_acfs_signal_handler INT'  INT
+trap '_acfs_signal_handler HUP'  HUP
 
 # ============================================================
 # Parse arguments
@@ -4996,6 +5027,22 @@ main() {
     # Detect environment and source manifest index (mjt.5.3)
     # This must happen BEFORE any handlers that need module data
     detect_environment
+
+    # Acquire install-wide flock to prevent concurrent install.sh processes.
+    # Uses FD 199 (autofix.sh already uses FD 200 for its own lock).
+    # Read-only modes (--list-modules, --print-plan, --dry-run, --print) skip locking.
+    if [[ "$LIST_MODULES" != "true" ]] && [[ "$PRINT_PLAN_MODE" != "true" ]] \
+       && [[ "$DRY_RUN" != "true" ]] && [[ "$PRINT_MODE" != "true" ]]; then
+        local _acfs_lock_dir="${ACFS_HOME:-$HOME/.acfs}"
+        mkdir -p "$_acfs_lock_dir" 2>/dev/null || true
+        local _acfs_lock_file="$_acfs_lock_dir/.install.lock"
+        exec 199>"$_acfs_lock_file"
+        if ! flock -n 199; then
+            log_error "Another ACFS installer is already running."
+            log_error "If you are sure no other installer is running, remove: $_acfs_lock_file"
+            exit 1
+        fi
+    fi
 
     # Source generated installers for manifest-driven execution (mjt.5.6)
     # Skip when we're only listing/printing plan or running dry-run/print-only modes.

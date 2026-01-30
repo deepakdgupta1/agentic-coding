@@ -77,6 +77,18 @@ jobs:
           mapfile -t files < <(git ls-files '*.sh')
           shellcheck "${files[@]}"
 
+      - name: Run declare scoping linter
+        run: bash scripts/tests/lint_declare_scoping.sh
+
+      - name: Run pipefail safety linter
+        run: bash scripts/tests/lint_pipefail_safety.sh
+
+      - name: Run TTY safety linter
+        run: bash scripts/tests/lint_tty_safety.sh
+
+      - name: Run library globals integration test
+        run: bash tests/unit/test_lib_globals.sh
+
   manifest-drift:
     name: Manifest Drift Check
     runs-on: ubuntu-latest
@@ -96,6 +108,37 @@ jobs:
       - name: Check manifest drift
         run: bun run generate --diff
         working-directory: packages/manifest
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Validate generated scripts (syntax + shellcheck)
+        run: |
+          EXIT_CODE=0
+          echo "Checking generated scripts for syntax errors..."
+          for f in scripts/generated/*.sh; do
+            [ -f "$f" ] || continue
+            if ! bash -n "$f" 2>&1; then
+              echo "FAIL: $f has syntax errors"
+              EXIT_CODE=1
+            fi
+          done
+
+          echo "Running ShellCheck on generated scripts..."
+          for f in scripts/generated/*.sh; do
+            [ -f "$f" ] || continue
+            if ! shellcheck "$f"; then
+              echo "FAIL: $f has ShellCheck warnings"
+              EXIT_CODE=1
+            fi
+          done
+
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "All generated scripts pass syntax and ShellCheck validation"
+          fi
+          exit $EXIT_CODE
 
   checksum-verification:
     name: Verify Upstream Checksums
@@ -269,3 +312,55 @@ jobs:
           su - ubuntu -c "zsh -ic 'claude --version'"
           su - ubuntu -c "zsh -ic 'codex --version'"
           su - ubuntu -c "zsh -ic 'gemini --version'"
+
+  e2e-curlbash-bootstrap:
+    name: E2E curl|bash Bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: ubuntu:24.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install container prerequisites
+        working-directory: /
+        run: |
+          apt-get update
+          apt-get install -y sudo curl git ca-certificates jq python3 tar gzip bash
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CI sudo
+        run: |
+          echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-ci-ubuntu
+          chmod 440 /etc/sudoers.d/90-ci-ubuntu
+
+      - name: Run curl|bash bootstrap E2E test
+        run: bash tests/e2e/test_curlbash_bootstrap.sh
+
+  e2e-resume-after-failure:
+    name: E2E Resume After Failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ubuntu:24.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install container prerequisites
+        working-directory: /
+        run: |
+          apt-get update
+          apt-get install -y sudo curl git ca-certificates jq unzip tar xz-utils gnupg
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CI sudo
+        run: |
+          echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-ci-ubuntu
+          chmod 440 /etc/sudoers.d/90-ci-ubuntu
+
+      - name: Run resume-after-failure E2E test
+        run: bash tests/e2e/test_resume_after_failure.sh

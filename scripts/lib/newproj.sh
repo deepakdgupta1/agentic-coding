@@ -18,7 +18,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Track what was created for summary
-declare -a CREATED_ITEMS=()
+declare -ga CREATED_ITEMS=()
 
 # ============================================================
 # Environment Detection

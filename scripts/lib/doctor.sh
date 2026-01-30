@@ -233,7 +233,7 @@ FAIL_COUNT=0
 SKIP_COUNT=0
 
 # Skipped tools data (bead qup)
-declare -a SKIPPED_TOOLS_DATA=()
+declare -ga SKIPPED_TOOLS_DATA=()
 
 # Output modes
 JSON_MODE=false

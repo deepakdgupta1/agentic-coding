@@ -362,47 +362,64 @@ state_write_atomic() {
 # Locking
 # ============================================================
 
-# Acquire a lock for the state file
+# Acquire a lock for the state file using flock (FD 200).
+# This replaces the former mkdir-based lock which had no PID tracking
+# and could leave stale lock directories after crashes.
+# FD 200 is consistent with autofix.sh's existing flock pattern.
+#
 # Usage: _state_acquire_lock
 # Returns: 0 on success, 1 on timeout
 _state_acquire_lock() {
     local state_file
     state_file="$(state_get_file)"
-    local lock_dir="${state_file}.lock"
-    local retries=50  # 5 seconds total
+    local lock_file="${state_file}.lock"
 
-    # Ensure parent directory exists (state_init does this, but good to be safe)
+    # Ensure parent directory exists
     mkdir -p "$(dirname "$state_file")" 2>/dev/null
 
-    while ! mkdir "$lock_dir" 2>/dev/null; do
-        if [[ $retries -eq 0 ]]; then
-            # Lock timed out. Since state operations are fast (ms), 
-            # a 5s wait implies a stale lock from a crashed process.
-            # Force break the lock and try one last time.
-            if [[ -d "$lock_dir" ]]; then
-                # Try to remove it (rmdir is safe, fails if not empty)
-                rmdir "$lock_dir" 2>/dev/null || rm -rf "$lock_dir" 2>/dev/null
-                
-                # Retry acquisition immediately
-                if mkdir "$lock_dir" 2>/dev/null; then
-                    return 0
-                fi
-            fi
-            return 1
-        fi
-        ((retries--))
-        sleep 0.1
-    done
+    # Open lock file on FD 200 (same FD convention as autofix.sh)
+    exec 200>"$lock_file" 2>/dev/null || return 1
+
+    # Try to acquire lock with a 5-second timeout
+    if ! flock -w 5 200; then
+        return 1
+    fi
     return 0
 }
 
 # Release the lock
 # Usage: _state_release_lock
 _state_release_lock() {
+    flock -u 200 2>/dev/null || true
+}
+
+# Mark state as interrupted by a signal (SIGTERM, SIGINT, SIGHUP).
+# Clears current_phase/current_step so resume logic does not see a
+# partially-started phase with no failure marker.
+#
+# Usage: state_mark_interrupted
+# Returns: 0 on success, 1 if state file does not exist
+state_mark_interrupted() {
     local state_file
     state_file="$(state_get_file)"
-    local lock_dir="${state_file}.lock"
-    rmdir "$lock_dir" 2>/dev/null || true
+
+    [[ -f "$state_file" ]] || return 1
+
+    # Best-effort: do not let jq absence block signal handling
+    command -v jq &>/dev/null || return 0
+
+    local state
+    state=$(cat "$state_file" 2>/dev/null) || return 1
+
+    local updated
+    updated=$(printf '%s' "$state" | jq '
+        .current_phase = null |
+        .current_step  = null |
+        .interrupted   = true |
+        .last_updated  = (now | todate)
+    ' 2>/dev/null) || return 1
+
+    state_write_atomic "$state_file" "$updated"
 }
 
 # Load existing state file

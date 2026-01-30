@@ -28,11 +28,11 @@ readonly MIN_TERMINAL_LINES=15
 # ============================================================
 
 # Items to clean up on exit
-declare -a WIZARD_CLEANUP_ITEMS=()
+declare -ga WIZARD_CLEANUP_ITEMS=()
 
 # Transaction state
 WIZARD_TRANSACTION_ACTIVE=false
-declare -a WIZARD_CREATED_FILES=()
+declare -ga WIZARD_CREATED_FILES=()
 WIZARD_PROJECT_ROOT=""
 
 # Saved terminal state
