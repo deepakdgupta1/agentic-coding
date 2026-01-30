@@ -19,8 +19,8 @@ ACFS_LOCK_FILE="${ACFS_STATE_DIR}/.lock"
 ACFS_INTEGRITY_FILE="${ACFS_STATE_DIR}/.integrity"
 
 # In-memory change records
-declare -A ACFS_CHANGE_RECORDS  # id -> JSON record
-declare -a ACFS_CHANGE_ORDER    # Ordered list of change IDs
+declare -gA ACFS_CHANGE_RECORDS  # id -> JSON record (global; file may be sourced inside a function)
+declare -ga ACFS_CHANGE_ORDER    # Ordered list of change IDs (global)
 
 # Session management
 ACFS_SESSION_ID=""
