@@ -1,0 +1,15 @@
+# ACFS Agent Resources Manifest
+version=2026-01-25
+files:
+.agent/rules/safety.md
+.agent/rules/ubs.md
+.agent/skills/acfs-tools/SKILL.md
+.agent/skills/beads/SKILL.md
+.agent/skills/cass/SKILL.md
+.agent/skills/cm/SKILL.md
+.agent/skills/csctf/SKILL.md
+.agent/skills/giil/SKILL.md
+.agent/skills/mcp-mail/SKILL.md
+.agent/skills/ru/SKILL.md
+.agent/skills/warp-grep/SKILL.md
+.agent/workflows/.keep

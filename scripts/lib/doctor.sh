@@ -272,7 +272,8 @@ print_acfs_help() {
     echo "  cheatsheet          Command reference (aliases, shortcuts)"
     echo "  continue [options]  View installation/upgrade progress"
     echo "  dashboard <command> Generate/view a static HTML dashboard"
-    echo "  newproj <name>      Create new project with git, bd, claude settings"
+    echo "  newproj <name>      Create new project with git, bd, and agent configs"
+    echo "  agent-resources     Manage shared agent resources for projects"
     echo "  update [options]    Update ACFS tools to latest versions"
     echo "  services-setup      Configure AI agents and cloud services"
     echo "  session <command>   Export/import/share agent sessions"
@@ -655,19 +656,20 @@ check() {
 # assuming it supports `--version`.
 get_version_line() {
     local cmd="$1"
+    local timeout_secs=5  # Prevent hangs on slow/stuck commands
 
     local version=""
     # UBS has a directory size check that can block --version; bypass it
     if [[ "$cmd" == "ubs" ]]; then
-        version=$(UBS_MAX_DIR_SIZE_MB=10000 "$cmd" --version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" env UBS_MAX_DIR_SIZE_MB=10000 "$cmd" --version 2>/dev/null | head -n1) || true
     else
-        version=$("$cmd" --version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" --version 2>/dev/null | head -n1) || true
     fi
     if [[ -z "$version" ]]; then
-        version=$("$cmd" -V 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" -V 2>/dev/null | head -n1) || true
     fi
     if [[ -z "$version" ]]; then
-        version=$("$cmd" version 2>/dev/null | head -n1) || true
+        version=$(timeout "$timeout_secs" "$cmd" version 2>/dev/null | head -n1) || true
     fi
 
     if [[ -z "$version" ]]; then
@@ -835,6 +837,7 @@ check_agents() {
     check_command "agent.claude" "Claude Code" "claude" "$(fix_for_module "agents.claude")"
     check_command "agent.codex" "Codex CLI" "codex" "$(fix_for_module "agents.codex")"
     check_command "agent.gemini" "Gemini CLI" "gemini" "$(fix_for_module "agents.gemini")"
+    check_optional_command "agent.amp" "Amp CLI" "amp" "$(fix_for_module "agents.amp")"
 
     # Check aliases are defined in the zshrc
     local alias_fix
@@ -855,6 +858,12 @@ check_agents() {
         check "agent.alias.gmi" "gmi alias" "pass"
     else
         check "agent.alias.gmi" "gmi alias" "warn" "not in zshrc" "$alias_fix"
+    fi
+
+    if grep -q "^alias amp=" ~/.acfs/zsh/acfs.zshrc 2>/dev/null; then
+        check "agent.alias.amp" "amp alias" "pass"
+    else
+        check "agent.alias.amp" "amp alias" "warn" "not in zshrc"
     fi
 
     # Check for PATH conflicts (bead hi7)
@@ -2279,6 +2288,22 @@ main() {
             fi
 
             echo "Error: update.sh not found" >&2
+            return 1
+            ;;
+        agent-resources|agent_resources|agentres)
+            shift
+            local agent_resources_script=""
+            if [[ -f "$HOME/.acfs/scripts/lib/agent_resources.sh" ]]; then
+                agent_resources_script="$HOME/.acfs/scripts/lib/agent_resources.sh"
+            elif [[ -f "$SCRIPT_DIR/agent_resources.sh" ]]; then
+                agent_resources_script="$SCRIPT_DIR/agent_resources.sh"
+            fi
+
+            if [[ -n "$agent_resources_script" ]]; then
+                exec bash "$agent_resources_script" "$@"
+            fi
+
+            echo "Error: agent_resources.sh not found" >&2
             return 1
             ;;
         newproj|new-project|new)

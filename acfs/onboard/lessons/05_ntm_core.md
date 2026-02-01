@@ -37,14 +37,14 @@ Verifies all required tools are installed.
 ### Create a Project Session
 
 ```bash
-ntm spawn myproject --cc=2 --cod=1 --gmi=1
+ntm spawn myproject --amp=2 --gmi=2 --cod=1
 ```
 
 This creates:
 - A tmux session named "myproject"
-- 2 Claude Code panes
-- 1 Codex pane
-- 1 Gemini pane
+- 2 Amp panes (reasoning)
+- 2 Gemini panes (coding & docs)
+- 1 Codex pane (code review & bug fixes)
 
 ### List Sessions
 
@@ -94,13 +94,13 @@ That's the power of multi-agent development!
 For a typical project:
 
 ```bash
-ntm spawn myproject --cc=2 --cod=1 --gmi=1
+ntm spawn myproject --amp=2 --gmi=2 --cod=1
 ```
 
 Why this ratio?
-- **2 Claude** - Great for architecture and complex reasoning
-- **1 Codex** - Fast iteration and testing
-- **1 Gemini** - Different perspective, good for docs
+- **2 Amp** - Excellent for reasoning and architecture
+- **2 Gemini** - Great for coding and documentation
+- **1 Codex** - Code review, bug fixes, and enhancements
 
 ---
 
@@ -121,7 +121,7 @@ Once inside an NTM session:
 
 ```bash
 # Create a test session
-ntm spawn test-session --cc=1
+ntm spawn test-session --amp=1 --gmi=1 --cod=1
 
 # List sessions
 ntm list

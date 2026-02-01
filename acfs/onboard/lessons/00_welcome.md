@@ -16,10 +16,11 @@ Here's what's installed on your VPS:
 - **A beautiful terminal** with zsh, Oh My Zsh, and Powerlevel10k
 - **Modern CLI tools** like lsd, bat, ripgrep, fzf, and zoxide
 - **Language runtimes** for JavaScript (Bun), Python (uv), Rust, and Go
-- **Three coding agents** ready to help you build:
+- **Four coding agents** ready to help you build:
+  - Amp (`amp`) — **PRIMARY** (reasoning)
+  - Gemini CLI (`gmi`) — **PRIMARY** (coding & docs)
+  - Codex CLI (`cod`) — **PRIMARY** (code review, bug fixes)
   - Claude Code (`cc`)
-  - Codex CLI (`cod`)
-  - Gemini CLI (`gmi`)
 - **The Dicklesworthstone stack** for agent coordination and memory
 
 ---
@@ -49,7 +50,7 @@ If your SSH connection drops? No problem. Your work continues in tmux.
 1. **Linux basics** - navigating the filesystem
 2. **SSH fundamentals** - staying connected
 3. **tmux essentials** - persistent sessions
-4. **Agent commands** - talking to Claude, Codex, and Gemini
+4. **Agent commands** - talking to Gemini, Amp, Codex, and Claude
 5. **NTM mastery** - orchestrating multiple agents
 6. **The flywheel workflow** - putting it all together
 

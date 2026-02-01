@@ -399,7 +399,7 @@ Review all choices before creating the project.
     ├── .ubsignore
     ├── .beads/
     ├── .claude/
-    │   └── settings.toml
+    │   └── settings.local.json
     ├── AGENTS.md
     └── README.md
 
@@ -490,7 +490,7 @@ Celebrate completion and show next steps.
     ✓ .gitignore with common patterns
     ✓ .ubsignore for bug scanner
     ✓ Beads initialized (.beads/)
-    ✓ Claude settings (.claude/settings.toml)
+    ✓ Claude settings (.claude/settings.local.json)
     ✓ AGENTS.md with Node.js + TypeScript + Docker sections
     ✓ README.md
 

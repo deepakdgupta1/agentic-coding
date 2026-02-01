@@ -53,9 +53,9 @@ init_creation_steps() {
         STEP_STATUS["init_bd"]="pending"
     fi
 
-    if [[ "$(state_get "enable_claude")" == "true" ]]; then
-        STEP_ORDER+=("create_claude")
-        STEP_STATUS["create_claude"]="pending"
+    if [[ "$(state_get "enable_agent_configs")" == "true" ]]; then
+        STEP_ORDER+=("create_agent_configs")
+        STEP_STATUS["create_agent_configs"]="pending"
     fi
 
     if [[ "$(state_get "enable_ubsignore")" == "true" ]]; then
@@ -78,7 +78,7 @@ get_step_name() {
         create_gitignore) echo "Creating .gitignore" ;;
         create_agents) echo "Generating AGENTS.md" ;;
         init_bd) echo "Initializing Beads tracking" ;;
-        create_claude) echo "Creating Claude Code settings" ;;
+        create_agent_configs) echo "Creating agent configurations (Claude, Gemini, Codex, AMP, Antigravity)" ;;
         create_ubsignore) echo "Creating .ubsignore" ;;
         finalize) echo "Finalizing project" ;;
         *) echo "$step" ;;
@@ -297,6 +297,9 @@ venv/
             fi
 
             if try_write_file "$project_dir/AGENTS.md" "$agents_content"; then
+                if [[ ! -L "$project_dir/GEMINI.md" ]] && [[ ! -f "$project_dir/GEMINI.md" ]]; then
+                    (cd "$project_dir" && ln -s AGENTS.md GEMINI.md) 2>/dev/null || true
+                fi
                 update_step "$step" "success"
                 return 0
             else
@@ -317,9 +320,12 @@ venv/
             fi
             ;;
 
-        create_claude)
-            mkdir -p "$project_dir/.claude" 2>/dev/null
+        create_agent_configs)
+            # Create configurations for all primary agents
+            local success=true
 
+            # Claude Code settings
+            mkdir -p "$project_dir/.claude/commands" 2>/dev/null
             local claude_settings='{
   "model": "claude-sonnet-4-20250514",
   "permissions": {
@@ -328,7 +334,50 @@ venv/
     "allow_shell": true
   }
 }'
-            if try_write_file "$project_dir/.claude/settings.local.json" "$claude_settings"; then
+            try_write_file "$project_dir/.claude/settings.local.json" "$claude_settings" || success=false
+
+            # Shared agent resources (Antigravity uses .agent/)
+            if ! seed_agent_resources "$project_dir"; then
+                log_warn "Agent resources templates missing; skipped .agent/ seeding"
+            fi
+
+            # Gemini CLI rules
+            mkdir -p "$project_dir/.gemini" 2>/dev/null
+            local gemini_rules='# Gemini CLI rules - See AGENTS.md for full instructions
+
+## Core Rules
+- Follow AGENTS.md (GEMINI.md is a symlink)
+- Never delete files without explicit user permission
+- Use bun for all JS/TS tooling
+- Run ubs before commits
+- Always push before ending session
+'
+            try_write_file "$project_dir/.gemini/rules" "$gemini_rules" || success=false
+
+            # Codex CLI rules (symlink to shared UBS rules if possible)
+            mkdir -p "$project_dir/.codex/rules" 2>/dev/null
+            if [[ ! -f "$project_dir/.codex/rules/ubs.md" ]] && [[ ! -L "$project_dir/.codex/rules/ubs.md" ]]; then
+                if ! (cd "$project_dir/.codex/rules" && ln -s ../../.agent/rules/ubs.md ubs.md) 2>/dev/null; then
+                    local codex_ubs
+                    codex_ubs=$(agent_resources_read_file ".agent/rules/ubs.md" 2>/dev/null || true)
+                    if [[ -n "$codex_ubs" ]]; then
+                        try_write_file "$project_dir/.codex/rules/ubs.md" "$codex_ubs" || success=false
+                    else
+                        try_write_file "$project_dir/.codex/rules/ubs.md" "# UBS Quick Reference\n\nRun \`ubs <changed-files>\` before every commit.\n- Exit 0 = safe to commit\n- Exit >0 = fix issues and re-run\n" || success=false
+                    fi
+                fi
+            fi
+
+            # AMP note (reads AGENTS.md natively)
+            mkdir -p "$project_dir/.amp" 2>/dev/null
+            local amp_readme="# AMP Configuration
+
+AMP reads project instructions from AGENTS.md in the project root.
+No additional configuration is required.
+"
+            try_write_file "$project_dir/.amp/README.md" "$amp_readme" || success=false
+            
+            if [[ "$success" == "true" ]]; then
                 update_step "$step" "success"
                 return 0
             else
@@ -371,7 +420,8 @@ __pycache__/
 
 Created with ACFS newproj wizard.
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)" 2>/dev/null
+Configured for: AMP, Gemini CLI, Codex CLI, Antigravity, Claude Code
+See AGENTS.md for AI coding agent instructions." 2>/dev/null
                 ) || true
             fi
 

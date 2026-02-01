@@ -29,7 +29,7 @@ acfs-update
 That's it! This updates:
 - System packages (apt)
 - Shell tools (OMZ, P10K, plugins)
-- Coding agents (Claude, Codex, Gemini)
+- Coding agents (Gemini, Amp, Codex, Claude)
 - Cloud CLIs (Wrangler, Supabase, Vercel)
 - Language runtimes (Bun, Rust, uv)
 

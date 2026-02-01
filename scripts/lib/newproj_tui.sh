@@ -175,8 +175,8 @@ declare -gA WIZARD_STATE=(
     [project_dir]=""
     [tech_stack]=""
     [enable_bd]="true"
-    [enable_claude]="true"
     [enable_agents]="true"
+    [enable_agent_configs]="true"
     [enable_ubsignore]="true"
 )
 
@@ -214,8 +214,8 @@ state_reset() {
         [project_dir]=""
         [tech_stack]=""
         [enable_bd]="true"
-        [enable_claude]="true"
         [enable_agents]="true"
+        [enable_agent_configs]="true"
         [enable_ubsignore]="true"
     )
     log_info "State reset to defaults"

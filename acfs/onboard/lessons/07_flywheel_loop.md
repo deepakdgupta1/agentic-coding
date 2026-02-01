@@ -131,7 +131,7 @@ bv                              # Check tasks
 br ready                        # See what's ready to work on
 
 # 2. Start your agents
-ntm spawn myproject --cc=2 --cod=1
+ntm spawn myproject --amp=2 --gmi=2 --cod=1
 
 # 3. Set context
 cm context "Implementing user authentication" --json
@@ -183,8 +183,18 @@ acfs newproj my-first-project --interactive
 # - AGENTS.md with project guidance
 # - Claude settings
 
-# 2. Spawn your agents
-ntm spawn my-first-project --cc=2 --cod=1 --gmi=1
+# 3. Initialize beads for task tracking
+bd init
+
+# (Recommended) Create a dedicated Beads sync branch
+# Beads uses git worktrees for syncing; syncing to your current branch (often `main`)
+# can cause worktree conflicts. Once you have a `main` branch and a remote, run:
+git branch beads-sync main
+git push -u origin beads-sync
+bd config set sync.branch beads-sync
+
+# 4. Spawn your agents
+ntm spawn my-first-project --amp=2 --gmi=2 --cod=1
 
 # 3. Start building!
 ntm send my-first-project "Let's build something awesome.

@@ -66,8 +66,8 @@ EOF
         echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Beads issue tracking (.beads/)"
     fi
 
-    if [[ "$(state_get "enable_claude")" == "true" ]]; then
-        echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Claude Code settings (.claude/)"
+    if [[ "$(state_get "enable_agent_configs")" == "true" ]]; then
+        echo -e "  ${TUI_SUCCESS}${BOX_CHECK}${TUI_NC} Agent configs (.claude/, .gemini/, .codex/, .amp/, .agent/)"
     fi
 
     if [[ "$(state_get "enable_ubsignore")" == "true" ]]; then
@@ -85,8 +85,12 @@ EOF
     echo -e "     ${TUI_CYAN}cd $project_dir${TUI_NC}"
     echo ""
 
-    echo "  2. Start coding with Claude Code:"
-    echo -e "     ${TUI_CYAN}claude${TUI_NC}"
+    echo "  2. Start coding with your preferred agent:"
+    echo -e "     ${TUI_CYAN}gemini${TUI_NC}    # Gemini CLI (alias: gmi)"
+    echo -e "     ${TUI_CYAN}codex${TUI_NC}     # Codex CLI (alias: cod)"
+    echo -e "     ${TUI_CYAN}amp${TUI_NC}       # AMP CLI"
+    echo -e "     ${TUI_CYAN}claude${TUI_NC}    # Claude Code CLI (alias: cc)"
+    echo -e "     ${TUI_CYAN}Antigravity IDE${TUI_NC}: open $project_dir"
     echo ""
 
     if [[ "$(state_get "enable_bd")" == "true" ]]; then
@@ -103,7 +107,6 @@ EOF
     echo ""
     echo "Options:"
     echo "  [Enter/o]   Open project in shell"
-    echo "  [c]         Open in Claude Code"
     echo "  [q]         Exit wizard"
 }
 
@@ -123,24 +126,6 @@ open_in_shell() {
     return 0
 }
 
-# Open project in Claude Code
-open_in_claude() {
-    local project_dir
-    project_dir=$(state_get "project_dir")
-
-    if command -v claude &>/dev/null; then
-        echo ""
-        echo -e "${TUI_PRIMARY}Opening in Claude Code...${TUI_NC}"
-        cd "$project_dir" && exec claude
-    else
-        echo ""
-        echo -e "${TUI_WARNING}Claude Code not found in PATH${TUI_NC}"
-        echo "Run manually:"
-        echo -e "  ${TUI_CYAN}cd $project_dir && claude${TUI_NC}"
-        return 1
-    fi
-}
-
 # Handle input for success screen
 handle_success_input() {
     while true; do
@@ -154,12 +139,6 @@ handle_success_input() {
                 # Open in shell
                 log_input "success" "open_shell"
                 open_in_shell
-                return 0
-                ;;
-            'c'|'C')
-                # Open in Claude Code
-                log_input "success" "open_claude"
-                open_in_claude
                 return 0
                 ;;
             'q'|'Q'|$'\e')

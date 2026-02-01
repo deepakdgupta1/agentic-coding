@@ -153,7 +153,7 @@ alias install='sudo apt install'
 alias search='apt search'
 
 # Update agent CLIs
-alias uca='~/.local/bin/claude update && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest'
+alias uca='~/.local/bin/claude update && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest && bun install -g --trust @anthropic/amp-cli@latest'
 
 # --- Custom functions ---
 mkcd() { mkdir -p "$1" && cd "$1" || return; }
@@ -306,6 +306,17 @@ acfs() {
         return 1
       fi
       ;;
+    agent-resources|agent_resources|agentres)
+      if [[ -f "$acfs_home/scripts/lib/agent_resources.sh" ]]; then
+        bash "$acfs_home/scripts/lib/agent_resources.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" agent-resources "$@"
+      else
+        echo "Error: agent_resources.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
     status)
       if [[ -f "$acfs_home/scripts/lib/status.sh" ]]; then
         bash "$acfs_home/scripts/lib/status.sh" "$@"
@@ -317,7 +328,18 @@ acfs() {
         return 1
       fi
       ;;
-    continue|progress)
+    newproj|new-project|new)
+      if [[ -f "$acfs_home/scripts/lib/newproj.sh" ]]; then
+        bash "$acfs_home/scripts/lib/newproj.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" newproj "$@"
+      else
+        echo "Error: newproj.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
+    continue|status|progress)
       if [[ -f "$acfs_home/scripts/lib/continue.sh" ]]; then
         bash "$acfs_home/scripts/lib/continue.sh" "$@"
       elif [[ -x "$acfs_bin" ]]; then
@@ -328,6 +350,7 @@ acfs() {
         return 1
       fi
       ;;
+
     info|i)
       if [[ -f "$acfs_home/scripts/lib/info.sh" ]]; then
         bash "$acfs_home/scripts/lib/info.sh" "$@"
@@ -385,8 +408,8 @@ acfs() {
       echo "Usage: acfs <command>"
       echo ""
       echo "Commands:"
-      echo "  newproj         Create new project (git, bd, AGENTS.md, Claude settings)"
-      echo "                  Use 'acfs newproj -i' for interactive TUI wizard"
+      echo "  newproj         Create new project (TUI or CLI)"
+      echo "  agent-resources Manage shared agent resources for projects"
       echo "  info            Quick system overview (hostname, IP, uptime, progress)"
       echo "  cheatsheet      Command reference (aliases, shortcuts)"
       echo "  dashboard, dash <generate|serve> - Static HTML dashboard"
@@ -422,6 +445,7 @@ acfs() {
 alias cc='NODE_OPTIONS="--max-old-space-size=32768" ~/.local/bin/claude --dangerously-skip-permissions'
 alias cod='codex --dangerously-bypass-approvals-and-sandbox'
 alias gmi='gemini --yolo'
+alias amp='~/.local/bin/amp'
 
 # bun project helpers (common)
 alias bdev='bun run dev'
