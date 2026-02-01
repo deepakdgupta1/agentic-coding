@@ -41,6 +41,35 @@ The installer is **idempotent**—if interrupted, simply re-run it. It will auto
 > ```
 > Tagged releases are tested and stable. Setting `ACFS_REF` ensures all fetched scripts use the same version.
 
+### Local Desktop Installation (Sandboxed)
+
+Run ACFS on your personal Ubuntu desktop without modifying your host system:
+
+```bash
+git clone https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup.git
+cd agentic_coding_flywheel_setup
+./install.sh --local --yes
+```
+
+This provisions an **LXD system container** that:
+- Contains all invasive operations (passwordless sudo, SSH config, etc.)
+- Shares a workspace directory at `~/acfs-workspace`
+- Forwards dashboard to `localhost:38080`
+
+**Requirements:**
+- Ubuntu 22.04+ desktop
+- snap installed (default on Ubuntu)
+- ~10GB disk space for container
+
+**Access your ACFS environment:**
+```bash
+acfs-local shell       # Enter sandbox shell
+acfs-local dashboard   # Open dashboard in browser
+acfs-local status      # View container info
+```
+
+> **Why sandbox?** ACFS is designed for fresh VPS instances and intentionally modifies system-level configurations. The sandbox isolates these changes, protecting your personal machine.
+
 ---
 
 ## TL;DR

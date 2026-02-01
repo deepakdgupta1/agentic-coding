@@ -136,3 +136,27 @@ is_docker() {
     fi
     return 1
 }
+
+# Check if running inside LXD/LXC container (ACFS local desktop mode)
+# Used to detect when we're inside the ACFS sandbox
+is_lxd_container() {
+    # LXD sets container environment variable
+    if [[ "${container:-}" == "lxc" ]]; then
+        return 0
+    fi
+    # Fallback: check for LXD-specific cgroup markers
+    if grep -q lxc /proc/1/cgroup 2>/dev/null; then
+        return 0
+    fi
+    # Fallback: check for container-specific boot marker
+    if [[ -f /dev/.lxc-boot-id ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Check if running in any container (Docker, LXD, etc.)
+is_container() {
+    is_docker || is_lxd_container
+}
+

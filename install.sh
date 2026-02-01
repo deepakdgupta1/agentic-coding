@@ -26,6 +26,7 @@
 #   --auto-fix-dry-run     Show what auto-fix would do without executing
 #   --skip-ubuntu-upgrade  Skip automatic Ubuntu version upgrade
 #   --target-ubuntu=VER    Set target Ubuntu version (default: 25.10)
+#   --local / --desktop    Run in sandboxed LXD container (for desktop PCs)
 #   --strict          Treat ALL tools as critical (any checksum mismatch aborts)
 #   --list-modules    List available modules and exit
 #   --print-plan      Print execution plan and exit (no installs)
@@ -99,6 +100,10 @@ MODE="vibe"
 SKIP_POSTGRES=false
 SKIP_VAULT=false
 SKIP_CLOUD=false
+
+# Local desktop installation mode (LXD sandboxing)
+# When true, ACFS runs inside an LXD container to protect the host
+LOCAL_MODE=false
 
 # Manifest-driven selection options (mjt.5.3)
 LIST_MODULES=false
@@ -1000,6 +1005,11 @@ parse_args() {
                 ;;
             --skip-cloud)
                 SKIP_CLOUD=true
+                shift
+                ;;
+            --local|--desktop)
+                # Enable local desktop installation mode with LXD sandboxing
+                LOCAL_MODE=true
                 shift
                 ;;
             --resume)
@@ -5097,6 +5107,53 @@ main() {
     # --yes should always behave non-interactively (skip prompts), regardless of flag order.
     if [[ "$YES_MODE" == "true" ]]; then
         export ACFS_INTERACTIVE=false
+    fi
+
+    # Local Desktop Mode: If --local/--desktop was passed and we're NOT already
+    # inside an LXD container, redirect to acfs-local create (sandbox provisioning)
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        # Source os_detect to get is_lxd_container function
+        local lib_dir
+        if [[ -n "${SCRIPT_DIR:-}" ]]; then
+            lib_dir="$SCRIPT_DIR/scripts/lib"
+        else
+            # Fallback: attempt to find the lib directory relative to this script
+            lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/lib"
+        fi
+
+        if [[ -f "$lib_dir/os_detect.sh" ]]; then
+            # shellcheck source=scripts/lib/os_detect.sh
+            source "$lib_dir/os_detect.sh"
+        fi
+
+        # Check if we're inside an LXD container
+        if declare -f is_lxd_container &>/dev/null && ! is_lxd_container; then
+            # We're on the host - redirect to acfs-local container management
+            local local_script
+            if [[ -n "${SCRIPT_DIR:-}" ]]; then
+                local_script="$SCRIPT_DIR/scripts/local/acfs_container.sh"
+            else
+                local_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/local/acfs_container.sh"
+            fi
+
+            if [[ -x "$local_script" ]]; then
+                echo ""
+                echo "╔══════════════════════════════════════════════════════════════╗"
+                echo "║           ACFS Local Desktop Mode Detected                   ║"
+                echo "╠══════════════════════════════════════════════════════════════╣"
+                echo "║  Redirecting to sandboxed installation...                    ║"
+                echo "║  Your host system will NOT be modified.                      ║"
+                echo "╚══════════════════════════════════════════════════════════════╝"
+                echo ""
+                exec "$local_script" create
+            else
+                log_error "Local desktop mode requires scripts/local/acfs_container.sh"
+                log_error "Please clone the full ACFS repository first."
+                exit 1
+            fi
+        fi
+        # If we're already inside a container, continue normal installation
+        log_detail "Inside LXD container - proceeding with normal installation"
     fi
 
     # Handle --pin-ref early (before any heavy setup) - just resolve SHA and exit
