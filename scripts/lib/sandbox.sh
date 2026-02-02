@@ -320,6 +320,7 @@ _acfs_create_profile() {
 
 # Create the ACFS container
 acfs_sandbox_create() {
+    grant_acfs_sandbox_access
     set_terminal_title "ACFS Sandbox: Creating..."
     log_step "SANDBOX" "Creating ACFS sandbox container..."
 

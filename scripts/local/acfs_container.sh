@@ -112,6 +112,7 @@ cmd_create() {
 }
 
 cmd_shell() {
+    grant_acfs_sandbox_access
     if ! acfs_sandbox_exists; then
         echo "Container not found. Create it first:"
         echo "  acfs-local create"
@@ -149,6 +150,7 @@ cmd_destroy() {
 }
 
 cmd_dashboard() {
+    grant_acfs_sandbox_access
     if ! acfs_sandbox_running; then
         echo "Container not running. Start it first:"
         echo "  acfs-local start"
@@ -169,6 +171,7 @@ cmd_dashboard() {
 }
 
 cmd_doctor() {
+    grant_acfs_sandbox_access
     if ! acfs_sandbox_running; then
         echo "Container not running. Start it first:"
         echo "  acfs-local start"
@@ -181,6 +184,7 @@ cmd_doctor() {
 }
 
 cmd_update() {
+    grant_acfs_sandbox_access
     if ! acfs_sandbox_running; then
         echo "Container not running. Start it first:"
         echo "  acfs-local start"
