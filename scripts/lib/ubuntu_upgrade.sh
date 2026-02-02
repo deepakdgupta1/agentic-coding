@@ -1074,8 +1074,8 @@ upgrade_setup_infrastructure() {
     # This runs after all upgrades complete to resume ACFS installation
     log_detail "Creating continuation script..."
     local repo_owner repo_name repo_ref
-    repo_owner="${ACFS_REPO_OWNER:-Dicklesworthstone}"
-    repo_name="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+    repo_owner="${ACFS_REPO_OWNER:-deepakdgupta1}"
+    repo_name="${ACFS_REPO_NAME:-agentic-coding}"
     repo_ref="${ACFS_COMMIT_SHA_FULL:-${ACFS_REF:-main}}"
     local source_dir_q repo_ref_q install_url install_url_q
     source_dir_q=$(printf '%q' "$source_dir")

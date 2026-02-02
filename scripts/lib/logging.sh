@@ -190,6 +190,15 @@ declare -gA ACFS_TIMERS=()
 # Progress Display (for multi-phase installations)
 # ============================================================
 
+# Update terminal title if supported
+set_terminal_title() {
+    local title="$1"
+    # Only if NOT in CI and it looks like a terminal
+    if [[ "${ACFS_CI:-false}" != "true" ]] && [[ -t 2 ]]; then
+        printf "\033]0;%s\007" "$title" >&2
+    fi
+}
+
 # Show installation progress header with visual progress bar
 # Usage: show_progress_header $current_phase $total_phases $phase_name $start_time
 if ! declare -f show_progress_header >/dev/null; then
@@ -201,6 +210,9 @@ if ! declare -f show_progress_header >/dev/null; then
 
         # Calculate percentage
         local percent=$((current * 100 / total))
+
+        # Update terminal title
+        set_terminal_title "ACFS Install: ${percent}% (${current}/${total}) - ${name}"
 
         # Calculate elapsed time
         local elapsed=0
@@ -226,19 +238,12 @@ if ! declare -f show_progress_header >/dev/null; then
         # Print progress header (box is 65 chars wide, content is 63 chars)
         echo "" >&2
         echo "╔═══════════════════════════════════════════════════════════════╗" >&2
-        # Progress line: "  Progress: [bar] 100%  (9/9)                 "
-        # We need to ensure the right padding adapts to the length of (current/total).
-        # Fixed width for the progress text part: 20 (bar) + 6 (percent) + variable (counts)
-        # Using printf * after the bar to pad the rest of the line.
         
         # Construct the progress detail string first: " 100%  (9/9)"
         local prog_detail
         printf -v prog_detail " %3d%%  (%d/%d)" "$percent" "$current" "$total"
         
         # Calculate padding needed to fill the rest of the 63-char content area minus "  Progress: [" and "]"
-        # "  Progress: [" is 13 chars. "]" is 1 char. Total 14 chars.
-        # Bar is 20 chars.
-        # 63 - 14 - 20 = 29 chars remaining for prog_detail + padding.
         local detail_len=${#prog_detail}
         local pad_len=$((29 - detail_len))
         local padding=""

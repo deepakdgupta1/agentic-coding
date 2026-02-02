@@ -30,7 +30,7 @@ NC='\033[0m' # No Color
 # Default values
 TOOL_NAME="${1:-$(basename "$PWD")}"
 INSTALLER_PATH="${2:-install.sh}"
-ACFS_TEMPLATE_URL="https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/templates/notify-acfs-workflow.yml"
+ACFS_TEMPLATE_URL="https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/templates/notify-acfs-workflow.yml"
 
 echo "Installing ACFS notification workflow..."
 echo ""
@@ -92,10 +92,10 @@ echo "  1. Create ACFS_NOTIFY_TOKEN secret:"
 echo "     - Go to your repository Settings > Secrets > Actions"
 echo "     - Create a new secret named 'ACFS_NOTIFY_TOKEN'"
 echo "     - Use a GitHub PAT with 'repo' scope for:"
-echo "       Dicklesworthstone/agentic_coding_flywheel_setup"
+echo "       deepakdgupta1/agentic-coding"
 echo ""
 echo "  2. Verify your tool is in ACFS checksums.yaml:"
-echo "     - Check: https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/blob/main/checksums.yaml"
+echo "     - Check: https://github.com/deepakdgupta1/agentic-coding/blob/main/checksums.yaml"
 echo "     - Look for entry: $TOOL_NAME"
 echo ""
 echo "  3. Commit and push the workflow:"
@@ -109,7 +109,7 @@ echo ""
 
 # Also install validation workflow
 echo "Installing validation workflow..."
-VALIDATE_TEMPLATE_URL="https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/templates/validate-acfs-workflow.yml"
+VALIDATE_TEMPLATE_URL="https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/templates/validate-acfs-workflow.yml"
 if curl -sL "$VALIDATE_TEMPLATE_URL" \
     | sed "s/{{ TOOL_NAME_PLACEHOLDER }}/$TOOL_NAME/g" \
     | sed "s|INSTALLER_PATH: 'install.sh'|INSTALLER_PATH: '$INSTALLER_PATH'|g" \

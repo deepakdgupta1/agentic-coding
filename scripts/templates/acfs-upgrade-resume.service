@@ -1,6 +1,6 @@
 [Unit]
 Description=ACFS Ubuntu Upgrade Resume Service
-Documentation=https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup
+Documentation=https://github.com/deepakdgupta1/agentic-coding
 
 # Wait for network to be fully online before running
 # This is critical because do-release-upgrade needs apt to work

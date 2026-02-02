@@ -477,7 +477,7 @@ export default function LearnDashboard() {
                   href: "/learn/agent-commands",
                   icon: Terminal,
                   title: "Agent Commands",
-                  desc: "Claude, Codex, Gemini shortcuts",
+                  desc: "Claude, Codex, Gemini, Amp shortcuts",
                   gradient: "from-violet-500/10 to-violet-500/5",
                 },
                 {

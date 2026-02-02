@@ -30,7 +30,7 @@ export default function VerifyKeyConnectionPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "verify_key_connection",
-    stepNumber: 11,
+    stepNumber: 12,
     stepTitle: "Verify Key Connection",
   });
 
@@ -44,7 +44,7 @@ export default function VerifyKeyConnectionPage() {
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(11);
+    markStepComplete(12);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/status-check"));
   }, [router, markComplete]);

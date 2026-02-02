@@ -2,7 +2,7 @@
 
 > Guidelines for AI coding agents working in projects on this VPS.
 
-This VPS is configured with the [Agentic Coding Flywheel Setup (ACFS)](https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup) - a complete environment for multi-agent AI-assisted software development.
+This VPS is configured with the [Agentic Coding Flywheel Setup (ACFS)](https://github.com/deepakdgupta1/agentic-coding) - a complete environment for multi-agent AI-assisted software development.
 
 ---
 

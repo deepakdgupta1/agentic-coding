@@ -641,7 +641,7 @@ setup_codex() {
         fi
     fi
 
-    gum_box "Codex CLI Setup" "Codex CLI uses OAuth login with your ChatGPT account.
+    gum_box "Codex CLI Setup" "Codex CLI uses OAuth login with your Codex Plus/Pro account.
 We'll launch the login flow in your terminal/browser."
 
     gum_detail "Launching Codex OAuth login..."

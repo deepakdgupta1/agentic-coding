@@ -494,7 +494,7 @@ run_cmd_sudo() {
 # Checksums Refresh (Auto-update from GitHub)
 # ============================================================
 
-CHECKSUMS_URL="https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/checksums.yaml"
+CHECKSUMS_URL="https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/checksums.yaml"
 CHECKSUMS_LOCAL="${HOME}/.acfs/checksums.yaml"
 
 # Refresh checksums.yaml from GitHub before verifying installers

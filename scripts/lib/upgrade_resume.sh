@@ -253,7 +253,7 @@ launch_continue_script() {
         if command -v curl &>/dev/null && curl --help all 2>/dev/null | grep -q -- '--proto'; then
             curl_cmd="curl --proto '=https' --proto-redir '=https' -fsSL"
         fi
-        log "Run: ${curl_cmd} https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh | bash -s -- --yes --mode vibe"
+        log "Run: ${curl_cmd} https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh | bash -s -- --yes --mode vibe"
         return 1
     fi
 

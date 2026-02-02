@@ -125,6 +125,14 @@ const COMMANDS: CommandEntry[] = [
     learnMoreHref: "/learn/agent-commands",
   },
   {
+    name: "amp",
+    fullName: "Amp CLI",
+    description: "Sourcegraph coding agent (no alias needed)",
+    example: 'amp "review this diff"',
+    category: "agents",
+    learnMoreHref: "/learn/agent-commands",
+  },
+  {
     name: "claude",
     fullName: "Claude Code",
     description: "Full command (same as `cc` on ACFS)",
@@ -154,7 +162,7 @@ const COMMANDS: CommandEntry[] = [
     name: "ntm",
     fullName: "Named Tmux Manager",
     description: "Agent cockpit (spawn, send prompts, dashboards)",
-    example: "ntm spawn myproject --cc=2 --cod=1 --gmi=1",
+    example: "ntm spawn myproject --cc=2 --cod=1 --gmi=1 --amp=1",
     category: "stack",
     learnMoreHref: "/learn/ntm-palette",
   },

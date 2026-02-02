@@ -620,7 +620,7 @@ export default function WorkflowPage() {
             <p className="text-sm flex items-start gap-3">
               <Clock className="h-5 w-5 text-[oklch(0.78_0.16_75)] shrink-0 mt-0.5" />
               <span>
-                <strong>Investment:</strong> VPS ($40-56/mo, month-to-month) + Claude Max ($200/mo × 1-5) + ChatGPT Pro ($200/mo × 1-5) +
+                <strong>Investment:</strong> VPS ($40-56/mo, month-to-month) + Claude Max ($200/mo × 1-5) + Codex Pro ($200/mo × 1-5) +
                 Gemini Advanced ($20/mo). Scale your swarm as you see ROI; start with 1 subscription of each and grow!
               </span>
             </p>
@@ -847,7 +847,7 @@ export default function WorkflowPage() {
                 description="Create 8 agent panes in your project session"
               />
               <p className="text-xs mt-2">
-                Run 3+ machines with multiple subscriptions (e.g., 5 ChatGPT Pro, 5 Claude Max, 3 Gemini Advanced).
+                Run 3+ machines with multiple subscriptions (e.g., 5 Codex Pro, 5 Claude Max, 3 Gemini Advanced).
               </p>
             </WorkflowStep>
 

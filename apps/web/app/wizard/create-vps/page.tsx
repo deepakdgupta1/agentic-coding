@@ -29,7 +29,7 @@ type ScreenshotSpec = {
 };
 
 const SCREENSHOT_BASE =
-  "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/research_screenshots";
+  "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/research_screenshots";
 
 function screenshotUrl(file: string): string {
   return `${SCREENSHOT_BASE}/${file}`;
@@ -184,7 +184,7 @@ export default function CreateVPSPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "create_vps",
-    stepNumber: 5,
+    stepNumber: 6,
     stepTitle: "Create VPS Instance",
   });
 
@@ -201,7 +201,7 @@ export default function CreateVPSPage() {
     onSubmit: async ({ value }) => {
       markCompleteRef.current({ ip_entered: true });
       setStoredIP(value.ipAddress);
-      markStepComplete(5);
+      markStepComplete(6);
       setIsNavigating(true);
       router.push(withCurrentSearch("/wizard/ssh-connect"));
     },
@@ -347,7 +347,7 @@ export default function CreateVPSPage() {
                 This IP address is stored <strong className="text-foreground/80">only in your browser&apos;s local storage</strong>. It&apos;s
                 never sent to our servers or any third party. The{" "}
                 <a
-                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  href="https://github.com/deepakdgupta1/agentic-coding"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-0.5 font-medium text-[oklch(0.75_0.18_195)] hover:underline"

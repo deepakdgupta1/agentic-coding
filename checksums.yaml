@@ -24,7 +24,7 @@ installers:
 
   cass:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_session_search/main/install.sh"
-    sha256: "744f39ccd11c1a9be372d5b559d21cb77e6bcfe25905e227caa6ba7c801a5933"
+    sha256: "d7a17e7677600514df13ea1d064f0b48c0da0d1e4bed34915345314b1adc313a"
 
   mcp_agent_mail:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/mcp_agent_mail/main/scripts/install.sh"
@@ -133,4 +133,3 @@ installers:
   ohmyzsh:
     url: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
     sha256: "ce0b7c94aa04d8c7a8137e45fe5c4744e3947871f785fd58117c480c1bf49352"
-

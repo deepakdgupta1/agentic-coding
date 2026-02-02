@@ -1534,7 +1534,7 @@ check_claude_auth() {
 }
 
 # check_codex_auth - Thorough Codex CLI authentication check
-# Codex CLI uses OAuth (ChatGPT accounts), NOT OPENAI_API_KEY environment variable.
+# Codex CLI uses OAuth (Codex Plus/Pro accounts), NOT OPENAI_API_KEY environment variable.
 # Token location: ~/.codex/auth.json (or $CODEX_HOME/auth.json)
 # Returns via check(): pass (auth OK), warn (partial/skipped), fail (auth broken)
 # Related: bead 325, ua5 (Codex auth documentation fix)
@@ -1586,7 +1586,7 @@ check_codex_auth() {
     fi
 
     if [[ "$has_oauth" == "true" ]]; then
-        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OAuth authenticated (ChatGPT account)"
+        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OAuth authenticated (Codex Plus/Pro account)"
     elif [[ "$has_api_key" == "true" ]]; then
         check "deep.agent.codex_auth" "Codex CLI auth" "pass" "API key authenticated (pay-as-you-go)"
     else

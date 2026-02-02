@@ -269,9 +269,9 @@ test_integration() {
 
     # Test 3: Flywheel.ts contains all new tools
     log "INFO" "flywheel_ts" "Testing flywheel.ts tool entries..."
-    local flywheel_file="${ACFS_REPO:-$HOME/agentic_coding_flywheel_setup}/apps/web/lib/flywheel.ts"
+    local flywheel_file="${ACFS_REPO:-$HOME/agentic-coding}/apps/web/lib/flywheel.ts"
     if [[ ! -f "$flywheel_file" ]]; then
-        flywheel_file="/data/projects/agentic_coding_flywheel_setup/apps/web/lib/flywheel.ts"
+        flywheel_file="/data/projects/agentic-coding/apps/web/lib/flywheel.ts"
     fi
 
     if [[ -f "$flywheel_file" ]]; then

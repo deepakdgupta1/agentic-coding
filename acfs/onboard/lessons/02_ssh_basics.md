@@ -2,6 +2,8 @@
 
 **Goal:** Understand how to stay connected to your VPS.
 
+> **Local desktop mode?** You can skip this lesson. Use `acfs-local shell` to enter the sandbox instead of SSH.
+
 ---
 
 ## What Is SSH?

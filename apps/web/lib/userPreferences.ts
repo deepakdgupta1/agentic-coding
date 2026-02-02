@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { safeGetItem, safeSetItem } from "./utils";
 
 export type OperatingSystem = "mac" | "windows" | "linux";
+export type InstallTarget = "vps" | "local";
 export type InstallMode = "vibe" | "safe";
 
 const OS_KEY = "agent-flywheel-user-os";
@@ -17,12 +18,14 @@ const VPS_IP_KEY = "agent-flywheel-vps-ip";
 const INSTALL_MODE_KEY = "agent-flywheel-install-mode";
 const SSH_USERNAME_KEY = "agent-flywheel-ssh-username";
 const ACFS_REF_KEY = "agent-flywheel-acfs-ref";
+const INSTALL_TARGET_KEY = "agent-flywheel-install-target";
 
 const OS_QUERY_KEY = "os";
 const VPS_IP_QUERY_KEY = "ip";
 const INSTALL_MODE_QUERY_KEY = "mode";
 const SSH_USERNAME_QUERY_KEY = "user";
 const ACFS_REF_QUERY_KEY = "ref";
+const INSTALL_TARGET_QUERY_KEY = "target";
 
 function getQueryParam(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -57,6 +60,7 @@ export const userPreferencesKeys = {
   installMode: ["userPreferences", "installMode"] as const,
   sshUsername: ["userPreferences", "sshUsername"] as const,
   acfsRef: ["userPreferences", "acfsRef"] as const,
+  installTarget: ["userPreferences", "installTarget"] as const,
 };
 
 /**
@@ -106,6 +110,30 @@ export function detectOS(): OperatingSystem | null {
   // Avoid mis-detecting iOS user agents that contain "like Mac OS X".
   if (ua.includes("mac") && !ua.includes("like mac os x")) return "mac";
   return null;
+}
+
+/**
+ * Get the user's selected install target (VPS or local desktop).
+ */
+export function getInstallTarget(): InstallTarget | null {
+  const fromQuery = getQueryParam(INSTALL_TARGET_QUERY_KEY);
+  if (fromQuery === "vps" || fromQuery === "local") {
+    return fromQuery;
+  }
+  const stored = safeGetItem(INSTALL_TARGET_KEY);
+  if (stored === "vps" || stored === "local") {
+    return stored;
+  }
+  return null;
+}
+
+/**
+ * Save the user's install target selection to localStorage.
+ */
+export function setInstallTarget(target: InstallTarget): boolean {
+  const storedOk = safeSetItem(INSTALL_TARGET_KEY, target);
+  const urlOk = setQueryParam(INSTALL_TARGET_QUERY_KEY, target);
+  return storedOk || urlOk;
 }
 
 /**
@@ -198,6 +226,29 @@ export function useUserOS(): [OperatingSystem | null, (os: OperatingSystem) => v
   }, []);
 
   return [userOSState.os, setOS, userOSState.loaded];
+}
+
+/**
+ * Hook to get and set the user's install target (VPS or local).
+ * Uses SSR-safe localStorage loading + an explicit `loaded` flag.
+ */
+export function useInstallTarget(): [InstallTarget | null, (target: InstallTarget) => void, boolean] {
+  const [targetState, setTargetState] = useState<{
+    target: InstallTarget | null;
+    loaded: boolean;
+  }>({ target: null, loaded: false });
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage access must happen after mount (SSR-safe)
+    setTargetState({ target: getInstallTarget(), loaded: true });
+  }, []);
+
+  const setTarget = useCallback((newTarget: InstallTarget) => {
+    setInstallTarget(newTarget);
+    setTargetState({ target: newTarget, loaded: true });
+  }, []);
+
+  return [targetState.target, setTarget, targetState.loaded];
 }
 
 /**

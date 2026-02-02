@@ -757,7 +757,7 @@ function CTASection() {
               </Button>
               <Button asChild size="lg" variant="outline">
                 <a
-                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  href="https://github.com/deepakdgupta1/agentic-coding"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -836,7 +836,7 @@ export default function FlywheelPage() {
 
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <a
-                href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                href="https://github.com/deepakdgupta1/agentic-coding"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center min-h-[44px] px-2 transition-colors hover:text-foreground"

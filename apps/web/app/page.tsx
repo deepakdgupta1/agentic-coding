@@ -696,7 +696,7 @@ function WhyVPSSection() {
 const FOR_YOU_ITEMS = [
   { text: "You want AI to write real, production code for you", detail: "Full implementations, not just suggestions" },
   { text: "Sites like Lovable.dev are too limiting for what you want to build", detail: "You need full control and complexity" },
-  { text: "You're willing to invest ~$500/month in AI subscriptions", detail: "Claude Max + ChatGPT Pro + VPS hosting" },
+  { text: "You're willing to invest ~$500/month in AI subscriptions", detail: "Claude Max + Codex Pro + VPS hosting" },
   { text: "You can follow step-by-step instructions", detail: "No coding experience required, just patience" },
 ];
 
@@ -795,7 +795,7 @@ function IsThisForYouSection() {
 const PRICING_ITEMS = [
   { name: "Cloud VPS", price: "$40–56", period: "/month", description: "64GB RAM Ubuntu server (Contabo, OVH)", icon: Server, gradient: "from-sky-400 to-blue-500", note: "64GB RAM for 10+ agents" },
   { name: "Claude Max", price: "$200", period: "/month", description: "Anthropic's Claude Code CLI", icon: Bot, gradient: "from-amber-400 to-orange-500", note: "$400 for power users (2 accounts)" },
-  { name: "ChatGPT Pro", price: "$200", period: "/month", description: "ChatGPT 5.2 Pro for extended thinking planning", icon: Cpu, gradient: "from-emerald-400 to-teal-500", note: "Essential for plan documents" },
+  { name: "Codex Pro", price: "$200", period: "/month", description: "OpenAI Codex for extended thinking planning", icon: Cpu, gradient: "from-emerald-400 to-teal-500", note: "Codex Plus minimum (Pro recommended)" },
 ];
 
 function WhatDoesThisCostSection() {
@@ -916,7 +916,7 @@ export default function HomePage() {
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Mobile: icon-only buttons with proper touch targets */}
           <a
-            href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+            href="https://github.com/deepakdgupta1/agentic-coding"
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
@@ -1013,7 +1013,7 @@ export default function HomePage() {
                 </Button>
                 <Button asChild size="lg" variant="outline" className="border-border/50 hover:bg-muted/50">
                   <a
-                    href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                    href="https://github.com/deepakdgupta1/agentic-coding"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -1101,7 +1101,7 @@ export default function HomePage() {
 
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <a
-                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  href="https://github.com/deepakdgupta1/agentic-coding"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition-colors hover:text-foreground"

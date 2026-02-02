@@ -3,14 +3,14 @@
  *
  * Defines the steps of the Agent Flywheel setup wizard.
  * The actual count is derived from the WIZARD_STEPS array (see TOTAL_STEPS).
- * Each step guides beginners from "I have a laptop" to "fully configured VPS".
+ * Each step guides beginners from "I have a laptop" to a fully configured VPS or local desktop sandbox.
  * Uses TanStack Query for React state management with localStorage persistence.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 import { safeGetJSON, safeSetJSON } from "./utils";
-import { getUserOS, getVPSIP, detectOS, setUserOS } from "./userPreferences";
+import { getUserOS, getVPSIP, getInstallTarget, detectOS, setUserOS } from "./userPreferences";
 
 export interface ValidationResult {
   valid: boolean;
@@ -50,6 +50,9 @@ function validateOSSelection(): ValidationResult {
 }
 
 function validateVPSCreation(): ValidationResult {
+  if (getInstallTarget() === "local") {
+    return { valid: true, errors: [] };
+  }
   return getVPSIP()
     ? { valid: true, errors: [] }
     : {
@@ -69,73 +72,79 @@ export const WIZARD_STEPS: WizardStep[] = [
   },
   {
     id: 2,
+    title: "Choose Install Target",
+    description: "Pick VPS or local desktop (Linux-only)",
+    slug: "install-target",
+  },
+  {
+    id: 3,
     title: "Install Terminal",
     description: "Get a proper terminal application set up",
     slug: "install-terminal",
   },
   {
-    id: 3,
+    id: 4,
     title: "Generate SSH Key",
     description: "Create your SSH key pair for secure VPS access",
     slug: "generate-ssh-key",
   },
   {
-    id: 4,
+    id: 5,
     title: "Rent a VPS",
     description: "Choose and sign up for a VPS provider",
     slug: "rent-vps",
   },
   {
-    id: 5,
+    id: 6,
     title: "Create VPS Instance",
     description: "Launch your VPS with password authentication",
     slug: "create-vps",
     validate: validateVPSCreation,
   },
   {
-    id: 6,
+    id: 7,
     title: "SSH Into Your VPS",
     description: "Connect to your VPS for the first time",
     slug: "ssh-connect",
   },
   {
-    id: 7,
+    id: 8,
     title: "Set Up Accounts",
     description: "Create accounts for the services you'll use",
     slug: "accounts",
   },
   {
-    id: 8,
+    id: 9,
     title: "Pre-Flight Check",
     description: "Verify your VPS is ready before installing",
     slug: "preflight-check",
   },
   {
-    id: 9,
+    id: 10,
     title: "Run Installer",
     description: "Paste and run the one-liner to install everything",
     slug: "run-installer",
   },
   {
-    id: 10,
+    id: 11,
     title: "Reconnect as Ubuntu",
     description: "Switch from root to your ubuntu user",
     slug: "reconnect-ubuntu",
   },
   {
-    id: 11,
+    id: 12,
     title: "Verify Key Connection",
     description: "Reconnect using your SSH key and confirm it works",
     slug: "verify-key-connection",
   },
   {
-    id: 12,
+    id: 13,
     title: "Status Check",
     description: "Verify everything installed correctly",
     slug: "status-check",
   },
   {
-    id: 13,
+    id: 14,
     title: "Launch Onboarding",
     description: "Start the interactive tutorial",
     slug: "launch-onboarding",

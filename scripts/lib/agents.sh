@@ -234,7 +234,7 @@ install_codex_cli() {
         # Create wrapper script that uses bun as runtime (avoids node PATH issues)
         _agent_create_bun_wrapper "$target_home" "codex"
         log_success "Codex CLI installed"
-        log_detail "Note: Run 'codex login' to authenticate with your ChatGPT Pro account"
+        log_detail "Note: Run 'codex login' to authenticate with your Codex Plus/Pro account"
         return 0
     fi
 
@@ -488,7 +488,7 @@ check_agent_auth() {
         log_warn "  Claude: not configured (run 'claude' to login)"
     fi
 
-    # Codex: Check for OAuth auth.json (uses ChatGPT accounts, not API keys)
+    # Codex: Check for OAuth auth.json (uses Codex Plus/Pro accounts, not API keys)
     local codex_home="${CODEX_HOME:-$target_home/.codex}"
     if [[ -f "$codex_home/auth.json" ]]; then
         log_detail "  Codex: configured"
@@ -589,7 +589,7 @@ install_all_agents() {
     echo ""
     log_detail "Next steps: Login to each agent"
     log_detail "  • Claude: Run 'claude' and follow prompts"
-    log_detail "  • Codex:  Run 'codex login' (uses ChatGPT Pro account, not API key)"
+    log_detail "  • Codex:  Run 'codex login' (uses Codex Plus/Pro account, not API key)"
     log_detail "  • Gemini: Run 'gemini' and complete Google login"
     echo ""
 

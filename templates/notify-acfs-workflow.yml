@@ -7,7 +7,7 @@
 # Setup:
 # 1. Copy this file to .github/workflows/notify-acfs.yml
 # 2. Create a repository secret ACFS_NOTIFY_TOKEN with a GitHub PAT
-#    that has repo scope for Dicklesworthstone/agentic_coding_flywheel_setup
+#    that has repo scope for deepakdgupta1/agentic-coding
 # 3. Update TOOL_NAME to match the entry in ACFS checksums.yaml
 #
 # Testing:
@@ -44,7 +44,7 @@ env:
   INSTALLER_PATH: 'install.sh'
 
   # ACFS repository to notify
-  ACFS_REPO: 'Dicklesworthstone/agentic_coding_flywheel_setup'
+  ACFS_REPO: 'deepakdgupta1/agentic-coding'
 
 jobs:
   compute-and-notify:
@@ -190,7 +190,7 @@ jobs:
       - uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.ACFS_NOTIFY_TOKEN }}
-          repository: Dicklesworthstone/agentic_coding_flywheel_setup
+          repository: deepakdgupta1/agentic-coding
           event-type: installer-removed
           client-payload: |
             {

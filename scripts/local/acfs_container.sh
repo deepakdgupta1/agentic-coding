@@ -19,6 +19,9 @@
 
 set -euo pipefail
 
+# Capture original arguments for potential restart (group refresh)
+export ACFS_ORIG_ARGS="$*"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -30,12 +33,44 @@ source "$REPO_ROOT/scripts/lib/sandbox.sh"
 # Commands
 # ============================================================
 
+install_acfs_local_wrapper() {
+    local bin_dir="$HOME/.local/bin"
+    local wrapper_path="$bin_dir/acfs-local"
+
+    if [[ -x "$wrapper_path" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$bin_dir"
+    cat > "$wrapper_path" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+ACFS_LOCAL_REPO="${REPO_ROOT}"
+
+if [[ ! -x "\$ACFS_LOCAL_REPO/scripts/local/acfs_container.sh" ]]; then
+  echo "acfs-local: repo not found at \$ACFS_LOCAL_REPO" >&2
+  echo "Reinstall from a valid ACFS repo checkout." >&2
+  exit 1
+fi
+
+exec "\$ACFS_LOCAL_REPO/scripts/local/acfs_container.sh" "\$@"
+EOF
+    chmod +x "$wrapper_path"
+
+    if ! command -v acfs-local &>/dev/null; then
+        echo "Added acfs-local to $wrapper_path (ensure ~/.local/bin is in PATH)"
+    fi
+}
+
 cmd_create() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║           ACFS Local Desktop Installation                    ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
+
+    install_acfs_local_wrapper
 
     # Create container
     acfs_sandbox_create
@@ -44,22 +79,21 @@ cmd_create() {
     echo "Container ready. Installing ACFS inside sandbox..."
     echo ""
 
-    # Copy installer to container
-    lxc file push "$REPO_ROOT/install.sh" "$ACFS_CONTAINER_NAME/tmp/install.sh"
-
-    # Copy scripts directory
-    lxc exec "$ACFS_CONTAINER_NAME" -- mkdir -p /tmp/acfs-repo/scripts
-    lxc file push -r "$REPO_ROOT/scripts/" "$ACFS_CONTAINER_NAME/tmp/acfs-repo/"
-    lxc file push -r "$REPO_ROOT/acfs/" "$ACFS_CONTAINER_NAME/tmp/acfs-repo/"
-    lxc file push "$REPO_ROOT/acfs.manifest.yaml" "$ACFS_CONTAINER_NAME/tmp/acfs-repo/"
-    lxc file push "$REPO_ROOT/checksums.yaml" "$ACFS_CONTAINER_NAME/tmp/acfs-repo/" 2>/dev/null || true
+    # Copy installer and repo files to container via tar pipe
+    # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
+    log_detail "Transferring ACFS repo to container..."
+    tar -C "$REPO_ROOT" -cf - install.sh scripts acfs acfs.manifest.yaml checksums.yaml 2>/dev/null | \
+        acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/
 
     # Run installer inside container
+    # We set ACFS_BOOTSTRAP_DIR=/tmp so install.sh knows where to find its own scripts/lib
+    set_terminal_title "ACFS Local: Running Installer..."
     acfs_sandbox_exec_root "
         export DEBIAN_FRONTEND=noninteractive
         export ACFS_CI=true
-        cd /tmp/acfs-repo
-        bash /tmp/install.sh --yes --mode vibe --skip-ubuntu-upgrade
+        export ACFS_BOOTSTRAP_DIR=/tmp
+        cd /tmp
+        bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
     "
 
     echo ""

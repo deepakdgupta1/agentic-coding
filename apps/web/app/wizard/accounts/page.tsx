@@ -29,7 +29,6 @@ import {
   GuideExplain,
   GuideTip,
 } from "@/components/simpler-guide";
-import { Jargon } from "@/components/jargon";
 import {
   SERVICES,
   getGoogleSsoServices,
@@ -130,7 +129,7 @@ function ServiceCard({ service, isChecked, onToggle }: ServiceCardProps) {
           </p>
           {service.requiresSubscription && (
             <p className="text-xs text-amber-600/80">
-              Paid plan needed to actually use this service on your VPS.
+              Paid plan needed to actually use this service in your ACFS environment.
             </p>
           )}
           <p className="text-xs text-muted-foreground/80">
@@ -263,7 +262,7 @@ export default function AccountsPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "accounts",
-    stepNumber: 7,
+    stepNumber: 8,
     stepTitle: "Set Up Accounts",
   });
 
@@ -284,14 +283,14 @@ export default function AccountsPage() {
       accounts_checked: Array.from(checkedServices),
       accounts_count: checkedServices.size,
     });
-    markStepComplete(7);
+    markStepComplete(8);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/preflight-check"));
   }, [router, markComplete, checkedServices]);
 
   const handleSkip = useCallback(() => {
     markComplete({ skipped: true });
-    markStepComplete(7);
+    markStepComplete(8);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/preflight-check"));
   }, [router, markComplete]);
@@ -324,7 +323,7 @@ export default function AccountsPage() {
         </div>
         <p className="text-muted-foreground">
           Create accounts for the services you&apos;ll use with your{" "}
-          <Jargon term="vps">VPS</Jargon>. Do this now while the installer runs
+        ACFS environment. Do this now while the installer runs
           later.
         </p>
       </div>
@@ -334,7 +333,7 @@ export default function AccountsPage() {
         Some AI coding agents require expensive subscriptions to use after installation:
         <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
           <li><strong>Claude Code</strong>: Requires Claude Max ($200/mo)</li>
-          <li><strong>Codex CLI</strong>: Requires ChatGPT Pro ($200/mo)</li>
+          <li><strong>Codex CLI</strong>: Requires Codex Plus (Codex Pro recommended)</li>
           <li><strong>Gemini CLI</strong>: Requires Gemini Advanced (~$20/mo)</li>
         </ul>
         <p className="mt-2 text-sm">
@@ -398,7 +397,8 @@ export default function AccountsPage() {
             <br />
             <br />
             <strong>Recommended (after first project):</strong> Add Codex CLI and Gemini CLI
-            for more AI options with different perspectives.
+            for more AI options with different perspectives. Amp CLI is optional if you
+            want extra reasoning coverage.
             <br />
             <br />
             <strong>Optional (when you need them):</strong> Cloud platforms for deployment,

@@ -151,7 +151,7 @@ if [[ "$_STATUS_CHECK_UPDATES" == "true" ]]; then
     if [[ -f "$_ACFS_HOME/VERSION" ]]; then
         _local_version=$(cat "$_ACFS_HOME/VERSION" 2>/dev/null) || _local_version=""
         _remote_version=$(timeout 5 curl -fsSL \
-            "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/VERSION" \
+            "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/VERSION" \
             2>/dev/null) || _remote_version=""
         if [[ -n "$_remote_version" ]] && [[ -n "$_local_version" ]] \
            && [[ "$_remote_version" != "$_local_version" ]]; then

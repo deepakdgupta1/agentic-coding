@@ -39,7 +39,8 @@ export function KeepingUpdatedLesson() {
         delay={0.1}
       >
         <Paragraph>
-          Your VPS has 30+ tools installed. Each one gets improvements:
+          Your ACFS environment (VPS or local sandbox) has 30+ tools installed.
+          Each one gets improvements:
         </Paragraph>
 
         <div className="mt-6">
@@ -89,7 +90,7 @@ export function KeepingUpdatedLesson() {
           <UpdateItem
             icon={<Bot className="h-4 w-4" />}
             label="Coding agents"
-            description="Claude, Codex, Gemini"
+            description="Claude (primary), Codex, Gemini, Amp"
           />
           <UpdateItem
             icon={<Settings className="h-4 w-4" />}
@@ -221,7 +222,10 @@ claude update
 bun install -g --trust @openai/codex@latest
 
 # Gemini
-bun install -g --trust @google/gemini-cli@latest`}
+bun install -g --trust @google/gemini-cli@latest
+
+# Amp
+bun install -g --trust @anthropic/amp-cli@latest`}
           />
 
           <TroubleshootingCard

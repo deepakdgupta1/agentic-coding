@@ -34,7 +34,7 @@ print_banner() {
     ║    ╚═╝  ╚═╝ ╚═════╝╚═╝     ╚══════╝                          ║
     ║                                                               ║
     ║    Agentic Coding Flywheel Setup                             ║
-    ║    github.com/Dicklesworthstone/agentic_coding_flywheel_setup║
+    ║    github.com/deepakdgupta1/agentic-coding║
     ║                                                               ║
     ╚═══════════════════════════════════════════════════════════════╝
 '

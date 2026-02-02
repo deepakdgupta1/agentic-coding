@@ -355,9 +355,11 @@ function WhyItMattersCard() {
             Your Agents Run in tmux
           </h4>
           <p className="text-white/60">
-            Your coding agents (Claude, Codex, Gemini) run in tmux panes. If SSH
-            drops, they keep running. When you reconnect and reattach,
-            they&apos;re still there!
+            Your coding agents (Claude primary, plus Codex, Gemini, Amp) run in
+            tmux panes. If SSH drops, they keep running. When you reconnect and
+            reattach, they&apos;re still there! In local desktop mode, tmux keeps
+            everything alive inside the sandbox even if you close your host
+            terminal.
           </p>
         </div>
       </div>

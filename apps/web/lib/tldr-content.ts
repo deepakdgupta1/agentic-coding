@@ -220,7 +220,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     id: "acfs",
     name: "Flywheel Setup",
     shortName: "ACFS",
-    href: "https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup",
+    href: "https://github.com/deepakdgupta1/agentic-coding",
     icon: "Cog",
     color: "from-purple-500 to-violet-600",
     category: "core",
@@ -228,7 +228,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     whatItDoes:
       "One-command bootstrap that transforms a fresh Ubuntu VPS into a fully-configured agentic coding environment with all flywheel tools installed.",
     whyItsUseful:
-      "Setting up a new development environment takes hours. ACFS does it in 30 minutes, installing 30+ tools, three AI agents, and all the flywheel tooling automatically.",
+      "Setting up a new development environment takes hours. ACFS does it in 30 minutes, installing 30+ tools, four AI agents, and all the flywheel tooling automatically.",
     implementationHighlights: [
       "Single curl | bash installation",
       "Idempotent (safe to re-run)",
@@ -252,7 +252,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     techStack: ["Bash", "YAML manifest", "Next.js wizard"],
     keyFeatures: [
       "30-minute zero-to-hero setup",
-      "Installs Claude Code, Codex, Gemini CLI",
+      "Installs Claude Code, Codex, Gemini, Amp CLI",
       "All flywheel tools pre-configured",
       "Step-by-step wizard for beginners",
     ],

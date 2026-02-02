@@ -32,6 +32,13 @@ After installation, your ACFS environment lives inside a container. To enter it:
 acfs-local shell
 ```
 
+> **Note:** `acfs-local` is a host-side wrapper installed to `~/.local/bin` during local install.
+> If it isn't found, open a new terminal or add it to your PATH:
+>
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
+
 You'll see a prompt like:
 
 ```
@@ -117,6 +124,9 @@ cod
 
 # Gemini
 gmi
+
+# Amp (optional)
+amp
 ```
 
 Remember: These agents have full permissions **inside the sandbox**, but cannot touch your host system.

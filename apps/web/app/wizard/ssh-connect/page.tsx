@@ -142,7 +142,7 @@ export default function SSHConnectPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "ssh_connect",
-    stepNumber: 6,
+    stepNumber: 7,
     stepTitle: "SSH Connect",
   });
 
@@ -158,7 +158,7 @@ export default function SSHConnectPage() {
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(6);
+    markStepComplete(7);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/accounts"));
   }, [router, markComplete]);

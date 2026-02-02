@@ -463,7 +463,7 @@ presets:
 In curl|bash mode, `install.sh` fetches assets from GitHub via `install_asset()`:
 ```bash
 acfs_curl -o "$dest_path" "$ACFS_RAW/$rel_path"
-# $ACFS_RAW = https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main
+# $ACFS_RAW = https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main
 ```
 
 ### Required Runtime Assets

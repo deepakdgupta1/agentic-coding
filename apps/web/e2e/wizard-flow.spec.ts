@@ -49,18 +49,19 @@ async function setupWizardState(
  *
  * Button text for each step:
  * - Step 1 (OS Selection): "Continue"
- * - Step 2 (Install Terminal): "I installed it, continue"
- * - Step 3 (Generate SSH Key): "I saved my public key"
- * - Step 4 (Rent VPS): "I rented a VPS"
- * - Step 5 (Create VPS): "Continue to SSH"
- * - Step 6 (SSH Connect): "I'm connected, continue"
- * - Step 7 (Accounts): "Continue"
- * - Step 8 (Pre-Flight Check): "Continue" (after checking "Pre-flight passed")
- * - Step 9 (Run Installer): "Installation finished"
- * - Step 10 (Reconnect Ubuntu): "I'm connected as ubuntu"
- * - Step 11 (Verify Key Connection): "My key works, continue"
- * - Step 12 (Status Check): "Everything looks good!"
- * - Step 13 (Launch Onboarding): "Start Learning Hub"
+ * - Step 2 (Install Target - Linux only): "Continue"
+ * - Step 3 (Install Terminal): "I installed it, continue"
+ * - Step 4 (Generate SSH Key): "I saved my public key"
+ * - Step 5 (Rent VPS): "I rented a VPS"
+ * - Step 6 (Create VPS): "Continue to SSH"
+ * - Step 7 (SSH Connect): "I'm connected, continue"
+ * - Step 8 (Accounts): "Continue"
+ * - Step 9 (Pre-Flight Check): "Continue" (after checking "Pre-flight passed")
+ * - Step 10 (Run Installer): "Installation finished"
+ * - Step 11 (Reconnect Ubuntu): "I'm connected as ubuntu"
+ * - Step 12 (Verify Key Connection): "My key works, continue"
+ * - Step 13 (Status Check): "Everything looks good!"
+ * - Step 14 (Launch Onboarding): "Start Learning Hub"
  */
 
 test.describe("Wizard Flow", () => {
@@ -535,19 +536,19 @@ test.describe("Complete Wizard Flow Integration", () => {
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/install-terminal"));
     expect(new URL(page.url()).searchParams.get("os")).toBe("mac");
 
-    // Step 2: Install Terminal
+    // Step 3: Install Terminal
     await page.getByRole('button', { name: /continue/i }).click();
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/generate-ssh-key"));
 
-    // Step 3: Generate SSH Key
+    // Step 4: Generate SSH Key
     await page.click('button:has-text("I saved my public key")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/rent-vps"));
 
-    // Step 4: Rent VPS
+    // Step 5: Rent VPS
     await page.click('button:has-text("I rented a VPS")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/create-vps"));
 
-    // Step 5: Create VPS
+    // Step 6: Create VPS
     const checkboxes = page.locator('button[role="checkbox"]');
     const count = await checkboxes.count();
     for (let i = 0; i < count; i++) {
@@ -566,42 +567,42 @@ test.describe("Complete Wizard Flow Integration", () => {
     expect(sshConnectUrl.searchParams.get("os")).toBe("mac");
     expect(sshConnectUrl.searchParams.get("ip")).toBe("192.168.1.100");
 
-    // Step 6: SSH Connect - THE CRITICAL TEST
+    // Step 7: SSH Connect - THE CRITICAL TEST
     // This should NOT get stuck on a loading spinner
     await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.LOADING_SPINNER });
     await expect(page.locator("h1").first()).toContainText(/SSH/i);
     await page.click('button:has-text("continue")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/accounts"));
 
-    // Step 7: Set Up Accounts
+    // Step 8: Set Up Accounts
     await expect(page.locator("h1").first()).toContainText(/accounts/i);
     await page.click('button:has-text("continue")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/preflight-check"));
 
-    // Step 8: Pre-Flight Check - check the "passed" checkbox to enable continue button
+    // Step 9: Pre-Flight Check - check the "passed" checkbox to enable continue button
     await expect(page.locator("h1").first()).toContainText(/pre-?flight|check/i);
     await page.click('label:has-text("Pre-flight passed")');
     await page.click('button:has-text("continue")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/run-installer"));
 
-    // Step 9: Run Installer
+    // Step 10: Run Installer
     await expect(page.locator("h1").first()).toContainText(/installer/i);
     await page.click('button:has-text("Installation finished")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/reconnect-ubuntu"));
 
-    // Step 10: Reconnect Ubuntu
+    // Step 11: Reconnect Ubuntu
     await page.click('button:has-text("I\'m connected as ubuntu")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/verify-key-connection"));
 
-    // Step 11: Verify Key Connection
+    // Step 12: Verify Key Connection
     await page.click('button:has-text("My key works, continue")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/status-check"));
 
-    // Step 12: Status Check
+    // Step 13: Status Check
     await page.click('button:has-text("Everything looks good!")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/launch-onboarding"));
 
-    // Step 13: Launch Onboarding - Final step!
+    // Step 14: Launch Onboarding - Final step!
     await expect(page.locator("h1").first()).toContainText(/congratulations|set up/i);
   });
 });
@@ -651,19 +652,19 @@ test.describe("No localStorage (query-only resilience)", () => {
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/install-terminal"));
     expect(new URL(page.url()).searchParams.get("os")).toBe("mac");
 
-    // Step 2 -> Step 3
+    // Step 3 -> Step 4
     await page.getByRole("button", { name: /continue/i }).click();
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/generate-ssh-key"));
 
-    // Step 3 -> Step 4
+    // Step 4 -> Step 5
     await page.click('button:has-text("I saved my public key")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/rent-vps"));
 
-    // Step 4 -> Step 5
+    // Step 5 -> Step 6
     await page.click('button:has-text("I rented a VPS")');
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/create-vps"));
 
-    // Step 5 -> Step 6 (IP stored in URL)
+    // Step 6 -> Step 7 (IP stored in URL)
     const checkboxes = page.locator('button[role="checkbox"]');
     const count = await checkboxes.count();
     for (let i = 0; i < count; i++) {
@@ -688,7 +689,7 @@ test.describe("No localStorage (query-only resilience)", () => {
 // =============================================================================
 // STEP 9: RUN INSTALLER - Individual Tests
 // =============================================================================
-test.describe("Step 9: Run Installer Page", () => {
+test.describe("Step 10: Run Installer Page", () => {
   test.beforeEach(async ({ page }) => {
     // Set up prerequisite state for step 9
     await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
@@ -758,7 +759,7 @@ test.describe("Step 9: Run Installer Page", () => {
 // =============================================================================
 // STEP 10: RECONNECT UBUNTU - Individual Tests
 // =============================================================================
-test.describe("Step 10: Reconnect Ubuntu Page", () => {
+test.describe("Step 11: Reconnect Ubuntu Page", () => {
   test.beforeEach(async ({ page }) => {
     await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
   });
@@ -846,7 +847,7 @@ test.describe("Step 10: Reconnect Ubuntu Page", () => {
 // =============================================================================
 // STEP 12: STATUS CHECK - Individual Tests
 // =============================================================================
-test.describe("Step 12: Status Check Page", () => {
+test.describe("Step 13: Status Check Page", () => {
   test.beforeEach(async ({ page }) => {
     await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
   });
@@ -901,7 +902,7 @@ test.describe("Step 12: Status Check Page", () => {
     // Click continue
     await page.click('button:has-text("Everything looks good!")');
 
-    // Should navigate to step 13 (launch-onboarding)
+    // Should navigate to step 14 (launch-onboarding)
     await expect(page).toHaveURL(urlPathWithOptionalQuery("/wizard/launch-onboarding"));
   });
 });
@@ -909,7 +910,7 @@ test.describe("Step 12: Status Check Page", () => {
 // =============================================================================
 // STEP 13: LAUNCH ONBOARDING - Individual Tests
 // =============================================================================
-test.describe("Step 13: Launch Onboarding Page", () => {
+test.describe("Step 14: Launch Onboarding Page", () => {
   test.beforeEach(async ({ page }) => {
     await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
   });

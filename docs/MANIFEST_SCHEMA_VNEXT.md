@@ -14,7 +14,7 @@ The ACFS manifest (`acfs.manifest.yaml`) is the single source of truth for all t
 
 ```yaml
 version: 2                # Schema version
-name: agentic_coding_flywheel_setup
+name: agentic-coding
 id: acfs                  # Short identifier (lowercase alphanumeric + underscores)
 
 defaults:
@@ -473,7 +473,7 @@ When adding or modifying modulesâ€”especially ones that run upstream installersâ
      ```bash
      # Run against a tag/sha or branch ref
      ACFS_REF=<ref> curl -fsSL \
-       "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/<ref>/install.sh" \
+       "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/<ref>/install.sh" \
        | bash -s -- --print-plan
      ```
    - The bootstrap flow validates script syntax and ensures `scripts/generated/manifest_index.sh`

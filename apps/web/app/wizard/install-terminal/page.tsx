@@ -419,7 +419,7 @@ export default function InstallTerminalPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "install_terminal",
-    stepNumber: 2,
+    stepNumber: 3,
     stepTitle: "Install Terminal",
   });
 
@@ -429,15 +429,15 @@ export default function InstallTerminalPage() {
     if (os === null) {
       router.push(withCurrentSearch("/wizard/os-selection"));
     } else if (os === "linux") {
-      // Linux users already have a terminal - skip to SSH key generation
-      markStepComplete(2);
-      router.push(withCurrentSearch("/wizard/generate-ssh-key"));
+      // Linux users already have a terminal - route to install target selection
+      markStepComplete(3);
+      router.push(withCurrentSearch("/wizard/install-target"));
     }
   }, [ready, os, router]);
 
   const handleContinue = useCallback(() => {
     markComplete({ selected_os: os });
-    markStepComplete(2);
+    markStepComplete(3);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/generate-ssh-key"));
   }, [router, os, markComplete]);

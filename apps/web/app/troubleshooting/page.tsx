@@ -836,7 +836,7 @@ export default function TroubleshootingPage() {
                 <span>
                   Visit the{" "}
                   <a
-                    href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/issues"
+                    href="https://github.com/deepakdgupta1/agentic-coding/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"

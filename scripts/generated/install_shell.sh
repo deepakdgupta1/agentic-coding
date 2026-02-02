@@ -237,7 +237,7 @@ INSTALL_SHELL_OMZ
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
 # Install ACFS zshrc
-ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
 mkdir -p ~/.acfs/zsh
 CURL_ARGS=(-fsSL)
 if curl --help all 2>/dev/null | grep -q -- '--proto'; then
@@ -255,7 +255,7 @@ INSTALL_SHELL_OMZ
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
 # Install pre-configured Powerlevel10k settings (prevents config wizard on first login)
-ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
 CURL_ARGS=(-fsSL)
 if curl --help all 2>/dev/null | grep -q -- '--proto'; then
   CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)

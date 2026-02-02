@@ -34,6 +34,7 @@ import {
   GuideCaution,
 } from "@/components/simpler-guide";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
+import { useInstallTarget } from "@/lib/userPreferences";
 import { Jargon } from "@/components/jargon";
 import { withCurrentSearch } from "@/lib/utils";
 
@@ -53,6 +54,21 @@ const QUICK_CHECKS = [
   {
     command: "which tmux",
     description: "Check tmux is installed",
+  },
+];
+
+const LOCAL_QUICK_CHECKS = [
+  {
+    command: "acfs-local status",
+    description: "Check the sandbox container status",
+  },
+  {
+    command: "acfs-local doctor",
+    description: "Run health check inside the sandbox",
+  },
+  {
+    command: "acfs-local shell",
+    description: "Enter the sandbox shell",
   },
 ];
 
@@ -82,24 +98,164 @@ function getAuthServices(): Record<ServiceCategory, Service[]> {
 
 export default function StatusCheckPage() {
   const router = useRouter();
+  const [installTarget] = useInstallTarget();
   const [isNavigating, setIsNavigating] = useState(false);
+  const isLocal = installTarget === "local";
 
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "status_check",
-    stepNumber: 12,
+    stepNumber: 13,
     stepTitle: "Status Check",
   });
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(12);
+    markStepComplete(13);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/launch-onboarding"));
   }, [router, markComplete]);
 
   // Compute auth services once, not on every category iteration
   const authServices = getAuthServices();
+
+  if (isLocal) {
+    return (
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+              <Stethoscope className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl">
+                ACFS local status check
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                ~1 min
+              </p>
+            </div>
+          </div>
+          <p className="text-muted-foreground">
+            You&apos;re running ACFS in a sandboxed LXD container on your machine.
+          </p>
+        </div>
+
+        <AlertCard variant="info" icon={Laptop} title="Local desktop mode">
+          Use <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">acfs-local</code> to run commands in the sandbox.
+        </AlertCard>
+
+        {/* Doctor command */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">Run the doctor command</h2>
+          <p className="text-sm text-muted-foreground">
+            This checks all installed tools inside the sandbox:
+          </p>
+          <CommandCard
+            command="acfs-local doctor"
+            description="Run ACFS health check in the sandbox"
+            runLocation="local"
+            showCheckbox
+            persistKey="flywheel-doctor-local"
+          />
+        </div>
+
+        {/* Expected output */}
+        <OutputPreview title="Expected output">
+          <div className="space-y-1 font-mono text-xs">
+            <p className="text-muted-foreground">Agent Flywheel Doctor - System Health Check</p>
+            <p className="text-muted-foreground">================================</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✔ Shell: zsh with oh-my-zsh</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✔ Languages: bun, uv, rust, go</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✔ Tools: tmux, ripgrep, lazygit</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✔ Agents: claude-code, codex, gemini, amp</p>
+            <p className="mt-2 text-foreground">All checks passed!</p>
+          </div>
+        </OutputPreview>
+
+        {/* Quick spot checks */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Quick spot checks</h2>
+          <p className="text-sm text-muted-foreground">
+            A few helpful commands to confirm the sandbox is healthy:
+          </p>
+          <div className="space-y-3">
+            {LOCAL_QUICK_CHECKS.map((check, i) => (
+              <CommandCard
+                key={i}
+                command={check.command}
+                description={check.description}
+                runLocation="local"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Authenticate your services */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Authenticate your services</h2>
+              <p className="text-sm text-muted-foreground">
+                Run these inside <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">acfs-local shell</code>
+              </p>
+            </div>
+          </div>
+
+          <AlertCard variant="info" icon={Laptop} title="Open a sandbox shell first">
+            <CommandCard
+              command="acfs-local shell"
+              description="Enter the sandbox shell"
+              runLocation="local"
+              showCheckbox
+              persistKey="local-shell-auth"
+            />
+          </AlertCard>
+
+          {(["access", "agent", "cloud"] as const).map((category) => {
+            const services = authServices[category];
+            if (services.length === 0) return null;
+
+            return (
+              <div key={category} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    {AUTH_CATEGORY_ICONS[category]}
+                  </div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    {CATEGORY_NAMES[category]}
+                  </h3>
+                </div>
+                <div className="space-y-2 pl-8">
+                  {services.map((service) => (
+                    <CommandCard
+                      key={service.id}
+                      command={service.postInstallCommand!}
+                      description={`Log in to ${service.name}`}
+                      runLocation="local"
+                      showCheckbox
+                      persistKey={`auth-${service.id}-local`}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Continue button */}
+        <div className="flex justify-end pt-4">
+          <Button onClick={handleContinue} disabled={isNavigating} size="lg" disableMotion>
+            {isNavigating ? "Loading..." : "Everything looks good!"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -185,7 +341,7 @@ export default function StatusCheckPage() {
           <p className="text-[oklch(0.72_0.19_145)]">✔ Shell: zsh with oh-my-zsh</p>
           <p className="text-[oklch(0.72_0.19_145)]">✔ Languages: bun, uv, rust, go</p>
           <p className="text-[oklch(0.72_0.19_145)]">✔ Tools: <Jargon term="tmux">tmux</Jargon>, <Jargon term="ripgrep">ripgrep</Jargon>, <Jargon term="lazygit">lazygit</Jargon></p>
-          <p className="text-[oklch(0.72_0.19_145)]">✔ Agents: claude-code, codex</p>
+          <p className="text-[oklch(0.72_0.19_145)]">✔ Agents: claude-code, codex, gemini, amp</p>
           <p className="mt-2 text-foreground">All checks passed!</p>
         </div>
       </OutputPreview>
@@ -229,7 +385,7 @@ export default function StatusCheckPage() {
               Your VPS doesn&apos;t have a web browser, so authentication works differently:
             </p>
             <ol className="list-decimal list-inside space-y-1 text-sm">
-              <li>Run a login command below (like <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">claude</code>)</li>
+              <li>Run a login command below (like <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">cc</code>)</li>
               <li>The terminal will display a URL and possibly a code</li>
               <li><strong>Copy that URL and open it in your laptop&apos;s browser</strong></li>
               <li>Complete the login in your browser</li>
@@ -252,7 +408,7 @@ export default function StatusCheckPage() {
             </p>
             <p className="text-sm font-medium">Option 1: Device Auth (Recommended)</p>
             <ol className="list-decimal list-inside space-y-1 text-sm pl-2">
-              <li>Go to <a href="https://chatgpt.com/settings/security" target="_blank" rel="noopener noreferrer" className="text-primary underline">ChatGPT Settings → Security</a></li>
+              <li>Go to <a href="https://chatgpt.com/settings/security" target="_blank" rel="noopener noreferrer" className="text-primary underline">OpenAI Settings → Security</a></li>
               <li>Enable &quot;Device code login&quot; (may be in beta)</li>
               <li>Then run: <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">codex login --device-auth</code></li>
             </ol>
@@ -316,8 +472,8 @@ export default function StatusCheckPage() {
               the rest later.
             </p>
             <ul className="list-disc space-y-1 pl-5">
-              <li><strong>Recommended now:</strong> Claude Code (so you can start coding immediately)</li>
-              <li><strong>Optional now:</strong> Codex, Gemini (only if you plan to use them)</li>
+              <li><strong>Recommended now:</strong> Claude Code (default primary)</li>
+              <li><strong>Optional now:</strong> Codex, Gemini, Amp (only if you plan to use them)</li>
               <li><strong>Optional later:</strong> Cloud tools (Wrangler / Supabase / Vercel) and anything else you don&apos;t need yet</li>
             </ul>
             <p className="text-xs text-muted-foreground">
@@ -466,7 +622,7 @@ export default function StatusCheckPage() {
                 <p className="text-sm text-muted-foreground">
                   You can try re-running the installer. It&apos;s safe to run multiple times:
                 </p>
-                <CommandCard command='curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash -s -- --yes --mode vibe' runLocation="vps" className="mt-1" />
+                <CommandCard command='curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe' runLocation="vps" className="mt-1" />
               </div>
 
               <div>

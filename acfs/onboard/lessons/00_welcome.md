@@ -11,16 +11,16 @@
 
 Congratulations! You've just set up a fully-armed **agentic engineering workstation**.
 
-Here's what's installed on your VPS:
+Here's what's installed in your ACFS environment (VPS or local sandbox):
 
 - **A beautiful terminal** with zsh, Oh My Zsh, and Powerlevel10k
 - **Modern CLI tools** like lsd, bat, ripgrep, fzf, and zoxide
 - **Language runtimes** for JavaScript (Bun), Python (uv), Rust, and Go
 - **Four coding agents** ready to help you build:
-  - Amp (`amp`) — **PRIMARY** (reasoning)
-  - Gemini CLI (`gmi`) — **PRIMARY** (coding & docs)
-  - Codex CLI (`cod`) — **PRIMARY** (code review, bug fixes)
-  - Claude Code (`cc`)
+  - Claude Code (`cc`) — **PRIMARY** (default)
+  - Codex CLI (`cod`) — additional perspective
+  - Gemini CLI (`gmi`) — additional perspective
+  - Amp (`amp`) — optional reasoning boost
 - **The Dicklesworthstone stack** for agent coordination and memory
 
 ---
@@ -39,7 +39,8 @@ Your laptop (cockpit) --SSH--> VPS (the engine room)
                                  +-- NTM (the orchestrator)
 ```
 
-Your laptop is just the remote control. The real work happens on the VPS.
+If you're on a VPS, your laptop is just the remote control. The real work happens on the VPS.
+If you're in local desktop mode, your host machine is the cockpit and the LXD sandbox is the engine room.
 
 If your SSH connection drops? No problem. Your work continues in tmux.
 
@@ -50,7 +51,7 @@ If your SSH connection drops? No problem. Your work continues in tmux.
 1. **Linux basics** - navigating the filesystem
 2. **SSH fundamentals** - staying connected
 3. **tmux essentials** - persistent sessions
-4. **Agent commands** - talking to Gemini, Amp, Codex, and Claude
+4. **Agent commands** - talking to Claude (primary) plus Codex, Gemini, and Amp
 5. **NTM mastery** - orchestrating multiple agents
 6. **The flywheel workflow** - putting it all together
 
@@ -68,4 +69,4 @@ Or continue in the TUI menu.
 
 ---
 
-*Tip: If you ever break something, you can delete this VPS and re-run ACFS. That's the beauty of VPS development!*
+*Tip: If you ever break something, you can delete the VPS or destroy the local container and re-run ACFS. That's the beauty of disposable environments!*

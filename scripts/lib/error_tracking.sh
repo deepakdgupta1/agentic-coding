@@ -115,6 +115,11 @@ try_step() {
     # Update step context
     CURRENT_STEP="$description"
 
+    # Update terminal title if function is available
+    if type -t set_terminal_title &>/dev/null; then
+        set_terminal_title "ACFS: $description..."
+    fi
+
     # Update state file if available
     if type -t state_step_update &>/dev/null; then
         # Best-effort: state writes can fail early (no state file yet) or if jq is missing.

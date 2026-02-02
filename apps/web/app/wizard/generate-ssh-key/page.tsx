@@ -29,7 +29,7 @@ export default function GenerateSSHKeyPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "generate_ssh_key",
-    stepNumber: 3,
+    stepNumber: 4,
     stepTitle: "Generate SSH Key",
   });
 
@@ -43,7 +43,7 @@ export default function GenerateSSHKeyPage() {
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(3);
+    markStepComplete(4);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/rent-vps"));
   }, [router, markComplete]);
@@ -123,7 +123,7 @@ export default function GenerateSSHKeyPage() {
             These commands run <strong className="text-foreground/80">entirely on your machine</strong>. This website cannot see, access, or store your SSH keys.
             We&apos;re just showing you what to type. The{" "}
             <a
-              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+              href="https://github.com/deepakdgupta1/agentic-coding"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-0.5 font-medium text-[oklch(0.75_0.18_195)] hover:underline"

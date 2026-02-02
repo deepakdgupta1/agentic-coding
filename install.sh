@@ -5,7 +5,7 @@
 # Main installer script
 #
 # Usage:
-#   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
+#   curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 #
 # Options:
 #   --yes         Skip all prompts, use defaults
@@ -51,8 +51,8 @@ export DEBCONF_NONINTERACTIVE_SEEN=true
 # ============================================================
 ACFS_VERSION="0.5.0"
 # Allow fork installations by overriding these via environment variables
-ACFS_REPO_OWNER="${ACFS_REPO_OWNER:-Dicklesworthstone}"
-ACFS_REPO_NAME="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+ACFS_REPO_OWNER="${ACFS_REPO_OWNER:-deepakdgupta1}"
+ACFS_REPO_NAME="${ACFS_REPO_NAME:-agentic-coding}"
 ACFS_REF="${ACFS_REF:-main}"
 # Preserve the original ref (branch/tag/sha) before resolving to a commit SHA.
 ACFS_REF_INPUT="$ACFS_REF"
@@ -820,9 +820,9 @@ generate_resume_hint() {
         cmd="curl -sSL"
         if [[ -n "${ACFS_COMMIT_SHA_FULL:-}" ]]; then
             # Pin to exact commit SHA for reproducibility
-            cmd="$cmd https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/${ACFS_COMMIT_SHA_FULL}/install.sh"
+            cmd="$cmd https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/${ACFS_COMMIT_SHA_FULL}/install.sh"
         elif [[ -n "${ACFS_REF_INPUT:-}" && "${ACFS_REF_INPUT}" != "main" ]]; then
-            cmd="$cmd https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/${ACFS_REF_INPUT}/install.sh"
+            cmd="$cmd https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/${ACFS_REF_INPUT}/install.sh"
         else
             cmd="$cmd https://acfs.sh"
         fi
@@ -3073,8 +3073,12 @@ normalize_user() {
     log_step "1/9" "Normalizing user account..."
 
     if [[ $EUID -eq 0 ]] && type -t prompt_ssh_key &>/dev/null; then
-        if ! prompt_ssh_key; then
-            log_warn "SSH key prompt failed or was skipped; continuing"
+        if [[ "$LOCAL_MODE" == "true" ]]; then
+            log_detail "Skipping SSH key prompt (local desktop mode)"
+        else
+            if ! prompt_ssh_key; then
+                log_warn "SSH key prompt failed or was skipped; continuing"
+            fi
         fi
     fi
 
@@ -4379,7 +4383,7 @@ install_stack_phase() {
             # Config format fixed for proper [models] section (bd-2od5.2.5)
             if run_as_target tee "$ntm_config_file" > /dev/null << 'NTM_CONFIG_EOF'
 # NTM Configuration - created by ACFS
-# Updated model defaults for ChatGPT Pro and Gemini accounts
+# Updated model defaults for Codex Plus/Pro and Gemini accounts
 
 [models]
 # Default models when no specifier given
@@ -4986,6 +4990,68 @@ Tip: use --print to see upstream install scripts that will be fetched."
      → Log in with your Google account
      → Then access this VPS from anywhere!"
         fi
+    fi
+
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        local local_summary_content="Version: $ACFS_VERSION
+Mode:    $MODE
+
+Next steps (local desktop mode):
+
+  1. Exit this installer (back to your host shell)
+  2. Enter the sandbox:
+     acfs-local shell
+
+  3. Run the onboarding tutorial:
+     onboard
+
+  4. Check everything is working:
+     acfs doctor
+
+  5. Start your agent cockpit:
+     ntm"
+
+        {
+            if [[ "$HAS_GUM" == "true" ]]; then
+                echo ""
+                gum style \
+                    --border double \
+                    --border-foreground "$ACFS_SUCCESS" \
+                    --padding "1 3" \
+                    --margin "1 0" \
+                    --align left \
+                    "$(gum style --foreground "$ACFS_SUCCESS" --bold '🎉 ACFS Installation Complete!')
+
+$local_summary_content"
+            else
+                echo ""
+                echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+                echo -e "${GREEN}║            🎉 ACFS Installation Complete!                   ║${NC}"
+                echo -e "${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
+                echo ""
+                echo -e "Version: ${BLUE}$ACFS_VERSION${NC}"
+                echo -e "Mode:    ${BLUE}$MODE${NC}"
+                echo ""
+                echo -e "${YELLOW}Next steps (local desktop mode):${NC}"
+                echo ""
+                echo -e "  1. Exit this installer (back to your host shell)"
+                echo -e "  2. Enter the sandbox:"
+                echo -e "     ${BLUE}acfs-local shell${NC}"
+                echo ""
+                echo -e "  3. Run the onboarding tutorial:"
+                echo -e "     ${BLUE}onboard${NC}"
+                echo ""
+                echo -e "  4. Check everything is working:"
+                echo -e "     ${BLUE}acfs doctor${NC}"
+                echo ""
+                echo -e "  5. Start your agent cockpit:"
+                echo -e "     ${BLUE}ntm${NC}"
+                echo ""
+                echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+                echo ""
+            fi
+        } >&2
+        return 0
     fi
 
     local summary_content="Version: $ACFS_VERSION

@@ -45,7 +45,7 @@ find_changelog() {
     local locations=(
         "${CHANGELOG_FILE}"
         "${ACFS_HOME}/CHANGELOG.md"
-        "/data/projects/agentic_coding_flywheel_setup/CHANGELOG.md"
+        "/data/projects/agentic-coding/CHANGELOG.md"
         "$HOME/.acfs/CHANGELOG.md"
     )
 

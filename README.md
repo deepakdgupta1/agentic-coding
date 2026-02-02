@@ -26,7 +26,7 @@
 ### Quick Install
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 ```
 
 The installer is **idempotent**—if interrupted, simply re-run it. It will automatically resume from the last completed phase without prompts.
@@ -34,10 +34,10 @@ The installer is **idempotent**—if interrupted, simply re-run it. It will auto
 > **Production environments:** For stable, reproducible installs, pin to a tagged release or specific commit:
 > ```bash
 > # Preferred: use a tagged release (e.g., v0.5.0)
-> ACFS_REF=v0.5.0 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.5.0/install.sh" | bash -s -- --yes --mode vibe
+> ACFS_REF=v0.5.0 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.5.0/install.sh" | bash -s -- --yes --mode vibe
 >
 > # Alternative: pin to a specific commit SHA
-> ACFS_REF=abc1234 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/abc1234/install.sh" | bash -s -- --yes --mode vibe
+> ACFS_REF=abc1234 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/abc1234/install.sh" | bash -s -- --yes --mode vibe
 > ```
 > Tagged releases are tested and stable. Setting `ACFS_REF` ensures all fetched scripts use the same version.
 
@@ -46,8 +46,8 @@ The installer is **idempotent**—if interrupted, simply re-run it. It will auto
 Run ACFS on your personal Ubuntu desktop without modifying your host system:
 
 ```bash
-git clone https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup.git
-cd agentic_coding_flywheel_setup
+git clone https://github.com/deepakdgupta1/agentic-coding.git
+cd agentic-coding
 ./install.sh --local --yes
 ```
 
@@ -68,6 +68,12 @@ acfs-local dashboard   # Open dashboard in browser
 acfs-local status      # View container info
 ```
 
+**Note:** `acfs-local` is installed to `~/.local/bin`. If the command isn't found,
+open a new terminal or add it to your PATH:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 > **Why sandbox?** ACFS is designed for fresh VPS instances and intentionally modifies system-level configurations. The sandbox isolates these changes, protecting your personal machine.
 
 ---
@@ -77,15 +83,15 @@ acfs-local status      # View container info
 **ACFS** is a complete system for bootstrapping agentic coding environments:
 
 **Why you'd care:**
-- **Zero to Hero:** Takes complete beginners from "I have a laptop" to "I have Claude/Codex/Gemini agents writing code for me on a VPS"
-- **One-Liner Magic:** A single `curl | bash` command installs 30+ tools, configures everything, and sets up three AI coding agents
+- **Zero to Hero:** Takes complete beginners from "I have a laptop" to "I have Claude/Codex/Gemini/Amp agents writing code for me on a VPS (or local sandbox)"
+- **One-Liner Magic:** A single `curl | bash` command installs 30+ tools, configures everything, and sets up four AI coding agents (Claude primary; Codex/Gemini/Amp optional)
 - **Vibe Mode:** Pre-configured for maximum velocity—passwordless sudo, dangerous agent flags enabled, optimized shell environment
 - **Battle-Tested Stack:** Includes the complete Dicklesworthstone stack (10 tools + utilities) for agent orchestration, coordination, and safety
 
 **What you get:**
 - Modern shell (zsh + oh-my-zsh + powerlevel10k)
 - All language runtimes (bun, uv/Python, Rust, Go)
-- Three AI coding agents (Claude Code, Codex CLI, Gemini CLI)
+- Four AI coding agents (Claude Code primary, Codex CLI, Gemini CLI, Amp CLI optional)
 - Agent coordination tools (NTM, MCP Agent Mail, SLB)
 - Cloud CLIs (Vault, Wrangler, Supabase, Vercel)
 - And 20+ more developer tools
@@ -104,7 +110,7 @@ graph LR
     end
 
     subgraph wizard ["Wizard Website"]
-        STEPS["13-Step Guide"]
+        STEPS["14-Step Guide"]
     end
 
     subgraph vps ["Fresh VPS"]
@@ -117,6 +123,7 @@ graph LR
         CLAUDE["Claude Code"]
         CODEX["Codex CLI"]
         GEMINI["Gemini CLI"]
+        AMP["Amp CLI"]
     end
 
     LAPTOP --> BROWSER
@@ -127,6 +134,7 @@ graph LR
     CONFIGURED --> CLAUDE
     CONFIGURED --> CODEX
     CONFIGURED --> GEMINI
+    CONFIGURED --> AMP
 
     classDef user fill:#e3f2fd,stroke:#90caf9,stroke-width:2px
     classDef wizard fill:#fff8e1,stroke:#ffcc80,stroke-width:2px
@@ -136,21 +144,22 @@ graph LR
     class LAPTOP,BROWSER user
     class STEPS wizard
     class UBUNTU,INSTALLER,CONFIGURED vps
-    class CLAUDE,CODEX,GEMINI agent
+    class CLAUDE,CODEX,GEMINI,AMP agent
 ```
 
 ### For Beginners
 ACFS includes a **step-by-step wizard website** at [agent-flywheel.com](https://agent-flywheel.com) that guides complete beginners through:
 1. Installing a terminal on their local machine
-2. Generating SSH keys (for secure access later)
-3. Renting a VPS from providers like OVH or Contabo
-4. Connecting via SSH with a password (initial setup)
-5. Running the installer (which sets up key-based access)
-6. Reconnecting securely with your SSH key
-7. Starting to code with AI agents
+2. Choosing VPS vs local desktop mode (Linux-only option)
+3. Generating SSH keys (for secure access later)
+4. Renting a VPS from providers like OVH or Contabo
+5. Connecting via SSH with a password (initial setup)
+6. Running the installer (which sets up key-based access)
+7. Reconnecting securely with your SSH key
+8. Starting to code with AI agents
 
 ### For Developers
-ACFS is a **one-liner** that transforms any fresh Ubuntu VPS into a fully-configured development environment with modern tooling and three AI coding agents ready to go.
+ACFS is a **one-liner** that transforms any fresh Ubuntu VPS into a fully-configured development environment with modern tooling and four AI coding agents ready to go.
 
 ### For Teams
 ACFS provides a **reproducible, idempotent** setup that ensures every team member's VPS environment is identical—eliminating "works on my machine" for agentic workflows.
@@ -196,7 +205,7 @@ flowchart TB
     AcfsHome["~/.acfs/<br/>configs + scripts + state.json"]
     Commands["Commands<br/>acfs doctor / acfs update / acfs services-setup / onboard"]
     Tools["Installed tools<br/>bun/uv/rust/go + tmux/rg/gh + vault + ..."]
-    Agents["Agent CLIs<br/>claude / codex / gemini"]
+    Agents["Agent CLIs<br/>claude / codex / gemini / amp"]
     Stack["Stack tools<br/>ntm / mcp_agent_mail / ubs / bv / cass / cm / caam / slb / dcg / ru"]
   end
 
@@ -458,19 +467,19 @@ The installer is the heart of ACFS—a modular Bash script that transforms a fre
 Full vibe mode (recommended for throwaway VPS):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 ```
 
 Interactive mode (asks for confirmation):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash
 ```
 
 Safe mode (no passwordless sudo, agent confirmations enabled):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash -s -- --mode safe
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --mode safe
 ```
 
 ### Installer Modes
@@ -491,7 +500,7 @@ graph TD
     C["Phase 3: Shell Setup<br/><small>zsh, oh-my-zsh, powerlevel10k</small>"]
     D["Phase 4: CLI Tools<br/><small>ripgrep, fzf, lazygit, etc.</small>"]
     E["Phase 5: Language Runtimes<br/><small>bun, uv, rust, go</small>"]
-    F["Phase 6: AI Agents<br/><small>claude, codex, gemini</small>"]
+    F["Phase 6: AI Agents<br/><small>claude, codex, gemini, amp</small>"]
     G["Phase 7: Cloud Tools<br/><small>vault, wrangler, supabase, vercel</small>"]
     H["Phase 8: Dicklesworthstone Stack<br/><small>ntm, dcg, ru, ubs, mcp_agent_mail, etc.</small>"]
     I["Phase 9: Configuration<br/><small>Deploy acfs.zshrc, tmux.conf</small>"]
@@ -522,16 +531,16 @@ The installer tracks progress in `~/.acfs/state.json`. If interrupted:
 
 To force a fresh reinstall of all tools:
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash -s -- --yes --mode vibe --force-reinstall
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --force-reinstall
 ```
 
 ### Pre-Flight Check
 
 Before running the full installer, validate your system:
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/scripts/preflight.sh" | bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/scripts/preflight.sh" | bash -s -- --json
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/scripts/preflight.sh" | bash -s -- --format toon
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh" | bash -s -- --json
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh" | bash -s -- --format toon
 ```
 
 This checks:
@@ -573,12 +582,12 @@ ACFS automatically upgrades Ubuntu to version **25.10** before installation when
 
 **To skip automatic upgrade:**
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash -s -- --yes --mode vibe --skip-ubuntu-upgrade
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --skip-ubuntu-upgrade
 ```
 
 **To specify a different target version:**
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh" | bash -s -- --yes --mode vibe --target-ubuntu=25.04
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --target-ubuntu=25.04
 ```
 
 **Monitoring upgrade progress:**
@@ -629,7 +638,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 | **Runtime** | uv (Python) | `uv self update` |
 | **Runtime** | Go | `apt upgrade` (if apt-managed) |
 | **Agents** | Claude Code | `claude update` |
-| **Agents** | Codex, Gemini | `bun install -g @latest` |
+| **Agents** | Codex, Gemini, Amp | `bun install -g @latest` |
 | **Cloud** | Wrangler, Vercel | `bun install -g @latest` |
 | **Cloud** | Supabase | GitHub release tarball (sha256 checksums) |
 | **Stack** | ntm, slb, ubs, dcg, ru, etc. | Re-run upstream installers |
@@ -901,7 +910,7 @@ acfs services-setup          # Run full setup wizard
 
 Guides you through:
 - **Claude Code**: API key configuration
-- **Codex CLI**: ChatGPT account login
+- **Codex CLI**: Codex Plus/Pro account login
 - **Gemini CLI**: Google account authentication
 - **GitHub CLI**: `gh auth login`
 - **Cloud CLIs**: Wrangler, Supabase, Vercel authentication
@@ -940,7 +949,7 @@ The Learning Hub provides interactive lessons with progress tracking:
 | 3 | tmux Basics | 7 min | Sessions, windows, panes, survival |
 | 4 | Git Essentials | 10 min | Version control, dangerous operations |
 | 5 | GitHub CLI | 8 min | Issues, PRs, releases via `gh` |
-| 6 | Agent Commands | 10 min | Claude, Codex, Gemini usage |
+| 6 | Agent Commands | 10 min | Claude, Codex, Gemini, Amp usage |
 | 7 | NTM Command Center | 8 min | Session orchestration |
 | 8 | NTM Prompt Palette | 6 min | Quick command access |
 | 9 | The Flywheel Loop | 8 min | How all 10 tools work together |
@@ -1465,15 +1474,15 @@ acfs undo --all       # Undo all changes from last session
 
 ## The Wizard Website
 
-The wizard guides beginners through a **13-step journey** from "I have a laptop" to "AI agents are coding for me":
+The wizard guides beginners through a **14-step journey** from "I have a laptop" to "AI agents are coding for me":
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  ACFS Wizard                                                   [Step 3/13]  │
+│  ACFS Wizard                                                   [Step 4/14]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │  STEP 3: Generate SSH Key                                              │ │
+│  │  STEP 4: Generate SSH Key                                              │ │
 │  │  ──────────────────────────────────────────────────────────────────    │ │
 │  │                                                                        │ │
 │  │  Run this command in your terminal:                                    │ │
@@ -1487,7 +1496,7 @@ The wizard guides beginners through a **13-step journey** from "I have a laptop"
 │  │  [← Previous]                                        [Next Step →]     │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
-│  Progress: ●●●○○○○○○○○○○                                                   │
+│  Progress: ●●●●○○○○○○○○○○                                                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1496,18 +1505,19 @@ The wizard guides beginners through a **13-step journey** from "I have a laptop"
 | Step | Title | What Happens |
 |------|-------|--------------|
 | 1 | **Choose Your OS** | Select Mac, Windows, or Linux (auto-detected) |
-| 2 | **Install Terminal** | Get a proper terminal application set up |
-| 3 | **Generate SSH Key** | Create an ed25519 key for VPS access |
-| 4 | **Rent a VPS** | Choose a VPS provider and plan |
-| 5 | **Create VPS Instance** | Launch your VPS and confirm SSH access |
-| 6 | **SSH Into Your VPS** | First connection with troubleshooting tips |
-| 7 | **Set Up Accounts** | Create accounts for the services you'll use |
-| 8 | **Pre-Flight Check** | Verify your VPS is ready before installing |
-| 9 | **Run Installer** | The `curl \| bash` one-liner |
-| 10 | **Reconnect as Ubuntu** | Post-install reconnection |
-| 11 | **Verify Key Connection** | Reconnect using your SSH key and confirm it works |
-| 12 | **Status Check** | Run `acfs doctor` to verify |
-| 13 | **Launch Onboarding** | Start the interactive tutorial |
+| 2 | **Choose Install Target** | Pick VPS or local desktop (Linux-only) |
+| 3 | **Install Terminal** | Get a proper terminal application set up |
+| 4 | **Generate SSH Key** | Create an ed25519 key for VPS access |
+| 5 | **Rent a VPS** | Choose a VPS provider and plan |
+| 6 | **Create VPS Instance** | Launch your VPS and confirm SSH access |
+| 7 | **SSH Into Your VPS** | First connection with troubleshooting tips |
+| 8 | **Set Up Accounts** | Create accounts for the services you'll use |
+| 9 | **Pre-Flight Check** | Verify your VPS is ready before installing |
+| 10 | **Run Installer** | The `curl \| bash` one-liner |
+| 11 | **Reconnect as Ubuntu** | Post-install reconnection |
+| 12 | **Verify Key Connection** | Reconnect using your SSH key and confirm it works |
+| 13 | **Status Check** | Run `acfs doctor` to verify |
+| 14 | **Launch Onboarding** | Start the interactive tutorial |
 
 ### Key Features
 
@@ -1807,7 +1817,7 @@ Component update logic with version tracking and logging:
 ```bash
 update_apt()       # apt update/upgrade with lock detection
 update_bun()       # bun upgrade with version tracking
-update_agents()    # Claude, Codex, Gemini (version before/after)
+update_agents()    # Claude, Codex, Gemini, Amp (version before/after)
 update_cloud()     # Wrangler, Supabase, Vercel (Supabase uses verified release tarball)
 update_rust()      # rustup update stable
 update_uv()        # uv self update
@@ -2482,7 +2492,7 @@ Each guide includes:
 ## Project Structure
 
 ```
-agentic_coding_flywheel_setup/
+agentic-coding/
 ├── README.md                     # This file
 ├── AGENTS.md                     # Development guidelines
 ├── VERSION                       # Current version (0.2.0)
@@ -2777,7 +2787,7 @@ For local development, use the individual tools directly.
 
 The installer is **checkpointed**. Simply re-run it:
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 ```
 
 It will skip already-completed phases and resume where it left off.
@@ -2813,7 +2823,7 @@ Currently, ACFS installs the full suite. Future versions will support:
 
 ### The Problem: The Agentic Coding Barrier
 
-The rise of AI coding agents (Claude Code, Codex CLI, Gemini CLI) has created a new paradigm in software development. These agents can write code, debug issues, and even architect solutions—but only if they have the right environment.
+The rise of AI coding agents (Claude Code, Codex CLI, Gemini CLI, Amp CLI) has created a new paradigm in software development. These agents can write code, debug issues, and even architect solutions—but only if they have the right environment.
 
 **The barrier isn't the agents themselves.** It's the **hours of setup** required to create an environment where agents can actually be productive:
 
@@ -3033,7 +3043,7 @@ scripts/generated/
 ├── install_network.sh     # Tailscale
 ├── install_lang.sh        # bun, uv, rust, go
 ├── install_tools.sh       # ast-grep, atuin, zoxide
-├── install_agents.sh      # claude, codex, gemini
+├── install_agents.sh      # claude, codex, gemini, amp
 ├── install_db.sh          # PostgreSQL 18, Vault
 ├── install_cloud.sh       # wrangler, supabase, vercel
 ├── install_stack.sh       # Dicklesworthstone 10-tool stack + utilities
@@ -3110,7 +3120,7 @@ ACFS_MODULE_DEFAULT["db.postgres18"]="true"
 **Runtime Query Functions:**
 ```bash
 # Get all modules in a category
-get_modules_by_category "agents"  # Returns: agents.claude agents.codex agents.gemini
+get_modules_by_category "agents"  # Returns: agents.claude agents.codex agents.gemini agents.amp
 
 # Check if module is default-installed
 is_default_module "tools.vault"   # Returns: true
@@ -3638,7 +3648,7 @@ claude --version
 ls -la ~/.claude/  # or ~/.config/claude/
 
 # Re-authenticate
-claude  # Follow prompts
+cc  # Follow prompts (or run `claude` if cc isn't available)
 ```
 
 **Codex CLI**:
@@ -3646,7 +3656,7 @@ claude  # Follow prompts
 # Check auth status
 codex --version
 
-# Re-authenticate (uses ChatGPT account, not API key)
+# Re-authenticate (uses Codex Plus/Pro account, not API key)
 codex login
 ```
 
@@ -3773,7 +3783,7 @@ for f in ~/.zshrc ~/.tmux.conf ~/.p10k.zsh; do
   [ -f "$f" ] && mv "$f" "$f".backup."$ts"
 done
 
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe --force-reinstall
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe --force-reinstall
 ```
 
 ---
@@ -4042,7 +4052,7 @@ ACFS supports various configuration mechanisms for advanced users.
 **Examples:**
 ```bash
 # Install from a tagged release (recommended for production)
-ACFS_REF=v0.1.0 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.1.0/install.sh" | bash -s -- --yes --mode vibe
+ACFS_REF=v0.1.0 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.1.0/install.sh" | bash -s -- --yes --mode vibe
 
 # Install from a specific branch (development/testing)
 ACFS_REF=feature/new-tool curl -fsSL "..." | bash -s -- --yes --mode vibe
@@ -4051,7 +4061,7 @@ ACFS_REF=feature/new-tool curl -fsSL "..." | bash -s -- --yes --mode vibe
 ACFS_REF=abc1234 curl -fsSL "..." | bash -s -- --yes --mode vibe
 
 # Pin installer version but use latest checksums (avoid stale hash mismatches)
-ACFS_REF=v0.5.0 ACFS_CHECKSUMS_REF=main curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.5.0/install.sh" | bash -s -- --yes --mode vibe
+ACFS_REF=v0.5.0 ACFS_CHECKSUMS_REF=main curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.5.0/install.sh" | bash -s -- --yes --mode vibe
 ```
 
 > **Tip:** Always match the URL path with `ACFS_REF` so the initial script and all subsequently fetched scripts come from the same ref.
@@ -4241,7 +4251,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 ## Links
 
 - **Website:** [agent-flywheel.com](https://agent-flywheel.com) — Interactive wizard for beginners
-- **GitHub:** [Dicklesworthstone/agentic_coding_flywheel_setup](https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup)
+- **GitHub:** [deepakdgupta1/agentic-coding](https://github.com/deepakdgupta1/agentic-coding)
 - **Related Projects:**
   - [ntm](https://github.com/Dicklesworthstone/ntm) - Named Tmux Manager
   - [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) - Task management TUI

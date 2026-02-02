@@ -76,7 +76,7 @@ export const LESSONS: Lesson[] = [
     id: 6,
     slug: "agent-commands",
     title: "Agent Commands",
-    description: "Talk to Claude, Codex, and Gemini",
+    description: "Talk to Claude (primary), Codex, Gemini, and Amp",
     duration: "10 min",
     file: "06_agents_login.md",
   },
@@ -287,6 +287,14 @@ export const LESSONS: Lesson[] = [
     description: "Combine source code into LLM-ready prompts with token counting",
     duration: "6 min",
     file: "32_s2p.md",
+  },
+  {
+    id: 33,
+    slug: "local-desktop",
+    title: "Local Desktop Mode",
+    description: "Safe, sandboxed ACFS on your personal Ubuntu workstation",
+    duration: "5 min",
+    file: "21_local_desktop.md",
   },
 ];
 
