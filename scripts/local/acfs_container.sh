@@ -65,9 +65,9 @@ EOF
 
 cmd_create() {
     echo ""
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║           ACFS Local Desktop Installation                    ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    printf "║           ACFS Local Desktop Installation                     ║\n"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
 
     install_acfs_local_wrapper
@@ -97,17 +97,17 @@ cmd_create() {
     "
 
     echo ""
-    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "╔═══════════════════════════════════════════════════════════════╗"
     echo "║                    Installation Complete!                     ║"
-    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "╠═══════════════════════════════════════════════════════════════╣"
     echo "║                                                               ║"
-    echo "║  Enter sandbox:     acfs-local shell                         ║"
-    echo "║  View status:       acfs-local status                        ║"
-    echo "║  Open dashboard:    acfs-local dashboard                     ║"
+    echo "║  Enter sandbox:     acfs-local shell                          ║"
+    echo "║  View status:       acfs-local status                         ║"
+    echo "║  Open dashboard:    acfs-local dashboard                      ║"
     echo "║                                                               ║"
-    echo "║  Your workspace:    $ACFS_WORKSPACE_HOST"
+    printf "║  Your workspace:    %-41s ║\n" "$ACFS_WORKSPACE_HOST"
     echo "║                                                               ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
 }
 

@@ -123,7 +123,8 @@ fi
 # Usage: log_detail "Installing zsh..."
 if ! declare -f log_detail >/dev/null; then
     log_detail() {
-        printf "${ACFS_GRAY}    %s${ACFS_NC}\n" "$1" >&2
+        # Indent every line of the message with 2 spaces
+        echo -e "$1" | sed "s/^/${ACFS_GRAY}  /" | sed "s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -139,7 +140,7 @@ fi
 # Usage: log_success "Installation complete"
 if ! declare -f log_success >/dev/null; then
     log_success() {
-        printf "${ACFS_GREEN}✓ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_GREEN}✓ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -147,7 +148,7 @@ fi
 # Usage: log_warn "This may take a while"
 if ! declare -f log_warn >/dev/null; then
     log_warn() {
-        printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_YELLOW}⚠ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -155,7 +156,7 @@ fi
 # Usage: log_error "Failed to install package"
 if ! declare -f log_error >/dev/null; then
     log_error() {
-        printf "${ACFS_RED}✖ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_RED}✖ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -253,8 +254,18 @@ if ! declare -f show_progress_header >/dev/null; then
 
         echo -e "║  Progress: [${bar}]${prog_detail}${padding} ║" >&2
         printf "║  Current:  %-50s ║\n" "$display_name" >&2
-        printf "║  Elapsed:  %3dm %02ds                                           ║\n" \
-               "$elapsed_min" "$elapsed_sec" >&2
+        
+        # Calculate elapsed line with dynamic padding
+        local elapsed_str
+        printf -v elapsed_str "  Elapsed:  %dm %02ds" "$elapsed_min" "$elapsed_sec"
+        local elapsed_len=${#elapsed_str}
+        local el_pad_len=$((63 - elapsed_len))
+        local el_padding=""
+        if [[ $el_pad_len -gt 0 ]]; then
+            el_padding=$(printf "%${el_pad_len}s" "")
+        fi
+        echo -e "║${elapsed_str}${el_padding}║" >&2
+        
         echo "╚═══════════════════════════════════════════════════════════════╝" >&2
         echo "" >&2
     }
@@ -273,7 +284,16 @@ if ! declare -f show_completion >/dev/null; then
         echo "╔═══════════════════════════════════════════════════════════════╗" >&2
         echo "║              ✓ Installation Complete!                         ║" >&2
         echo "╠═══════════════════════════════════════════════════════════════╣" >&2
-        printf "║  Total time: %3dm %02ds                                         ║\n" "$min" "$sec" >&2
+        
+        local timer_str
+        printf -v timer_str "  Total time: %dm %02ds" "$min" "$sec"
+        local timer_len=${#timer_str}
+        local t_pad_len=$((63 - timer_len))
+        local t_padding=""
+        if [[ $t_pad_len -gt 0 ]]; then
+            t_padding=$(printf "%${t_pad_len}s" "")
+        fi
+        echo -e "║${timer_str}${t_padding}║" >&2
         
         # Dynamic padding for "Phases completed: X/Y"
         # Label "  Phases completed: " is 20 chars.

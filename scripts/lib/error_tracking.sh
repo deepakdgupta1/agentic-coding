@@ -221,7 +221,7 @@ try_step() {
         # Print captured output to help debug failures
         if [[ -n "$LAST_ERROR_OUTPUT" ]]; then
             echo "  Error output:" >&2
-            echo "$LAST_ERROR_OUTPUT" | head -50 | sed 's/^/    /' >&2
+            echo "$LAST_ERROR_OUTPUT" | head -50 | sed 's/^/  /' >&2
         fi
     fi
 

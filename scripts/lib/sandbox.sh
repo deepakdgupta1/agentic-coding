@@ -28,11 +28,11 @@ ACFS_PROFILE_NAME="acfs-local-profile"
 # Logging (fallbacks if not sourced from install.sh)
 # ============================================================
 if ! declare -f log_detail &>/dev/null; then
-    log_detail() { printf "  → %s\n" "$1" >&2; }
-    log_success() { printf "✓ %s\n" "$1" >&2; }
-    log_warn() { printf "⚠ %s\n" "$1" >&2; }
-    log_error() { printf "✖ %s\n" "$1" >&2; }
-    log_fatal() { printf "FATAL: %s\n" "$1" >&2; exit 1; }
+    log_detail() { echo -e "$1" | sed "s/^/  /" >&2; }
+    log_success() { echo -e "$1" | sed "1s/^/✓ /; 1!s/^/  /" >&2; }
+    log_warn() { echo -e "$1" | sed "1s/^/⚠ /; 1!s/^/  /" >&2; }
+    log_error() { echo -e "$1" | sed "1s/^/✖ /; 1!s/^/  /" >&2; }
+    log_fatal() { log_error "$1"; exit 1; }
     log_step() { printf "[%s] %s\n" "$1" "$2" >&2; }
 fi
 
@@ -186,11 +186,11 @@ grant_acfs_sandbox_access() {
 
             log_detail "Attempting automated group refresh..."
             echo ""
-            echo "╔══════════════════════════════════════════════════════════════╗"
-            echo "║      Refreshing Group Permissions (Autoswitching)            ║"
-            echo "╠══════════════════════════════════════════════════════════════╣"
-            echo "║  Restarting installer with 'lxd' group enabled...            ║"
-            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo "╔═══════════════════════════════════════════════════════════════╗"
+            echo "║      Refreshing Group Permissions (Autoswitching)             ║"
+            echo "╠═══════════════════════════════════════════════════════════════╣"
+            echo "║  Restarting installer with 'lxd' group enabled...             ║"
+            echo "╚═══════════════════════════════════════════════════════════════╝"
             echo ""
             
             # Restart the script with the new group
@@ -496,24 +496,24 @@ acfs_sandbox_status() {
     grant_acfs_sandbox_access
 
     if ! acfs_sandbox_exists; then
-        echo "Status: Not created"
+        log_detail "Status: Not created"
         echo ""
-        echo "Create with: acfs-local create"
+        log_detail "Create with: acfs-local create"
         return 0
     fi
 
     local state ip
     state=$(acfs_lxc info "$ACFS_CONTAINER_NAME" 2>/dev/null | grep -E "^Status:" | awk '{print $2}')
 
-    echo "Container: $ACFS_CONTAINER_NAME"
-    echo "Status: $state"
+    log_detail "Container: $ACFS_CONTAINER_NAME"
+    log_detail "Status: $state"
 
     if [[ "$state" == "RUNNING" ]]; then
         ip=$(acfs_lxc info "$ACFS_CONTAINER_NAME" 2>/dev/null | grep -A1 "eth0:" | grep "inet:" | awk '{print $2}' | cut -d/ -f1 | head -1)
-        echo "IP: ${ip:-unknown}"
-        echo "Dashboard: http://localhost:$ACFS_DASHBOARD_PORT"
-        echo "Workspace (host): $ACFS_WORKSPACE_HOST"
-        echo "Workspace (container): $ACFS_WORKSPACE_CONTAINER"
+        log_detail "IP: ${ip:-unknown}"
+        log_detail "Dashboard: http://localhost:$ACFS_DASHBOARD_PORT"
+        log_detail "Workspace (host): $ACFS_WORKSPACE_HOST"
+        log_detail "Workspace (container): $ACFS_WORKSPACE_CONTAINER"
     fi
 }
 
