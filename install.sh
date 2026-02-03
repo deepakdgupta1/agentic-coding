@@ -2581,10 +2581,18 @@ acfs_chown_tree() {
     fi
 
     # GNU coreutils: -h = do not dereference symlinks; -R = recursive.
-    if ! $SUDO chown -hR "$owner_group" "$resolved"; then
-        log_error "acfs_chown_tree: chown failed for $resolved"
-        return 1
-    fi
+    # Transient files (SSH control sockets, etc.) may vanish during the
+    # recursive walk of a live home directory.  Only fail on non-transient errors.
+    local _chown_err=""
+    _chown_err=$($SUDO chown -hR "$owner_group" "$resolved" 2>&1) || {
+        local _real_err
+        _real_err=$(printf '%s\n' "$_chown_err" | grep -v "No such file or directory" || true)
+        if [[ -n "$_real_err" ]]; then
+            log_error "acfs_chown_tree: chown failed for $resolved"
+            return 1
+        fi
+        log_detail "acfs_chown_tree: transient file warnings during chown (safe to ignore)"
+    }
 }
 
 confirm_or_exit() {
@@ -2631,8 +2639,8 @@ init_target_paths() {
     fi
 
     # ACFS directories for target user
-    ACFS_HOME="$TARGET_HOME/.acfs"
-    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    ACFS_HOME="${ACFS_HOME:-$TARGET_HOME/.acfs}"
+    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
 
     # Basic hardening: refuse to use a symlinked ACFS_HOME when running with
     # elevated privileges (prevents clobbering arbitrary paths via symlink tricks).
@@ -5288,7 +5296,7 @@ main() {
     # ============================================================
     # Initialize state file location (uses TARGET_USER's home)
     ACFS_HOME="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}"
-    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
     export ACFS_HOME ACFS_STATE_FILE
 
     # Validate and handle existing state file
