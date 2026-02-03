@@ -302,6 +302,7 @@ function SearchInput({ value, onChange }: SearchInputProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search tools..."
+        aria-label="Search tools"
         className={cn(
           "w-full rounded-xl bg-card/50 py-3 pl-10 pr-10 text-sm",
           "border border-border/50 backdrop-blur-sm",
@@ -314,6 +315,7 @@ function SearchInput({ value, onChange }: SearchInputProps) {
         <button
           onClick={() => onChange("")}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+          aria-label="Clear search"
         >
           <X className="h-4 w-4" />
         </button>

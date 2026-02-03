@@ -228,6 +228,7 @@ export default function GlossaryPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search terms (e.g., SSH, tmux, API key)…"
+                aria-label="Search glossary terms"
                 className="w-full rounded-xl border border-border/50 bg-background px-9 py-2 text-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
               />
               {query.length > 0 && (
@@ -281,7 +282,7 @@ export default function GlossaryPage() {
                 id={entry.key}
                 className="group overflow-hidden rounded-2xl border border-border/50 bg-card/60"
               >
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 p-5 transition-colors hover:bg-muted/20">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 p-5 rounded-2xl outline-none transition-colors hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-foreground">
