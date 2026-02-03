@@ -1316,6 +1316,9 @@ state_update() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_start" || true
+    fi
     return $save_result
 }
 
@@ -1371,6 +1374,9 @@ state_phase_start() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "step_update" || true
+    fi
     return $save_result
 }
 
@@ -1403,6 +1409,9 @@ state_step_update() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_complete" || true
+    fi
     return $save_result
 }
 
@@ -1460,6 +1469,9 @@ state_phase_complete() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_fail" || true
+    fi
     return $save_result
 }
 
@@ -1532,6 +1544,7 @@ state_phase_skip() {
 
     state_save "$new_state" 2>/dev/null || true
     _state_release_lock
+    state_print_checklist "phase_skip" || true
     return 0
 }
 
@@ -2143,6 +2156,71 @@ state_print_summary() {
             local name="${ACFS_PHASE_NAMES[$phase]:-$phase}"
             echo "  [ ] $name"
         fi
+    done
+}
+
+_state_list_contains() {
+    local list="$1"
+    local target="$2"
+
+    while IFS= read -r item; do
+        if [[ "$item" == "$target" ]]; then
+            return 0
+        fi
+    done <<< "$list"
+
+    return 1
+}
+
+state_print_checklist() {
+    local trigger="${1:-update}"
+
+    if [[ "${ACFS_CHECKLIST_PROGRESS:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        return 0
+    fi
+
+    local state
+    if ! state=$(state_load); then
+        return 1
+    fi
+
+    local completed_list skipped_list current_phase current_step failed_phase failed_step
+    completed_list=$(echo "$state" | jq -r '.completed_phases[]?' 2>/dev/null)
+    skipped_list=$(echo "$state" | jq -r '.skipped_phases[]?' 2>/dev/null)
+    current_phase=$(echo "$state" | jq -r '.current_phase // empty' 2>/dev/null)
+    current_step=$(echo "$state" | jq -r '.current_step // empty' 2>/dev/null)
+    failed_phase=$(echo "$state" | jq -r '.failed_phase // empty' 2>/dev/null)
+    failed_step=$(echo "$state" | jq -r '.failed_step // empty' 2>/dev/null)
+
+    echo "" >&2
+    echo "Installation checklist (${trigger}):" >&2
+
+    for phase_id in "${ACFS_PHASE_IDS[@]}"; do
+        local name="${ACFS_PHASE_NAMES[$phase_id]:-$phase_id}"
+        local status="⏳"
+        local extra=""
+
+        if [[ -n "$failed_phase" && "$phase_id" == "$failed_phase" ]]; then
+            status="❌"
+            if [[ -n "$failed_step" && "$failed_step" != "null" ]]; then
+                extra=" — $failed_step"
+            fi
+        elif _state_list_contains "$completed_list" "$phase_id"; then
+            status="✅"
+        elif _state_list_contains "$skipped_list" "$phase_id"; then
+            status="⏭️"
+        elif [[ -n "$current_phase" && "$phase_id" == "$current_phase" ]]; then
+            status="🔄"
+            if [[ -n "$current_step" && "$current_step" != "null" ]]; then
+                extra=" — $current_step"
+            fi
+        fi
+
+        printf "  %s %s%s\n" "$status" "$name" "$extra" >&2
     done
 }
 
