@@ -1105,19 +1105,19 @@ export default function HomePage() {
                   href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground"
+                  className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   GitHub
                 </a>
                 <Link
                   href="/learn"
-                  className="transition-colors hover:text-foreground"
+                  className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   Learning Hub
                 </Link>
                 <Link
                   href="/tldr"
-                  className="transition-colors hover:text-foreground"
+                  className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   TL;DR
                 </Link>
@@ -1125,7 +1125,7 @@ export default function HomePage() {
                   href="https://github.com/Dicklesworthstone/ntm"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground"
+                  className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   NTM
                 </a>
@@ -1133,7 +1133,7 @@ export default function HomePage() {
                   href="https://github.com/Dicklesworthstone/mcp_agent_mail"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground"
+                  className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   Agent Mail
                 </a>
