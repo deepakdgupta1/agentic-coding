@@ -115,8 +115,8 @@ export const radius = {
  * Section header typography
  */
 export const typography = {
-  /** Section label (uppercase, small) */
-  sectionLabel: "text-[11px] font-bold uppercase tracking-[0.25em] text-primary",
+  /** Section label (uppercase, small, min 12px for accessibility) */
+  sectionLabel: "text-xs font-bold uppercase tracking-[0.25em] text-primary",
   /** Section heading */
   sectionHeading: "font-mono text-3xl font-bold tracking-tight",
   /** Large section heading */

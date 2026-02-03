@@ -222,7 +222,7 @@ function ToolNode({
         </div>
 
         {/* Label */}
-        <span className="relative z-10 text-[10px] font-bold uppercase tracking-wider text-white">
+        <span className="relative z-10 text-xs font-bold uppercase tracking-wider text-white">
           {tool.shortName}
         </span>
 

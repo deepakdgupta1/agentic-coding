@@ -91,9 +91,9 @@ function AnimatedTerminal() {
       transition={springs.smooth}
     >
       <div className="terminal-header">
-        <div className="terminal-dot terminal-dot-red" />
-        <div className="terminal-dot terminal-dot-yellow" />
-        <div className="terminal-dot terminal-dot-green" />
+        <div className="terminal-dot terminal-dot-red" role="img" aria-label="Close window" />
+        <div className="terminal-dot terminal-dot-yellow" role="img" aria-label="Minimize window" />
+        <div className="terminal-dot terminal-dot-green" role="img" aria-label="Maximize window" />
         <span className="ml-3 font-mono text-xs text-muted-foreground">
           ubuntu@vps ~
         </span>
@@ -338,7 +338,7 @@ function FlywheelSection() {
         >
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
           </div>
           <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
@@ -372,7 +372,7 @@ function FlywheelSection() {
               >
                 <span className="text-xs font-bold text-white">{tool.name}</span>
               </motion.div>
-              <span className="text-[10px] text-muted-foreground text-center">{tool.desc}</span>
+              <span className="text-xs text-muted-foreground text-center">{tool.desc}</span>
             </motion.div>
           ))}
         </motion.div>
@@ -488,7 +488,7 @@ function AboutSection() {
         >
           <div className="mb-6 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">About</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">About</span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
           </div>
 
@@ -638,7 +638,7 @@ function WhyVPSSection() {
         >
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">The Foundation</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">The Foundation</span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
           </div>
           <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">Why a VPS?</h2>
@@ -719,7 +719,7 @@ function IsThisForYouSection() {
         <motion.div className="mb-12 text-center" initial={{ opacity: 0, y: 20 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }} transition={springs.smooth}>
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">Honest Assessment</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Honest Assessment</span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
           </div>
           <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">Is This For You?</h2>
@@ -809,7 +809,7 @@ function WhatDoesThisCostSection() {
         <motion.div className="mb-12 text-center" initial={{ opacity: 0, y: 20 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }} transition={springs.smooth}>
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">Investment</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Investment</span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
           </div>
           <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">What Does This Cost?</h2>
@@ -914,31 +914,31 @@ export default function HomePage() {
           <span className="font-mono text-lg font-bold tracking-tight">Agent Flywheel</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Mobile: icon-only buttons with proper touch targets */}
+          {/* Mobile: icon-only buttons with 44px touch targets (Apple HIG) */}
           <a
             href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
             aria-label="GitHub"
           >
-            <GitBranch className="h-4 w-4 sm:hidden" />
+            <GitBranch className="h-5 w-5 sm:hidden" />
             <span className="hidden text-sm sm:inline">GitHub</span>
           </a>
           <Link
             href="/learn"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:gap-1 sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:gap-1 sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
             aria-label="Learn"
           >
-            <BookOpen className="h-4 w-4" />
+            <BookOpen className="h-5 w-5 sm:h-4 sm:w-4" />
             <span className="hidden text-sm sm:inline">Learn</span>
           </Link>
           <Link
             href="/tldr"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:gap-1 sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-auto sm:w-auto sm:gap-1 sm:rounded-none sm:bg-transparent sm:hover:bg-transparent"
             aria-label="TL;DR"
           >
-            <Zap className="h-4 w-4" />
+            <Zap className="h-5 w-5 sm:h-4 sm:w-4" />
             <span className="hidden text-sm sm:inline">TL;DR</span>
           </Link>
           <Button asChild size="sm" variant="outline" className="border-primary/30 hover:bg-primary/10">

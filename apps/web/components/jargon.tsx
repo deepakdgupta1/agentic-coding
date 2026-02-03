@@ -360,14 +360,14 @@ function TooltipContent({ term, termKey }: { term: JargonTerm; termKey: string }
       )}
 
       {/* Tap for more hint */}
-      <p className="text-[11px] text-muted-foreground/60">
+      <p className="text-xs text-muted-foreground/60">
         Hover or focus to learn more
       </p>
 
       <Link
         href={glossaryHref}
         className={cn(
-          "inline-block text-[11px] font-medium text-primary underline-offset-4 hover:underline",
+          "inline-block text-xs font-medium text-primary underline-offset-4 hover:underline",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm"
         )}
       >

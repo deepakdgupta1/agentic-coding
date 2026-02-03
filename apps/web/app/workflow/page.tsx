@@ -638,7 +638,7 @@ export default function WorkflowPage() {
             <div className="text-center mb-6">
               <div className="mb-3 flex items-center justify-center gap-2">
                 <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
                 <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
               </div>
               <h3 className="text-xl font-bold tracking-tight mb-2">The Self-Reinforcing Flywheel</h3>
@@ -666,7 +666,7 @@ export default function WorkflowPage() {
                   </div>
                   <div className="text-center">
                     <span className="text-xs font-bold block">{tool.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{tool.desc}</span>
+                    <span className="text-xs text-muted-foreground">{tool.desc}</span>
                   </div>
                 </motion.div>
               ))}
