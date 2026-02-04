@@ -82,8 +82,17 @@ cmd_create() {
     # Copy installer and repo files to container via tar pipe
     # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
     log_detail "Transferring ACFS repo to container..."
-    tar -C "$REPO_ROOT" -cf - install.sh scripts acfs acfs.manifest.yaml checksums.yaml 2>/dev/null | \
-        acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/
+    if ! tar -C "$REPO_ROOT" -cf - install.sh scripts acfs acfs.manifest.yaml checksums.yaml 2>/dev/null | \
+        acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/; then
+        log_error "Failed to transfer ACFS repo to container"
+        return 1
+    fi
+
+    # Verify critical bootstrap files exist in container
+    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/scripts/acfs-global 2>/dev/null; then
+        log_error "Bootstrap verification failed: scripts/acfs-global not in container"
+        return 1
+    fi
 
     # Run installer inside container
     # We set ACFS_BOOTSTRAP_DIR=/tmp so install.sh knows where to find its own scripts/lib
@@ -95,6 +104,33 @@ cmd_create() {
         cd /tmp
         bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
     "
+
+    # Post-install verification
+    log_info "Verifying installation..."
+    local verification_warnings=0
+
+    # Check user-local acfs command
+    if ! acfs_sandbox_exec "test -x ~/.local/bin/acfs" 2>/dev/null; then
+        log_warn "User acfs command not found at ~/.local/bin/acfs"
+        verification_warnings=1
+    fi
+
+    # Check global wrapper
+    if ! acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" 2>/dev/null; then
+        log_warn "Global acfs wrapper not found at /usr/local/bin/acfs"
+        verification_warnings=1
+    fi
+
+    # Check critical library scripts
+    if ! acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" 2>/dev/null; then
+        log_warn "dashboard.sh not found in ~/.acfs/scripts/lib/"
+        verification_warnings=1
+    fi
+
+    if [[ $verification_warnings -eq 1 ]]; then
+        log_warn "Some ACFS components may not have installed correctly"
+        log_info "Run 'acfs-local shell' then 'acfs doctor' to diagnose"
+    fi
 
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"

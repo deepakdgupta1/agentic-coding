@@ -4625,7 +4625,7 @@ finalize() {
 
     # Install acfs scripts (for acfs CLI subcommands)
     log_detail "Installing acfs scripts"
-    try_step "Creating ACFS scripts directory" $SUDO mkdir -p "$ACFS_HOME/scripts/lib" || return 1
+    try_step "Creating ACFS scripts directory" run_as_target mkdir -p "$ACFS_HOME/scripts/lib" || return 1
     
     # Install script libraries
     try_step "Installing logging.sh" install_asset "scripts/lib/logging.sh" "$ACFS_HOME/scripts/lib/logging.sh" || return 1
@@ -4663,7 +4663,7 @@ finalize() {
     try_step "Installing newproj_screens.sh" install_asset "scripts/lib/newproj_screens.sh" "$ACFS_HOME/scripts/lib/newproj_screens.sh" || return 1
     try_step "Installing newproj_tui.sh" install_asset "scripts/lib/newproj_tui.sh" "$ACFS_HOME/scripts/lib/newproj_tui.sh" || return 1
 
-    try_step "Creating newproj_screens directory" $SUDO mkdir -p "$ACFS_HOME/scripts/lib/newproj_screens" || return 1
+    try_step "Creating newproj_screens directory" run_as_target mkdir -p "$ACFS_HOME/scripts/lib/newproj_screens" || return 1
     
     local screens=(
         "screen_agents_preview.sh"
@@ -4710,7 +4710,9 @@ finalize() {
     # Legacy state file (only if state.sh is unavailable)
     if type -t state_load &>/dev/null; then
         if [[ -f "$ACFS_STATE_FILE" ]]; then
-            $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE" || true
+            if ! $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE"; then
+                log_warn "Could not set ownership on state.json"
+            fi
         fi
     else
         cat > "$ACFS_STATE_FILE" << EOF
@@ -4727,6 +4729,36 @@ finalize() {
 }
 EOF
         $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE"
+    fi
+
+    # ============================================================
+    # Postcondition Assertions
+    # Verify critical files were installed correctly
+    # ============================================================
+    local critical_files=(
+        "$ACFS_HOME/scripts/lib/dashboard.sh"
+        "$ACFS_HOME/scripts/lib/info.sh"
+        "$ACFS_HOME/scripts/lib/state.sh:optional"
+        "$ACFS_HOME/bin/acfs"
+    )
+
+    local missing_critical=0
+    for f_entry in "${critical_files[@]}"; do
+        local f="${f_entry%%:*}"
+        local optional="${f_entry#*:}"
+        if [[ ! -f "$f" ]]; then
+            if [[ "$optional" == "optional" ]]; then
+                log_warn "Optional file missing after finalize: $f"
+            else
+                log_error "Critical file missing after finalize: $f"
+                missing_critical=1
+            fi
+        fi
+    done
+
+    if [[ $missing_critical -eq 1 ]]; then
+        log_error "finalize phase failed postcondition checks"
+        return 1
     fi
 
     log_success "Installation complete!"
