@@ -177,8 +177,17 @@ export function BottomSheet({
             {/* Drag handle */}
             {showHandle && (
               <div
-                className="flex shrink-0 cursor-grab justify-center pb-1 pt-3 active:cursor-grabbing"
-                onPointerDown={(e) => dragControls.start(e)}
+                className={cn(
+                  "flex shrink-0 justify-center pb-1 pt-3",
+                  swipeable && !prefersReducedMotion
+                    ? "cursor-grab active:cursor-grabbing"
+                    : "cursor-default"
+                )}
+                onPointerDown={(e) => {
+                  if (swipeable && !prefersReducedMotion) {
+                    dragControls.start(e);
+                  }
+                }}
               >
                 <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </div>

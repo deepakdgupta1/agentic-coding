@@ -455,7 +455,8 @@ function WorkflowStepsSection() {
         <div className="relative -mx-6 px-6 sm:mx-0 sm:px-0">
           <motion.div
             ref={scrollRef}
-            {...bind()}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...(bind() as any)}
             style={{ touchAction: "pan-y" }}
             className="flex gap-3 overflow-x-auto pb-4 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0 scrollbar-hide cursor-grab active:cursor-grabbing select-none"
             variants={staggerContainer}

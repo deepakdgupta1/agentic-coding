@@ -68,7 +68,7 @@ export function FormField({
 
   const motionTransition = prefersReducedMotion
     ? { duration: 0 }
-    : { duration: 0.15, ease: "easeOut" };
+    : { duration: 0.15, ease: "easeOut" as const };
 
   return (
     <div className={cn("relative", className)}>
