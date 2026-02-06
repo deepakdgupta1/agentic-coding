@@ -955,6 +955,10 @@ cleanup() {
         log_error ""
         # Emit failure summary (best-effort)
         acfs_summary_emit "failure" 0 2>/dev/null || true
+        # Send webhook notification for failure (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "failure" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
     fi
     # Finalize log file (restore stderr, strip colors, add footer)
     acfs_log_close 2>/dev/null || true
@@ -1130,6 +1134,20 @@ parse_args() {
                 # Disable automatic dependency resolution
                 NO_DEPS=true
                 shift
+                ;;
+            --webhook|--webhook=*)
+                # Webhook URL for install completion notification (bd-2zqr)
+                if [[ "$1" == "--webhook" ]]; then
+                    if [[ -z "${2:-}" ]]; then
+                        log_fatal "--webhook requires a URL (e.g., --webhook https://hooks.slack.com/...)"
+                    fi
+                    export ACFS_WEBHOOK_URL="$2"
+                    shift 2
+                else
+                    # Handle --webhook=https://... format
+                    export ACFS_WEBHOOK_URL="${1#*=}"
+                    shift
+                fi
                 ;;
             *)
                 log_warn "Unknown option: $1"
@@ -1387,6 +1405,12 @@ detect_environment() {
     if [[ -f "$ACFS_LIB_DIR/autofix_existing.sh" ]]; then
         # shellcheck source=scripts/lib/autofix_existing.sh
         source "$ACFS_LIB_DIR/autofix_existing.sh"
+    fi
+
+    # Source webhook notification library (bd-2zqr)
+    if [[ -f "$ACFS_LIB_DIR/webhook.sh" ]]; then
+        # shellcheck source=scripts/lib/webhook.sh
+        source "$ACFS_LIB_DIR/webhook.sh"
     fi
 
     # Source manifest index (data-only, safe to source)
@@ -4659,6 +4683,7 @@ finalize() {
     try_step "Installing continue.sh" install_asset "scripts/lib/continue.sh" "$ACFS_HOME/scripts/lib/continue.sh" || return 1
     try_step "Installing info.sh" install_asset "scripts/lib/info.sh" "$ACFS_HOME/scripts/lib/info.sh" || return 1
     try_step "Installing cheatsheet.sh" install_asset "scripts/lib/cheatsheet.sh" "$ACFS_HOME/scripts/lib/cheatsheet.sh" || return 1
+    try_step "Installing webhook.sh" install_asset "scripts/lib/webhook.sh" "$ACFS_HOME/scripts/lib/webhook.sh" || return 1
     try_step "Installing dashboard.sh" install_asset "scripts/lib/dashboard.sh" "$ACFS_HOME/scripts/lib/dashboard.sh" || return 1
 
     # Install acfs-update wrapper command
@@ -5501,6 +5526,11 @@ main() {
 
         # Emit install summary JSON (bd-31ps.3.2)
         acfs_summary_emit "success" "$total_seconds" 2>/dev/null || true
+
+        # Send webhook notification if configured (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "success" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
 
         SMOKE_TEST_FAILED=false
         if ! run_smoke_test; then

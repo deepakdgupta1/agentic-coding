@@ -180,6 +180,17 @@ modules:
         fi
         curl "${CURL_ARGS[@]}" -o ~/.acfs/zsh/acfs.zshrc "${ACFS_RAW}/acfs/zsh/acfs.zshrc"
       - |
+        # Install ACFS shell completions (zsh)
+        ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+        mkdir -p ~/.acfs/completions
+        CURL_ARGS=(-fsSL)
+        if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+          CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+        fi
+        curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/_acfs "${ACFS_RAW}/scripts/completions/_acfs"
+        # Also install bash completions for users who switch shells
+        curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/acfs.bash "${ACFS_RAW}/scripts/completions/acfs.bash"
+      - |
         # Install pre-configured Powerlevel10k settings (prevents config wizard on first login)
         ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
         CURL_ARGS=(-fsSL)
@@ -1879,7 +1890,7 @@ modules:
       - xf --help || xf --version
 
   - id: utils.toon_rust
-    description: toon_rust (toon) - Token-optimized notation format for LLM context efficiency
+    description: toon_rust (tru) - Token-optimized notation format for LLM context efficiency
     category: tools
     phase: 9
     run_as: target_user
@@ -1890,14 +1901,14 @@ modules:
       - lang.rust
     installed_check:
       run_as: target_user
-      command: "command -v toon"
+      command: "command -v tru"
     verified_installer:
-      tool: toon
+      tool: tru
       runner: bash
       url: "https://raw.githubusercontent.com/Dicklesworthstone/toon_rust/master/install.sh"
     install: []
     verify:
-      - toon --help || toon --version
+      - tru --help || tru --version
 
   - id: utils.rano
     description: rano - Network observer for AI CLIs with request/response logging

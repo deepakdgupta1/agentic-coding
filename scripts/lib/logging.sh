@@ -108,13 +108,48 @@ if [[ -n "${_ACFS_LOGGING_SH_LOADED:-}" ]]; then
 fi
 _ACFS_LOGGING_SH_LOADED=1
 
-# Colors
-export ACFS_RED='\033[0;31m'
-export ACFS_GREEN='\033[0;32m'
-export ACFS_YELLOW='\033[0;33m'
-export ACFS_BLUE='\033[0;34m'
-export ACFS_GRAY='\033[0;90m'
-export ACFS_NC='\033[0m' # No Color
+# ============================================================
+# Color Support with NO_COLOR Standard (https://no-color.org/)
+# ============================================================
+#
+# Respects:
+# - NO_COLOR env var (any value = disable colors)
+# - Non-TTY output (pipes, redirects)
+#
+# Related: bd-39ye
+
+# Initialize colors based on environment
+_acfs_init_colors() {
+    # Disable colors if NO_COLOR is set (any value) or output is not a TTY
+    if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]]; then
+        # No colors - empty strings
+        export ACFS_RED=''
+        export ACFS_GREEN=''
+        export ACFS_YELLOW=''
+        export ACFS_BLUE=''
+        export ACFS_GRAY=''
+        export ACFS_NC=''
+        export ACFS_COLORS_ENABLED=false
+    else
+        # Colors enabled
+        export ACFS_RED='\033[0;31m'
+        export ACFS_GREEN='\033[0;32m'
+        export ACFS_YELLOW='\033[0;33m'
+        export ACFS_BLUE='\033[0;34m'
+        export ACFS_GRAY='\033[0;90m'
+        export ACFS_NC='\033[0m'
+        export ACFS_COLORS_ENABLED=true
+    fi
+}
+
+# Initialize colors on first load
+_acfs_init_colors
+
+# Check if colors are enabled
+# Usage: if acfs_colors_enabled; then echo "colors!"; fi
+acfs_colors_enabled() {
+    [[ "${ACFS_COLORS_ENABLED:-true}" == "true" ]]
+}
 
 # Log a major step (blue)
 # Usage: log_step "1/8" "Installing packages..."

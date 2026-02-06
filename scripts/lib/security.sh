@@ -29,12 +29,15 @@ if ! declare -f log_success &>/dev/null; then
 fi
 
 # Color aliases for backward compatibility (used by display functions below)
-CYAN="${ACFS_BLUE:-\033[0;36m}"
-DIM="${ACFS_GRAY:-\033[0;90m}"
-NC="${ACFS_NC:-\033[0m}"
-RED="${ACFS_RED:-\033[0;31m}"
-GREEN="${ACFS_GREEN:-\033[0;32m}"
-YELLOW="${ACFS_YELLOW:-\033[0;33m}"
+# Respects NO_COLOR standard via logging.sh's ACFS_* variables.
+# Use ${var-default} (not ${var:-default}) to preserve empty strings.
+# Related: bd-39ye
+CYAN="${ACFS_BLUE-\033[0;36m}"
+DIM="${ACFS_GRAY-\033[0;90m}"
+NC="${ACFS_NC-\033[0m}"
+RED="${ACFS_RED-\033[0;31m}"
+GREEN="${ACFS_GREEN-\033[0;32m}"
+YELLOW="${ACFS_YELLOW-\033[0;33m}"
 
 # ============================================================
 # Configuration
@@ -80,11 +83,36 @@ acfs_is_retryable_curl_exit_code() {
 #   $2 - Output path
 #   $3 - Name (for logging)
 # Returns: 0 on success, curl exit code on failure
+#
+# For GitHub URLs, uses github_fetch_with_backoff for rate limit handling.
+# Related: bd-1lug
 acfs_download_to_file() {
     local url="$1"
     local output_path="$2"
     local name="${3:-$url}"
 
+    # Ensure parent dir exists
+    mkdir -p "$(dirname "$output_path")"
+
+    # Use GitHub-specific backoff for GitHub URLs (rate limit handling)
+    if [[ "$url" == *"github.com"* || "$url" == *"githubusercontent.com"* ]]; then
+        # Load github_api.sh if not already loaded
+        if ! declare -f github_fetch_with_backoff &>/dev/null; then
+            local github_lib="$SECURITY_SCRIPT_DIR/github_api.sh"
+            if [[ -r "$github_lib" ]]; then
+                # shellcheck source=github_api.sh
+                source "$github_lib"
+            fi
+        fi
+
+        # Use backoff if available, fallback to standard fetch
+        if declare -f github_fetch_with_backoff &>/dev/null; then
+            github_fetch_with_backoff "$url" "$output_path" "$name"
+            return $?
+        fi
+    fi
+
+    # Standard retry logic for non-GitHub URLs
     local max_attempts="${#ACFS_CURL_RETRY_DELAYS[@]}"
     if (( max_attempts == 0 )); then
         ACFS_CURL_RETRY_DELAYS=(0 5 15)
@@ -93,9 +121,6 @@ acfs_download_to_file() {
 
     local retries=$((max_attempts - 1))
     local attempt delay status=0
-
-    # Ensure parent dir exists
-    mkdir -p "$(dirname "$output_path")"
 
     for ((attempt=0; attempt<max_attempts; attempt++)); do
         delay="${ACFS_CURL_RETRY_DELAYS[$attempt]}"
@@ -542,9 +567,10 @@ load_checksums() {
     local tool_indent=""
 
     if [[ ! -r "$file" ]]; then
-        # Use ACFS_YELLOW if available (logging.sh), else literal or plain
-        local warn_color="${ACFS_YELLOW:-\033[0;33m}"
-        local nc_color="${ACFS_NC:-\033[0m}"
+        # Use ACFS_YELLOW if available (logging.sh), else literal or plain.
+        # Use ${var-default} to preserve empty strings for NO_COLOR. Related: bd-39ye
+        local warn_color="${ACFS_YELLOW-\033[0;33m}"
+        local nc_color="${ACFS_NC-\033[0m}"
         echo -e "${warn_color}Warning:${nc_color} Checksums file not found: $file" >&2
         return 1
     fi

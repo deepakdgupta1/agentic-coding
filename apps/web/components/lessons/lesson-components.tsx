@@ -5,13 +5,16 @@ import { motion } from "@/components/motion";
 import {
   Check,
   Copy,
-  Terminal,
   Lightbulb,
   AlertTriangle,
   ChevronRight,
   Sparkles,
   Zap,
 } from "lucide-react";
+import {
+  CodeBlock as SharedCodeBlock,
+  type CodeBlockProps as SharedCodeBlockProps,
+} from "@/components/ui/code-block";
 
 // =============================================================================
 // SECTION COMPONENT - Beautiful section dividers with gradient headers
@@ -69,7 +72,7 @@ export function Paragraph({ children, highlight }: ParagraphProps) {
 }
 
 // =============================================================================
-// CODE BLOCK - Interactive terminal-style code display
+// CODE BLOCK - Re-exported from shared ui/code-block
 // =============================================================================
 interface CodeBlockProps {
   code: string;
@@ -168,6 +171,10 @@ export function CodeBlock({
       </div>
     </div>
   );
+export function CodeBlock(
+  props: Omit<SharedCodeBlockProps, "variant" | "copyable">,
+) {
+  return <SharedCodeBlock {...props} variant="terminal" copyable />;
 }
 
 // =============================================================================

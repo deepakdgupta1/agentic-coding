@@ -109,8 +109,8 @@ function AnalyticsTracker() {
     // Track enhanced session start
     trackSessionStart();
 
-    // Track returning vs new user
-    const visitCount = parseInt(safeGetItem('acfs_visit_count') || '0', 10) + 1;
+    // Track returning vs new user (use || 0 to handle NaN from corrupted storage)
+    const visitCount = (parseInt(safeGetItem('acfs_visit_count') || '0', 10) || 0) + 1;
     safeSetItem('acfs_visit_count', visitCount.toString());
 
     setUserProperties({

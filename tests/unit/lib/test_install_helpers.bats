@@ -128,6 +128,16 @@ teardown() {
 
 @test "acfs_module_is_installed: returns 1 if no check defined" {
     declare -gA ACFS_MODULE_INSTALLED_CHECK=()
+# -------------------------------------------------
+# Skip-if-installed tests (bd-1eop)
+# -------------------------------------------------
+
+@test "acfs_module_is_installed: returns false when no check defined" {
+    # Clear installed_check arrays
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=()
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=()
+
     run acfs_module_is_installed "mod1"
     assert_failure
 }
@@ -135,6 +145,11 @@ teardown() {
 @test "acfs_module_is_installed: runs check command" {
     declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="true" )
     declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
+@test "acfs_module_is_installed: returns true when check succeeds" {
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="true" )
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
+
     run acfs_module_is_installed "mod1"
     assert_success
 }
@@ -153,4 +168,47 @@ teardown() {
     declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
     run acfs_should_skip_module "mod1"
     assert_failure
+@test "acfs_module_is_installed: returns false when check fails" {
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="false" )
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
+
+    run acfs_module_is_installed "mod1"
+    assert_failure
+}
+
+@test "acfs_should_skip_module: skips installed modules" {
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="true" )
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
+    export ACFS_FORCE_REINSTALL=false
+
+    run acfs_should_skip_module "mod1"
+    assert_success  # 0 means should skip
+}
+
+@test "acfs_should_skip_module: does not skip when force reinstall" {
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="true" )
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="current" )
+    export ACFS_FORCE_REINSTALL=true
+
+    run acfs_should_skip_module "mod1"
+    assert_failure  # 1 means do not skip (install)
+}
+
+@test "acfs_module_is_installed: respects run_as target_user" {
+    unset ACFS_MODULE_INSTALLED_CHECK ACFS_MODULE_INSTALLED_CHECK_RUN_AS
+    declare -gA ACFS_MODULE_INSTALLED_CHECK=( ["mod1"]="true" )
+    declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=( ["mod1"]="target_user" )
+
+    # Mock run_as_target to just pass through to bash
+    # Note: We need to export the function for subshells
+    run_as_target() {
+        "$@"
+    }
+    export -f run_as_target
+
+    run acfs_module_is_installed "mod1"
+    assert_success
 }

@@ -48,8 +48,10 @@ _INFO_SHOW_STATS=false
 
 # ============================================================
 # Color Constants (for terminal output)
+# Respects NO_COLOR standard: https://no-color.org/
+# Related: bd-39ye
 # ============================================================
-if [[ -t 1 ]]; then
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 1 ]]; then
     C_RESET='\033[0m'
     C_BOLD='\033[1m'
     C_DIM='\033[2m'

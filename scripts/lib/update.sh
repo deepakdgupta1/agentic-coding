@@ -21,14 +21,25 @@ if [[ -f "$SCRIPT_DIR/../../VERSION" ]]; then
     ACFS_VERSION="$(cat "$SCRIPT_DIR/../../VERSION" 2>/dev/null || echo "$ACFS_VERSION")"
 fi
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m'
+# Colors - respect NO_COLOR standard (https://no-color.org/)
+# Related: bd-39ye
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 2 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    NC='\033[0m'
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    DIM=''
+    NC=''
+fi
 
 # Counters
 SUCCESS_COUNT=0
@@ -150,7 +161,7 @@ get_version() {
         vercel)
             version=$(vercel --version 2>/dev/null || echo "unknown")
             ;;
-        ntm|ubs|bv|cass|cm|caam|slb|ru|dcg|apr|pt|xf|jfp|ms|br|rch|wa|brenner)
+        ntm|ubs|bv|cass|cm|caam|slb|ru|dcg|apr|pt|xf|jfp|ms|br|rch|giil|csctf|srps|tru|rano|mdwb|s2p|brenner)
             version=$("$tool" --version 2>/dev/null | head -1 || echo "unknown")
             ;;
         sg|lsd|dust|tldr)
@@ -488,6 +499,70 @@ run_cmd_sudo() {
         return 0
     fi
     run_cmd "$desc" "$@"
+}
+
+# ============================================================
+# Migration Cleanup
+# ============================================================
+
+# Clean up legacy git_safety_guard artifacts from pre-DCG installations
+# This runs on every update to ensure stale files are removed
+cleanup_legacy_git_safety_guard() {
+    local cleaned=false
+    local hooks_dirs=(
+        "$HOME/.acfs/claude/hooks"
+        "$HOME/.claude/hooks"
+    )
+    local legacy_files=(
+        "git_safety_guard.py"
+        "git_safety_guard.sh"
+    )
+
+    # Remove legacy hook files
+    for dir in "${hooks_dirs[@]}"; do
+        for file in "${legacy_files[@]}"; do
+            if [[ -f "$dir/$file" ]]; then
+                rm -f "$dir/$file" 2>/dev/null && cleaned=true
+                log_to_file "Removed legacy file: $dir/$file"
+            fi
+        done
+        # Remove empty hooks directory
+        if [[ -d "$dir" ]] && [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+            rmdir "$dir" 2>/dev/null && cleaned=true
+            log_to_file "Removed empty directory: $dir"
+        fi
+    done
+
+    # Clean parent directories if empty
+    for parent in "$HOME/.acfs/claude" "$HOME/.claude"; do
+        if [[ -d "$parent" ]] && [[ -z "$(ls -A "$parent" 2>/dev/null)" ]]; then
+            rmdir "$parent" 2>/dev/null || true
+            log_to_file "Removed empty directory: $parent"
+        fi
+    done
+
+    # Clean git_safety_guard from Claude settings.json if present
+    local settings_file="$HOME/.claude/settings.json"
+    if [[ -f "$settings_file" ]] && command -v jq &>/dev/null; then
+        if jq -e '.hooks // empty' "$settings_file" &>/dev/null; then
+            # Check if git_safety_guard is referenced in hooks
+            if grep -q "git_safety_guard" "$settings_file" 2>/dev/null; then
+                local tmp_settings
+                tmp_settings=$(mktemp)
+                # Remove any hook entries containing git_safety_guard
+                if jq 'walk(if type == "object" and .hooks then .hooks |= map(select(. | tostring | contains("git_safety_guard") | not)) else . end)' "$settings_file" > "$tmp_settings" 2>/dev/null; then
+                    mv "$tmp_settings" "$settings_file" && cleaned=true
+                    log_to_file "Cleaned git_safety_guard references from $settings_file"
+                else
+                    rm -f "$tmp_settings"
+                fi
+            fi
+        fi
+    fi
+
+    if [[ "$cleaned" == "true" ]]; then
+        log_item "ok" "legacy cleanup" "removed git_safety_guard artifacts"
+    fi
 }
 
 # ============================================================
@@ -1531,151 +1606,129 @@ update_stack() {
         return 0
     fi
 
-    # DCG migration: offer install for existing users who don't have it yet
-    if ! cmd_exists dcg; then
-        log_item "warn" "DCG not installed" "new safety tool available in the ACFS stack"
+    # NTM - always install/update (installer is idempotent)
+    run_cmd "NTM" update_run_verified_installer ntm
 
-        if [[ "$YES_MODE" == "true" || "$FORCE_MODE" == "true" ]]; then
-            run_cmd "DCG (install)" update_run_verified_installer dcg --easy-mode
-            if cmd_exists dcg && cmd_exists claude; then
-                run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-            fi
-        elif [[ -t 0 ]]; then
-            [[ "$QUIET" != "true" ]] && echo ""
-            read -r -p "Install DCG now? [Y/n] " response || true
-            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-                run_cmd "DCG (install)" update_run_verified_installer dcg --easy-mode
-                if cmd_exists dcg && cmd_exists claude; then
-                    run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-                fi
-            else
-                log_item "skip" "DCG" "skipped (install later: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
-            fi
-        else
-            log_item "skip" "DCG" "not installed (non-interactive; run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
-        fi
-    fi
-
-    # NTM
-    if cmd_exists ntm; then
-        run_cmd "NTM" update_run_verified_installer ntm
-    fi
-
-    # MCP Agent Mail - Special handling for tmux (server blocks)
+    # MCP Agent Mail - always install/update (requires tmux for server process)
     # Note: Version tracking not possible for async tmux updates
-    if cmd_exists "am" || [[ -d "$HOME/mcp_agent_mail" ]]; then
-        if cmd_exists tmux; then
-            local tool="mcp_agent_mail"
-            local url="${KNOWN_INSTALLERS[$tool]:-}"
-            local expected_sha256
-            expected_sha256="$(get_checksum "$tool")"
+    if cmd_exists tmux; then
+        local tool="mcp_agent_mail"
+        local url="${KNOWN_INSTALLERS[$tool]:-}"
+        local expected_sha256
+        expected_sha256="$(get_checksum "$tool")"
 
-            if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                # Fetch and verify content first
-                local tmp_install
-                tmp_install=$(mktemp "${TMPDIR:-/tmp}/acfs-install-am.XXXXXX" 2>/dev/null) || tmp_install=""
-                if [[ -z "$tmp_install" ]]; then
-                    log_item "fail" "MCP Agent Mail" "failed to create temp file for verified installer"
-                else
-                    if verify_checksum "$url" "$expected_sha256" "$tool" > "$tmp_install"; then
-                        chmod +x "$tmp_install"
-
-                        local tmux_session="acfs-services"
-                        # Kill old session if exists
-                        tmux kill-session -t "$tmux_session" 2>/dev/null || true
-
-                        # Launch in tmux (tmux does not split a single string into argv).
-                        # NOTE: run_cmd always returns 0 (unless aborting), so do not use it in an `if ...; then` check.
-                        run_cmd "MCP Agent Mail (tmux)" tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$HOME/mcp_agent_mail" --yes
-
-                        # Confirm session exists before printing "running" hint (avoids misleading output on failure).
-                        if tmux has-session -t "$tmux_session" 2>/dev/null; then
-                            log_to_file "Started MCP Agent Mail update in tmux session: $tmux_session"
-                            [[ "$QUIET" != "true" ]] && printf "       ${DIM}Update running in tmux session '%s'${NC}\n" "$tmux_session"
-                        fi
-
-                        # Cleanup happens when system tmp is cleaned
-                    else
-                        rm -f "$tmp_install"
-                        log_item "fail" "MCP Agent Mail" "verification failed"
-                    fi
-                fi
+        if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
+            # Fetch and verify content first
+            local tmp_install
+            tmp_install=$(mktemp "${TMPDIR:-/tmp}/acfs-install-am.XXXXXX" 2>/dev/null) || tmp_install=""
+            if [[ -z "$tmp_install" ]]; then
+                log_item "fail" "MCP Agent Mail" "failed to create temp file for verified installer"
             else
-                log_item "fail" "MCP Agent Mail" "unknown installer URL/checksum"
+                if verify_checksum "$url" "$expected_sha256" "$tool" > "$tmp_install"; then
+                    chmod +x "$tmp_install"
+
+                    local tmux_session="acfs-services"
+                    # Kill old session if exists
+                    tmux kill-session -t "$tmux_session" 2>/dev/null || true
+
+                    # Launch in tmux (tmux does not split a single string into argv).
+                    # NOTE: run_cmd always returns 0 (unless aborting), so do not use it in an `if ...; then` check.
+                    run_cmd "MCP Agent Mail (tmux)" tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$HOME/mcp_agent_mail" --yes
+
+                    # Confirm session exists before printing "running" hint (avoids misleading output on failure).
+                    if tmux has-session -t "$tmux_session" 2>/dev/null; then
+                        log_to_file "Started MCP Agent Mail update in tmux session: $tmux_session"
+                        [[ "$QUIET" != "true" ]] && printf "       ${DIM}Update running in tmux session '%s'${NC}\n" "$tmux_session"
+                    fi
+
+                    # Cleanup happens when system tmp is cleaned
+                else
+                    rm -f "$tmp_install"
+                    log_item "fail" "MCP Agent Mail" "verification failed"
+                fi
             fi
         else
-            log_item "skip" "MCP Agent Mail" "tmux not found (required for update)"
+            log_item "fail" "MCP Agent Mail" "unknown installer URL/checksum"
         fi
+    else
+        log_item "skip" "MCP Agent Mail" "tmux not found (required for install)"
     fi
 
-    # Meta Skill (ms)
-    if cmd_exists ms; then
-        run_cmd "Meta Skill" update_run_verified_installer ms --easy-mode
-    fi
+    # Meta Skill (ms) - always install/update (installer is idempotent)
+    run_cmd "Meta Skill" update_run_verified_installer ms --easy-mode
 
-    # APR (Automated Plan Reviser Pro)
-    if cmd_exists apr; then
-        run_cmd "APR" update_run_verified_installer apr --easy-mode
-    fi
+    # APR (Automated Plan Reviser Pro) - always install/update
+    run_cmd "APR" update_run_verified_installer apr --easy-mode
 
-    # Process Triage (pt)
-    if cmd_exists pt; then
-        run_cmd "Process Triage" update_run_verified_installer pt
-    fi
+    # Process Triage (pt) - always install/update
+    run_cmd "Process Triage" update_run_verified_installer pt
 
-    # xf (X Archive Search)
-    if cmd_exists xf; then
-        run_cmd "xf" update_run_verified_installer xf --easy-mode
-    fi
+    # xf (X Archive Search) - always install/update
+    run_cmd "xf" update_run_verified_installer xf --easy-mode
 
-    # JeffreysPrompts (jfp)
+    # JeffreysPrompts (jfp) - only update if already installed
+    # Note: JFP requires a paid subscription to jeffreysprompts.com
     if cmd_exists jfp; then
-        run_cmd "JeffreysPrompts" jfp update
+        run_cmd "JeffreysPrompts" update_run_verified_installer jfp
     fi
 
-    # UBS
-    if cmd_exists ubs; then
-        run_cmd "Ultimate Bug Scanner" update_run_verified_installer ubs --easy-mode
+    # UBS - always install/update (installer is idempotent)
+    run_cmd "Ultimate Bug Scanner" update_run_verified_installer ubs --easy-mode
+
+    # Beads Viewer - always install/update
+    run_cmd "Beads Viewer" update_run_verified_installer bv
+
+    # Beads Rust (br) - local issue tracker CLI - always install/update
+    run_cmd "Beads Rust" update_run_verified_installer br
+
+    # CASS - always install/update
+    run_cmd "CASS" update_run_verified_installer cass --easy-mode --verify
+
+    # CASS Memory - always install/update
+    run_cmd "CASS Memory" update_run_verified_installer cm --easy-mode --verify
+
+    # CAAM - always install/update
+    run_cmd "CAAM" update_run_verified_installer caam
+
+    # SLB - always install/update
+    run_cmd "SLB" update_run_verified_installer slb
+
+    # RU (Repo Updater) - always install/update
+    run_cmd "RU" update_run_verified_installer ru --easy-mode
+
+    # DCG (Destructive Command Guard) - always install/update
+    run_cmd "DCG" update_run_verified_installer dcg --easy-mode
+    # Re-register hook after install/update to ensure latest version is active
+    if cmd_exists dcg && cmd_exists claude; then
+        run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
     fi
 
-    # Beads Viewer
-    if cmd_exists bv; then
-        run_cmd "Beads Viewer" update_run_verified_installer bv
-    fi
+    # RCH (Remote Compilation Helper) - always install/update
+    run_cmd "RCH" update_run_verified_installer rch
 
-    # CASS
-    if cmd_exists cass; then
-        run_cmd "CASS" update_run_verified_installer cass --easy-mode --verify
-    fi
+    # GIIL (Google Image Inline Linker) - always install/update
+    run_cmd "GIIL" update_run_verified_installer giil
 
-    # CASS Memory
-    if cmd_exists cm; then
-        run_cmd "CASS Memory" update_run_verified_installer cm --easy-mode --verify
-    fi
+    # CSCTF (Chat Shared Conversation To File) - always install/update
+    run_cmd "CSCTF" update_run_verified_installer csctf
 
-    # CAAM
-    if cmd_exists caam; then
-        run_cmd "CAAM" update_run_verified_installer caam
-    fi
+    # SRPS (System Resource Protection Script) - always install/update
+    run_cmd "SRPS" update_run_verified_installer srps
 
-    # SLB
-    if cmd_exists slb; then
-        run_cmd "SLB" update_run_verified_installer slb
-    fi
+    # TRU (Toon Rust) - always install/update
+    run_cmd "TRU" update_run_verified_installer tru
 
-    # RU (Repo Updater)
-    if cmd_exists ru; then
-        run_cmd "RU" update_run_verified_installer ru --easy-mode
-    fi
+    # RANO - always install/update
+    run_cmd "RANO" update_run_verified_installer rano
 
-    # DCG (Destructive Command Guard)
-    if cmd_exists dcg; then
-        run_cmd "DCG" update_run_verified_installer dcg --easy-mode
-        # Re-register hook after update to ensure latest version is active
-        if cmd_exists claude; then
-            run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-        fi
-    fi
+    # MDWB (Markdown Web Browser) - always install/update
+    run_cmd "MDWB" update_run_verified_installer mdwb
+
+    # S2P (Source to Prompt TUI) - always install/update
+    run_cmd "S2P" update_run_verified_installer s2p
+
+    # Brenner Bot - always install/update
+    run_cmd "Brenner Bot" update_run_verified_installer brenner_bot
 }
 
 # ============================================================
@@ -2013,7 +2066,7 @@ SKIP OPTIONS (exclude categories from update):
   --no-stack         Skip Dicklesworthstone stack tool updates
 
 BEHAVIOR OPTIONS:
-  --force            Install tools that are missing (not just update existing)
+  --force            Force reinstallation even if already up to date
   --dry-run          Preview changes without making them
   --yes, -y          Non-interactive mode, skip all prompts
   --quiet, -q        Minimal output, only show errors and summary
@@ -2061,7 +2114,11 @@ WHAT EACH CATEGORY UPDATES:
             GitHub CLI (gh extension upgrade --all)
             Google Cloud SDK (gcloud components update)
   runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update), Go (apt-managed)
-  stack:    NTM, UBS, BV, CASS, CM, CAAM, SLB, DCG, RU (re-run upstream installers)
+  stack:    Dicklesworthstone stack tools (verified upstream installers)
+            Installs missing tools and updates existing ones automatically:
+            NTM, Agent Mail, Meta Skill, APR, pt, xf, UBS, BV, BR, CASS, CM,
+            CAAM, SLB, RU, DCG, RCH, GIIL, CSCTF, SRPS, TRU, RANO, MDWB, S2P, Brenner Bot
+            Exception: JFP requires subscription, only updated if already installed
 
 LOGS:
   Update logs are saved to: ~/.acfs/logs/updates/
@@ -2265,6 +2322,9 @@ main() {
     if [[ "$YES_MODE" == "true" ]]; then
         export ACFS_INTERACTIVE=false
     fi
+
+    # Clean up legacy artifacts from previous versions
+    cleanup_legacy_git_safety_guard
 
     # Run updates
     update_apt

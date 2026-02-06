@@ -1,6 +1,6 @@
 # Agentic Coding Flywheel Setup (ACFS)
 
-![Version](https://img.shields.io/badge/Version-0.5.0-bd93f9?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-0.6.0-bd93f9?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Ubuntu%2025.10-6272a4?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-50fa7b?style=for-the-badge)
 ![Shell](https://img.shields.io/badge/Shell-Bash-ff79c6?style=for-the-badge)
@@ -508,10 +508,28 @@ curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_f
 This checks:
 - OS compatibility (Ubuntu 22.04+; installer upgrades to 25.10)
 - Architecture (x86_64 or ARM64)
-- Memory and disk space
+- Memory and disk space (minimum 4GB RAM, 10GB free disk)
 - Network connectivity to required URLs
 - APT lock status
 - Potential conflicts (nvm, pyenv, existing ACFS)
+
+**Network checks performed:**
+| Check | What it verifies | Fix if failing |
+|-------|------------------|----------------|
+| DNS resolution | Can resolve github.com, raw.githubusercontent.com | Check `/etc/resolv.conf` or add `8.8.8.8` |
+| GitHub HTTPS | Can reach github.com:443 | Check firewall, proxy, or VPN settings |
+| Installer URLs | Raw GitHub, Homebrew, Oh-My-Zsh, Rust, etc. | May need to retry; transient failures OK |
+| APT mirrors | Default Ubuntu mirror reachable | Check `/etc/apt/sources.list` or try different mirror |
+
+**Common preflight failures:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Cannot resolve github.com" | DNS misconfigured | Add `nameserver 8.8.8.8` to `/etc/resolv.conf` |
+| "Cannot reach github.com" | Firewall blocking HTTPS | Allow outbound port 443 |
+| "APT mirror slow or unreachable" | Regional mirror down | Edit `/etc/apt/sources.list` to use `archive.ubuntu.com` |
+| "APT lock held" | Another apt process running | Wait for it to finish or `sudo kill <pid>` |
+| "Insufficient disk space" | Less than 10GB free | Clean up with `sudo apt autoremove` or expand disk |
 
 ### Console Output
 
@@ -976,6 +994,17 @@ Plan (Beads) ──> Coordinate (Agent Mail) ──> Execute (NTM + Agents)
 | Memory-Augmented Debugging | Past solutions for current bugs | 15 min |
 | Coordinated Feature Dev | Multiple agents, one feature | 2+ hours |
 
+### Tool Status Page
+
+The [Tool Status page](https://agent-flywheel.com/tools) provides a searchable catalog of all installed tools:
+
+- **Search & Filter**: Find tools by name, CLI command, features, or tech stack
+- **Category Browsing**: Filter by "Flywheel Stack" (core agentic tools) or "Utilities"
+- **Tool Details**: Each card shows the tool name, CLI command, GitHub stars, features, and tech stack
+- **Live Data**: Content is auto-generated from `acfs.manifest.yaml` — never manually edited
+
+This page helps users discover tools they may not know about and understand how each fits into the agentic coding workflow.
+
 ### Interactive Website Components
 
 The wizard website includes specialized components for guiding beginners:
@@ -1320,7 +1349,20 @@ $ acfs doctor
 
 ### Generated Doctor Checks
 
-Doctor checks can be generated from the manifest (`scripts/generated/doctor_checks.sh`) to keep verification logic close to `acfs.manifest.yaml`. Today, the user-facing `acfs doctor` command is implemented in `scripts/lib/doctor.sh` and does not yet consume the generated `doctor_checks.sh` output.
+Doctor checks are generated from the manifest (`scripts/generated/doctor_checks.sh`) to keep verification logic close to `acfs.manifest.yaml`. The `acfs doctor` command automatically sources these generated checks to verify all manifest-defined tools.
+
+**How it works:**
+1. The manifest generator creates `doctor_checks.sh` with verify commands for each module
+2. `acfs doctor` sources this file and runs each verification check
+3. Failed checks display a **fix suggestion** with the exact command to reinstall
+
+**Example output with fix suggestion:**
+```
+  ✗ tools.lazygit - Lazygit terminal UI not found
+    Fix: acfs install --only tools.lazygit
+```
+
+This architecture ensures doctor checks stay in sync with the installer—if a tool is in the manifest, it will be verified.
 
 ### Options
 
@@ -3558,6 +3600,84 @@ This section covers common issues and their solutions. For quick debugging, star
 | No internet | "curl: (6) Could not resolve host" | Check DNS, try `ping google.com` |
 | Old bash | Syntax errors | Upgrade to bash 4+ |
 
+### Installation Failure Recovery
+
+When the installer fails mid-way through, it provides an **auto-resume hint** with a precise command to continue from where it left off.
+
+**What you'll see on failure:**
+
+```
+[ERROR] ACFS installation failed!
+
+To debug:
+  1. Check the log: cat /var/log/acfs/install.log
+  2. If installed, run: acfs doctor (try as ubuntu)
+
+╔══════════════════════════════════════════════════════════════╗
+║  To resume installation from this point:                     ║
+╚══════════════════════════════════════════════════════════════╝
+
+  curl -sSL https://raw.githubusercontent.com/Dicklesworthstone/.../install.sh | bash -s -- --resume --yes
+
+  Failed phase: phase_9
+  Failed step: install_stack
+```
+
+**Key features of the resume hint:**
+
+| Feature | Description |
+|---------|-------------|
+| **Pinned commit** | Uses exact SHA from original run for reproducibility |
+| **Preserved flags** | Includes all original flags (--skip-*, --mode, --strict) |
+| **Automatic detection** | Reads failed phase/step from `~/.acfs/state.json` |
+| **Copyable command** | Ready to paste and run immediately |
+
+**Manual recovery steps:**
+
+1. **Review the error**:
+   ```bash
+   # Check the full log
+   cat /var/log/acfs/install.log | tail -50
+
+   # Or search for ERROR
+   grep -i error /var/log/acfs/install.log
+   ```
+
+2. **Run diagnostics**:
+   ```bash
+   # As the target user (ubuntu)
+   acfs doctor
+
+   # If running as root
+   sudo -u ubuntu -i bash -lc 'acfs doctor'
+   ```
+
+3. **Resume installation**:
+   ```bash
+   # Use the exact command from the failure output
+   # Or use the generic resume command:
+   curl -sSL https://acfs.sh | bash -s -- --resume --yes --mode vibe
+   ```
+
+4. **Check state file** (advanced):
+   ```bash
+   # View current installation state
+   cat ~/.acfs/state.json | jq .
+
+   # See the stored resume hint
+   jq '.resume_hint' ~/.acfs/state.json
+   ```
+
+**Common failure scenarios:**
+
+| Scenario | Typical Cause | Recovery |
+|----------|---------------|----------|
+| Network timeout | Transient connectivity | Wait, then resume |
+| APT lock held | Unattended-upgrades | Wait 2-3 min, resume |
+| Disk full | Insufficient space | Free space, resume |
+| SSH disconnect | Session timeout | Reconnect, resume |
+| Tool install failed | Upstream unavailable | Check status, resume |
+
 ### APT Lock Errors
 
 **Symptom**: `E: Could not get lock /var/lib/dpkg/lock-frontend`
@@ -3579,6 +3699,165 @@ This section covers common issues and their solutions. For quick debugging, star
    sudo dpkg --configure -a
    sudo apt-get update
    ```
+
+### Install Logs & Summary JSON
+
+Every ACFS install run produces two artifacts for debugging and tooling:
+
+**Log File Location:**
+```
+~/.acfs/logs/install-YYYYMMDD_HHMMSS.log
+```
+
+The log file captures all stderr output from the installer, with:
+- Header containing version, date, and mode
+- All progress messages and errors
+- ANSI colors stripped after completion
+- Footer with completion timestamp
+
+**Summary JSON Location:**
+```
+~/.acfs/logs/install_summary_YYYYMMDD_HHMMSS.json
+```
+
+**Summary JSON Schema (v1):**
+```json
+{
+  "schema_version": 1,
+  "status": "success",           // "success" or "failure"
+  "timestamp": "2026-01-27T...", // ISO 8601
+  "total_seconds": 1200,         // Wall clock time
+  "environment": {
+    "acfs_version": "0.9.0",
+    "mode": "vibe",
+    "ubuntu_version": "25.04",
+    "target_user": "ubuntu",
+    "target_home": "/home/ubuntu"
+  },
+  "phases": [
+    {"id": "phase_0", "duration_seconds": 5},
+    {"id": "phase_1", "duration_seconds": 45},
+    // ... completed phases in order
+  ],
+  "failure": null,               // null on success, or:
+  // "failure": {
+  //   "phase": "phase_9",
+  //   "step": "install_stack",
+  //   "error": "curl failed with exit code 7",
+  //   "resume_hint": "curl -sSL ... | bash -s -- --resume --yes"
+  // }
+  "log_file": "/home/ubuntu/.acfs/logs/install-20260127_120000.log"
+}
+```
+
+**Accessing logs:**
+```bash
+# Find the latest log
+ls -lt ~/.acfs/logs/install-*.log | head -1
+
+# Find the latest summary
+ls -lt ~/.acfs/logs/install_summary_*.json | head -1
+
+# Parse summary JSON
+jq . ~/.acfs/logs/install_summary_*.json | head -1
+
+# Get failed phase (if any)
+jq '.failure // "No failure"' ~/.acfs/logs/install_summary_*.json | tail -1
+
+# Get phase timings
+jq '.phases[] | "\(.id): \(.duration_seconds)s"' ~/.acfs/logs/install_summary_*.json | tail -1
+```
+
+**Sharing logs for support:**
+
+```bash
+# Create a support bundle (strips sensitive data)
+acfs support-bundle > support-bundle.txt
+
+# Or manually share (review for secrets first):
+cat ~/.acfs/logs/install-*.log | tail -200  # Last 200 lines
+cat ~/.acfs/logs/install_summary_*.json | tail -1  # Latest summary
+```
+
+### Support Bundle Command
+
+The `acfs support-bundle` command collects all diagnostic data into a single archive for troubleshooting.
+
+**Usage:**
+```bash
+acfs support-bundle [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--verbose, -v` | Show detailed output during collection |
+| `--output, -o DIR` | Output directory (default: `~/.acfs/support`) |
+| `--no-redact` | Disable secret redaction (WARNING: bundle may contain secrets) |
+| `--help, -h` | Show help |
+
+**Output files:**
+```
+~/.acfs/support/<timestamp>/          # Unpacked bundle directory
+~/.acfs/support/<timestamp>.tar.gz    # Compressed archive (shareable)
+~/.acfs/support/<timestamp>/manifest.json  # Bundle manifest
+```
+
+**What's collected:**
+
+| File | Description |
+|------|-------------|
+| `state.json` | Installation state and checkpoints |
+| `VERSION` | ACFS version |
+| `checksums.yaml` | Upstream verification checksums |
+| `logs/install-*.log` | Recent install logs (up to 10) |
+| `logs/install_summary_*.json` | Recent install summaries |
+| `doctor.json` | Health check results |
+| `versions.json` | Installed tool versions |
+| `environment.json` | OS, memory, disk, user info |
+| `os-release` | Linux distribution info |
+| `journal-acfs.log` | Systemd journal for ACFS services |
+| `config/.zshrc` | Shell configuration |
+
+**Security & Redaction:**
+
+By default, sensitive data is automatically redacted:
+
+| Pattern | Example | Redacted To |
+|---------|---------|-------------|
+| OpenAI API keys | `sk-abc123...` | `<REDACTED:api_key>` |
+| AWS keys | `AKIAIOSFODNN...` | `<REDACTED:aws_key>` |
+| GitHub tokens | `ghp_xxxx...` | `<REDACTED:github_token>` |
+| Vault tokens | `hvs.xxxx...` | `<REDACTED:vault_token>` |
+| Slack tokens | `xoxb-xxxx...` | `<REDACTED:slack_token>` |
+| Bearer tokens | `Bearer xxx...` | `Bearer <REDACTED:bearer>` |
+| JWTs | `eyJhbGc...` | `<REDACTED:jwt>` |
+| Passwords | `"password": "..."` | `"password": "<REDACTED:password>"` |
+
+**Example workflow:**
+
+```bash
+# Create support bundle
+acfs support-bundle
+
+# Output: ~/.acfs/support/20260127_120000.tar.gz
+
+# Share the archive when filing an issue
+# The archive is safe to share (secrets redacted)
+```
+
+**Disable redaction (use with caution):**
+```bash
+# WARNING: Bundle may contain API keys, tokens, and passwords
+acfs support-bundle --no-redact
+```
+
+**When to use:**
+- Installation failed and you need to share logs
+- Filing a GitHub issue about ACFS
+- Diagnosing tool installation problems
+- Sharing system state with support
 
 ### Shell Not Changing to zsh
 
@@ -3653,6 +3932,42 @@ gemini  # Follow Google login flow
    ```bash
    export PATH="$HOME/.bun/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
    ```
+
+### Doctor Shows Missing Tools
+
+**Symptom**: `acfs doctor` shows failed checks for tools you expected to be installed.
+
+**Understanding doctor output:**
+
+Doctor checks are generated directly from the manifest, so they verify the exact same tools the installer provides. When a check fails, doctor shows a copy-pasteable fix command:
+
+```
+  ✗ tools.lazygit - Lazygit terminal UI not found
+    Fix: acfs install --only tools.lazygit
+```
+
+**Solutions**:
+
+1. **Re-run the specific module** (use the fix suggestion):
+   ```bash
+   acfs install --only tools.lazygit   # Install just that tool
+   acfs install --only lang.go         # Install a language runtime
+   acfs install --only stack.dcg       # Install a stack tool
+   ```
+
+2. **Re-run an entire phase** (for multiple failures in one category):
+   ```bash
+   acfs install --only-phase 4   # Re-run Phase 4: Tools
+   acfs install --only-phase 8   # Re-run Phase 8: Stack
+   ```
+
+3. **Run auto-fix mode** (applies safe, deterministic fixes):
+   ```bash
+   acfs doctor --fix
+   acfs doctor --fix --dry-run  # Preview fixes first
+   ```
+
+**Note**: Doctor checks match the manifest verify commands exactly. If a tool was skipped during installation (e.g., using `--mode safe`), the check will fail. This is expected—run `acfs doctor` to see which tools are missing and decide which to install.
 
 ### Tmux Configuration Errors
 

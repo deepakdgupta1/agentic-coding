@@ -644,11 +644,11 @@ main() {
         }
 
         if [[ "$OUTPUT_FORMAT" == "toon" ]]; then
-            if ! command -v toon >/dev/null 2>&1; then
-                echo "Warning: --format toon requested but 'toon' not found; using JSON" >&2
+            if ! command -v tru >/dev/null 2>&1; then
+                echo "Warning: --format toon requested but 'tru' not found; using JSON" >&2
                 emit_json_summary
             else
-                emit_json_summary | toon --encode
+                emit_json_summary | tru --encode
             fi
         else
             emit_json_summary

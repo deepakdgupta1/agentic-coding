@@ -23,6 +23,26 @@ fi
 _ACFS_STATE_SH_LOADED=1
 
 # ============================================================
+# Color Constants - respect NO_COLOR standard (https://no-color.org/)
+# Related: bd-39ye
+# ============================================================
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 2 ]]; then
+    _STATE_BLUE='\033[0;34m'
+    _STATE_GREEN='\033[0;32m'
+    _STATE_YELLOW='\033[0;33m'
+    _STATE_RED='\033[0;31m'
+    _STATE_GRAY='\033[0;90m'
+    _STATE_NC='\033[0m'
+else
+    _STATE_BLUE=''
+    _STATE_GREEN=''
+    _STATE_YELLOW=''
+    _STATE_RED=''
+    _STATE_GRAY=''
+    _STATE_NC=''
+fi
+
+# ============================================================
 # State File Schema v3 Documentation
 # ============================================================
 #
@@ -813,7 +833,7 @@ _confirm_resume_log_info() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" "$msg" >&2
     else
-        echo -e "\033[0;34m$msg\033[0m" >&2
+        echo -e "${_STATE_BLUE}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -823,7 +843,7 @@ _confirm_resume_log_warn() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f9e2af" "$msg" >&2
     else
-        echo -e "\033[0;33m$msg\033[0m" >&2
+        echo -e "${_STATE_YELLOW}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -2244,7 +2264,7 @@ _run_phase_log_skip() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#6c7086" "[$display_name] Skipped ($reason)" >&2
     else
-        echo -e "\033[0;90m[$display_name] Skipped ($reason)\033[0m" >&2
+        echo -e "${_STATE_GRAY}[$display_name] Skipped ($reason)${_STATE_NC}" >&2
     fi
 }
 
@@ -2255,7 +2275,7 @@ _run_phase_log_start() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" --bold "[$display_name] Starting..." >&2
     else
-        echo -e "\033[0;34m[$display_name] Starting...\033[0m" >&2
+        echo -e "${_STATE_BLUE}[$display_name] Starting...${_STATE_NC}" >&2
     fi
 }
 
@@ -2272,7 +2292,7 @@ _run_phase_log_success() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#a6e3a1" --bold "$msg" >&2
     else
-        echo -e "\033[0;32m$msg\033[0m" >&2
+        echo -e "${_STATE_GREEN}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -2284,6 +2304,6 @@ _run_phase_log_failure() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f38ba8" --bold "[$display_name] FAILED (exit code: $exit_code)" >&2
     else
-        echo -e "\033[0;31m[$display_name] FAILED (exit code: $exit_code)\033[0m" >&2
+        echo -e "${_STATE_RED}[$display_name] FAILED (exit code: $exit_code)${_STATE_NC}" >&2
     fi
 }

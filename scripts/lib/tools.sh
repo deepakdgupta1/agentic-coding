@@ -388,11 +388,12 @@ get_skip_url() {
 # Summary Report
 # ============================================================
 
-# Colors for output (will be overridden if logging.sh is sourced)
-_TOOLS_YELLOW="${ACFS_YELLOW:-\033[0;33m}"
-_TOOLS_CYAN="${ACFS_BLUE:-\033[0;36m}"
-_TOOLS_DIM="\033[2m"
-_TOOLS_NC="${ACFS_NC:-\033[0m}"
+# Colors for output (respects NO_COLOR via logging.sh's ACFS_* variables).
+# Use ${var-default} to preserve empty strings. Related: bd-39ye
+_TOOLS_YELLOW="${ACFS_YELLOW-\033[0;33m}"
+_TOOLS_CYAN="${ACFS_BLUE-\033[0;36m}"
+_TOOLS_DIM="${ACFS_GRAY-\033[2m}"
+_TOOLS_NC="${ACFS_NC-\033[0m}"
 
 # report_skipped_tools - Print comprehensive summary of skipped tools
 #

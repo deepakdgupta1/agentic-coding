@@ -169,9 +169,9 @@ test_utility_tools() {
     log "INFO" "SECTION" "UTILITY TOOLS (9)"
     log "INFO" "SECTION" "========================================"
 
-    # toon_rust (toon)
-    log "INFO" "toon" "Testing toon_rust (toon)..."
-    test_tool_basic "toon_rust" "toon" "false"
+    # toon_rust (tru)
+    log "INFO" "tru" "Testing toon_rust (tru)..."
+    test_tool_basic "toon_rust" "tru" "false"
 
     # rust_proxy
     log "INFO" "rust_proxy" "Testing rust_proxy..."
@@ -268,7 +268,7 @@ test_integration() {
 
     if [[ -f "$flywheel_file" ]]; then
         local missing_tools=()
-        for tool in br ms rch wa brenner dcg ru toon rust_proxy rano xf mdwb pt aadc s2p caut; do
+        for tool in br ms rch wa brenner dcg ru tru rust_proxy rano xf mdwb pt aadc s2p caut; do
             if ! command grep -qE "id:\s*[\"']${tool}[\"']" "$flywheel_file"; then
                 missing_tools+=("$tool")
             fi
