@@ -19,5 +19,8 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "dependencies": {
+    "@openai/codex": "^0.97.0"
+  }
 }

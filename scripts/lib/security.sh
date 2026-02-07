@@ -1090,6 +1090,14 @@ verify_all_installers_json() {
     local skipped=()
     local total=0
 
+    # Remove ANSI escape sequences and control chars that break JSON parsers.
+    _strip_ansi() {
+        local str="$1"
+        str="${str//$'\033'/}"
+        str="${str//\[[0-9;]*m/}"
+        printf '%s' "$str"
+    }
+
     # Helper function to escape strings for JSON
     _json_escape() {
         local str="$1"
@@ -1134,6 +1142,7 @@ verify_all_installers_json() {
             else
                 # Failure
                 fetch_error=$(cat "$tmp_err")
+                fetch_error=$(_strip_ansi "$fetch_error")
                 [[ -z "$fetch_error" ]] && fetch_error="Unknown error fetching checksum"
             fi
             rm -f "$tmp_err"
