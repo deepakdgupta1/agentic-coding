@@ -1,12 +1,16 @@
 "use client";
 
+import * as React from "react";
+import { AnimatePresence, m } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Info,
   Sparkles,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +22,14 @@ interface AlertCardProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  /** Whether the alert can be dismissed */
+  dismissible?: boolean;
+  /** Callback when dismissed */
+  onDismiss?: () => void;
+  /** Auto-dismiss after this many milliseconds (0 = no auto-dismiss) */
+  autoDismissMs?: number;
+  /** Whether to show countdown progress bar when auto-dismissing */
+  showProgress?: boolean;
 }
 
 const variantStyles: Record<
@@ -78,30 +90,96 @@ export function AlertCard({
   title,
   children,
   className,
+  dismissible = false,
+  onDismiss,
+  autoDismissMs = 0,
+  showProgress = false,
 }: AlertCardProps) {
   const styles = variantStyles[variant];
   const IconComponent = icon || styles.defaultIcon;
+  const prefersReducedMotion = useReducedMotion();
+  const [dismissed, setDismissed] = React.useState(false);
+
+  const handleDismiss = React.useCallback(() => {
+    if (dismissed) return;
+    setDismissed(true);
+    onDismiss?.();
+  }, [dismissed, onDismiss]);
+
+  React.useEffect(() => {
+    if (!autoDismissMs || autoDismissMs <= 0 || dismissed) return;
+    const timeout = window.setTimeout(() => {
+      handleDismiss();
+    }, autoDismissMs);
+    return () => window.clearTimeout(timeout);
+  }, [autoDismissMs, dismissed, handleDismiss]);
+
+  const showProgressBar = showProgress && autoDismissMs > 0;
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border p-4 backdrop-blur-sm transition-all",
-        styles.container,
-        className
-      )}
-    >
-      <div className="flex gap-3">
-        <IconComponent
-          className={cn("mt-0.5 h-5 w-5 shrink-0", styles.icon)}
-        />
-        <div className="min-w-0 flex-1 space-y-1">
-          {title && (
-            <p className={cn("font-medium", styles.title)}>{title}</p>
+    <AnimatePresence>
+      {!dismissed && (
+        <m.div
+          className={cn(
+            "relative rounded-xl border p-4 backdrop-blur-sm transition-all",
+            styles.container,
+            className
           )}
-          <div className="text-sm text-muted-foreground">{children}</div>
-        </div>
-      </div>
-    </div>
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={prefersReducedMotion ? {} : { opacity: 0, y: -8, scale: 0.98 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
+        >
+          {dismissible && (
+            <button
+              onClick={handleDismiss}
+              className={cn(
+                "absolute right-3 top-3 flex h-11 w-11 items-center justify-center",
+                "rounded-lg text-current/60 transition-colors",
+                "hover:bg-current/10 hover:text-current",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              )}
+              aria-label="Dismiss alert"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
+          {showProgressBar && (
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-xl",
+                styles.icon
+              )}
+            >
+              <div className="absolute inset-0 bg-current/15" />
+              <m.div
+                className="h-full bg-current/45"
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={
+                  prefersReducedMotion
+                    ? { duration: 0 }
+                    : { duration: autoDismissMs / 1000, ease: "linear" }
+                }
+              />
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <IconComponent
+              className={cn("mt-0.5 h-5 w-5 shrink-0", styles.icon)}
+            />
+            <div className="min-w-0 flex-1 space-y-1">
+              {title && (
+                <p className={cn("font-medium", styles.title)}>{title}</p>
+              )}
+              <div className="text-sm text-muted-foreground">{children}</div>
+            </div>
+          </div>
+        </m.div>
+      )}
+    </AnimatePresence>
   );
 }
 

@@ -339,7 +339,7 @@ function OutputExplainer({
       className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-xl transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04]"
     >
       <code className={`font-mono text-sm font-medium ${color}`}>{pattern}</code>
-      <span className="text-white/40 group-hover:text-white/60 transition-colors">→</span>
+      <span className="text-white/50 group-hover:text-white/70 transition-colors">→</span>
       <span className="text-white/60 group-hover:text-white/80 transition-colors">{meaning}</span>
     </motion.div>
   );

@@ -1179,6 +1179,100 @@ check_stack() {
 }
 
 # ============================================================
+# Utility Tools Health Checks (bd-2gog)
+# ============================================================
+# Optional utility tools from the Dicklesworthstone ecosystem.
+# These are non-fatal checks (skip status) since utilities are optional.
+# ============================================================
+
+check_utilities() {
+    section "Utility tools"
+
+    # tru (Token-Optimized Notation)
+    if command -v tru &>/dev/null; then
+        local version
+        version=$(get_version_line "tru")
+        check "util.tru" "tru ($version)" "pass" "installed"
+    else
+        check "util.tru" "tru (token notation)" "skip" "not installed (optional)"
+    fi
+
+    # rust_proxy (Transparent Proxy Routing)
+    if command -v rust_proxy &>/dev/null; then
+        local version
+        version=$(get_version_line "rust_proxy")
+        check "util.rust_proxy" "rust_proxy ($version)" "pass" "installed"
+    else
+        check "util.rust_proxy" "rust_proxy (proxy routing)" "skip" "not installed (optional)"
+    fi
+
+    # rano (Network Observer for AI CLIs)
+    if command -v rano &>/dev/null; then
+        local version
+        version=$(get_version_line "rano")
+        check "util.rano" "rano ($version)" "pass" "installed"
+    else
+        check "util.rano" "rano (network observer)" "skip" "not installed (optional)"
+    fi
+
+    # xf (X/Twitter Archive Search)
+    if command -v xf &>/dev/null; then
+        local version
+        version=$(get_version_line "xf")
+        check "util.xf" "xf ($version)" "pass" "installed"
+    else
+        check "util.xf" "xf (X archive search)" "skip" "not installed (optional)"
+    fi
+
+    # mdwb (Markdown Web Browser)
+    if command -v mdwb &>/dev/null; then
+        local version
+        version=$(get_version_line "mdwb")
+        check "util.mdwb" "mdwb ($version)" "pass" "installed"
+    else
+        check "util.mdwb" "mdwb (markdown browser)" "skip" "not installed (optional)"
+    fi
+
+    # pt (Process Triage)
+    if command -v pt &>/dev/null; then
+        local version
+        version=$(get_version_line "pt")
+        check "util.pt" "pt ($version)" "pass" "installed"
+    else
+        check "util.pt" "pt (process triage)" "skip" "not installed (optional)"
+    fi
+
+    # aadc (ASCII Diagram Corrector)
+    if command -v aadc &>/dev/null; then
+        local version
+        version=$(get_version_line "aadc")
+        check "util.aadc" "aadc ($version)" "pass" "installed"
+    else
+        check "util.aadc" "aadc (ASCII diagram corrector)" "skip" "not installed (optional)"
+    fi
+
+    # s2p (Source to Prompt TUI)
+    if command -v s2p &>/dev/null; then
+        local version
+        version=$(get_version_line "s2p")
+        check "util.s2p" "s2p ($version)" "pass" "installed"
+    else
+        check "util.s2p" "s2p (source to prompt)" "skip" "not installed (optional)"
+    fi
+
+    # caut (Coding Agent Usage Tracker)
+    if command -v caut &>/dev/null; then
+        local version
+        version=$(get_version_line "caut")
+        check "util.caut" "caut ($version)" "pass" "installed"
+    else
+        check "util.caut" "caut (usage tracker)" "skip" "not installed (optional)"
+    fi
+
+    blank_line
+}
+
+# ============================================================
 # Manifest Supplemental Checks (bd-31ps.5.1)
 # ============================================================
 # Runs manifest-derived checks for tools NOT already covered by the bespoke
@@ -1213,6 +1307,8 @@ _is_bespoke_covered() {
         stack.beads_rust.*|stack.cass|stack.cm.*|stack.caam) return 0 ;;
         stack.dcg.*|stack.ru|stack.meta_skill.*) return 0 ;;
         stack.brenner_bot|stack.rch|stack.wezterm_automata) return 0 ;;
+        # check_utilities (bd-2gog)
+        util.*) return 0 ;;
     esac
     return 1
 }
@@ -2528,6 +2624,7 @@ $(gum style --foreground "$ACFS_MUTED" "OS:") $(gum style --foreground "$ACFS_TE
     check_agents
     check_cloud
     check_stack
+    check_utilities
     check_manifest_supplemental
     show_skipped_tools
 

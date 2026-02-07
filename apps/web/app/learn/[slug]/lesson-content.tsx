@@ -133,7 +133,7 @@ function LessonSidebar({
                 <span className="block text-lg font-bold tracking-tight bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
                   Learning Hub
                 </span>
-                <span className="text-[11px] text-white/40 uppercase tracking-[0.2em] font-medium">
+                <span className="text-xs text-white/60 uppercase tracking-[0.2em] font-medium">
                   ACFS Academy
                 </span>
               </div>
@@ -183,7 +183,7 @@ function LessonSidebar({
                 </div>
 
                 <div className="flex items-center justify-between mt-4 text-xs">
-                  <span className="text-white/40">{completedLessons.length} of {LESSONS.length}</span>
+                  <span className="text-white/60">{completedLessons.length} of {LESSONS.length}</span>
                   <span className="text-emerald-400/80">{LESSONS.length - completedLessons.length} remaining</span>
                 </div>
               </div>
@@ -227,7 +227,7 @@ function LessonSidebar({
                               ? "bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-400/50 text-white shadow-[0_0_20px_rgba(16,185,129,0.5)]"
                               : isCurrent
                                 ? "bg-gradient-to-br from-primary to-violet-500 border-primary/50 text-white shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)]"
-                                : "bg-white/[0.05] border-white/10 text-white/40 group-hover:border-white/30 group-hover:bg-white/[0.08] group-hover:text-white/70"
+                                : "bg-white/[0.05] border-white/10 text-white/60 group-hover:border-white/30 group-hover:bg-white/[0.08] group-hover:text-white/80"
                           }`}
                         >
                           {isCompleted ? (
@@ -249,7 +249,7 @@ function LessonSidebar({
                         }`}>
                           {lesson.title}
                         </span>
-                        <span className="flex items-center gap-1.5 text-[11px] text-white/30 mt-1">
+                        <span className="flex items-center gap-1.5 text-xs text-white/60 mt-1">
                           <Clock className="h-3 w-3" />
                           {lesson.duration}
                         </span>
@@ -257,7 +257,7 @@ function LessonSidebar({
 
                       {/* Active indicator */}
                       {isCurrent && (
-                        <div className="flex items-center gap-1 text-[10px] font-medium text-primary">
+                        <div className="flex items-center gap-1 text-xs font-medium text-primary">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                           NOW
                         </div>
@@ -273,7 +273,7 @@ function LessonSidebar({
           <div className="p-6 border-t border-white/[0.05]">
             <Link
               href="/"
-              className="group flex items-center gap-4 text-sm text-white/40 transition-all duration-500 hover:text-white/80"
+              className="group flex items-center gap-4 text-sm text-white/60 transition-all duration-500 hover:text-white/90"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] border border-white/[0.08] transition-all duration-500 group-hover:scale-110 group-hover:bg-white/[0.08] group-hover:border-white/20">
                 <Home className="h-5 w-5 transition-transform duration-500 group-hover:-translate-y-0.5" />
@@ -453,8 +453,8 @@ export function LessonContent({ lesson }: Props) {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/[0.05] border border-white/[0.08]">
                     <span className="text-sm font-bold text-primary tabular-nums">{lesson.id + 1}</span>
-                    <span className="text-white/30">/</span>
-                    <span className="text-sm text-white/40 tabular-nums">{LESSONS.length}</span>
+                    <span className="text-white/50">/</span>
+                    <span className="text-sm text-white/60 tabular-nums">{LESSONS.length}</span>
                   </div>
                 </div>
               </div>
@@ -512,7 +512,7 @@ export function LessonContent({ lesson }: Props) {
                   <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-black/40 to-orange-500/5 backdrop-blur-2xl p-8">
                     {/* Animated accent */}
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-500" />
 
                     <div className="relative flex gap-6">
                       <div className="relative shrink-0">
@@ -564,7 +564,7 @@ export function LessonContent({ lesson }: Props) {
                 <div className={`absolute -inset-2 rounded-[28px] transition-all duration-700 ${
                   isCompleted
                     ? "bg-gradient-to-r from-emerald-500/40 via-emerald-400/30 to-emerald-500/40 blur-2xl opacity-100"
-                    : "bg-gradient-to-r from-primary/40 via-violet-500/30 to-primary/40 blur-2xl opacity-0 group-hover:opacity-100"
+                    : "bg-gradient-to-r from-primary/40 via-violet-500/30 to-primary/40 blur-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                 }`} />
 
                 <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-white/[0.05] backdrop-blur-2xl p-10">
@@ -650,15 +650,15 @@ export function LessonContent({ lesson }: Props) {
                 {prevLesson ? (
                   <Link
                     href={`/learn/${prevLesson.slug}`}
-                    className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-500 hover:bg-white/[0.05] hover:border-white/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] hover:-translate-y-1"
+                    className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-500 hover:bg-white/[0.05] hover:border-white/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-500" />
                     <div className="relative flex items-center gap-5">
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] border border-white/[0.08] transition-all duration-500 group-hover:scale-110 group-hover:bg-white/[0.1] group-hover:border-white/20">
                         <ChevronLeft className="h-6 w-6 text-white/60 transition-all duration-500 group-hover:text-white group-hover:-translate-x-1" />
                       </div>
                       <div>
-                        <div className="text-xs text-white/30 mb-1 uppercase tracking-wider font-medium">Previous</div>
+                        <div className="text-xs text-white/50 mb-1 uppercase tracking-wider font-medium">Previous</div>
                         <div className="text-lg font-semibold text-white/80 transition-colors group-hover:text-white">{prevLesson.title}</div>
                       </div>
                     </div>
@@ -669,12 +669,12 @@ export function LessonContent({ lesson }: Props) {
                 {nextLesson ? (
                   <Link
                     href={`/learn/${nextLesson.slug}`}
-                    className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-500 hover:bg-white/[0.05] hover:border-white/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] hover:-translate-y-1 text-right"
+                    className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-500 hover:bg-white/[0.05] hover:border-white/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] hover:-translate-y-1 text-right focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-l from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-l from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-500" />
                     <div className="relative flex items-center justify-end gap-5">
                       <div>
-                        <div className="text-xs text-white/30 mb-1 uppercase tracking-wider font-medium">Next</div>
+                        <div className="text-xs text-white/50 mb-1 uppercase tracking-wider font-medium">Next</div>
                         <div className="text-lg font-semibold text-white/80 transition-colors group-hover:text-white">{nextLesson.title}</div>
                       </div>
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] border border-white/[0.08] transition-all duration-500 group-hover:scale-110 group-hover:bg-white/[0.1] group-hover:border-white/20">

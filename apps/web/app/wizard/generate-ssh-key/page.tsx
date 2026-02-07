@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Key, ShieldCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
+import { CodeBlock } from "@/components/ui/code-block";
 import { AlertCard, DetailsSection, OutputPreview } from "@/components/alert-card";
 import { markStepComplete } from "@/lib/wizardSteps";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
@@ -416,9 +417,9 @@ export default function GenerateSSHKeyPage() {
 
           <GuideTip>
             Your public key looks something like this:
-            <code className="mt-2 block overflow-x-auto rounded bg-muted p-2 font-mono text-xs">
-              ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGx... acfs
-            </code>
+            <div className="mt-2">
+              <CodeBlock code="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGx... acfs" variant="compact" />
+            </div>
             Make sure you copy the WHOLE thing, from &quot;ssh-ed25519&quot; to &quot;acfs&quot;!
           </GuideTip>
 
@@ -436,9 +437,9 @@ export default function GenerateSSHKeyPage() {
               <br /><br />
               <strong>&quot;Permission denied&quot;:</strong> Try this command first, then run the
               ssh-keygen command again:
-              <code className="my-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-xs">
-                mkdir -p ~/.ssh && chmod 700 ~/.ssh
-              </code>
+              <div className="my-2">
+                <CodeBlock code="mkdir -p ~/.ssh && chmod 700 ~/.ssh" variant="compact" />
+              </div>
               <strong>&quot;File already exists&quot;:</strong> You already have a key! You can
               use your existing key, or type &quot;y&quot; and press Enter to overwrite it.
             </p>

@@ -25,6 +25,7 @@ declare -ga ACFS_CHANGE_ORDER    # Ordered list of change IDs (global)
 # Session management
 ACFS_SESSION_ID=""
 ACFS_AUTOFIX_INITIALIZED=false
+ACFS_AUTOFIX_LOCK_FD=""
 
 # =============================================================================
 # Logging Helpers (avoid dependency on logging.sh)
@@ -376,10 +377,24 @@ start_autofix_session() {
     log_info "[AUTO-FIX] Starting session: $ACFS_SESSION_ID"
 
     # Acquire lock (prevent concurrent modifications)
-    exec 200>"$ACFS_LOCK_FILE"
-    if ! flock -n 200; then
-        log_error "Another ACFS process is running auto-fix operations"
-        return 1
+    # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
+    # before `if` can catch the failure. We test in a subshell first,
+    # then only exec in the main shell if the subshell succeeded.
+    ACFS_AUTOFIX_LOCK_FD=""
+    if (exec 200>"$ACFS_LOCK_FILE") 2>/dev/null; then
+        exec 200>"$ACFS_LOCK_FILE"
+        ACFS_AUTOFIX_LOCK_FD=200
+    elif (exec 199>"$ACFS_LOCK_FILE") 2>/dev/null; then
+        exec 199>"$ACFS_LOCK_FILE"
+        ACFS_AUTOFIX_LOCK_FD=199
+    fi
+    if [[ -n "$ACFS_AUTOFIX_LOCK_FD" ]]; then
+        if ! flock -n "$ACFS_AUTOFIX_LOCK_FD"; then
+            log_error "Another ACFS process is running auto-fix operations"
+            return 1
+        fi
+    else
+        log_warn "Could not acquire autofix lock (continuing anyway)"
     fi
 
     # Write session start marker
@@ -402,8 +417,11 @@ end_autofix_session() {
     # Remove session marker
     rm -f "$ACFS_STATE_DIR/.session"
 
-    # Release lock
-    flock -u 200 2>/dev/null || true
+    # Release lock (use whichever FD was acquired in start_autofix_session)
+    if [[ -n "${ACFS_AUTOFIX_LOCK_FD:-}" ]]; then
+        flock -u "$ACFS_AUTOFIX_LOCK_FD" 2>/dev/null || true
+        ACFS_AUTOFIX_LOCK_FD=""
+    fi
 }
 
 # =============================================================================

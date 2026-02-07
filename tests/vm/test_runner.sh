@@ -33,7 +33,7 @@ fi
 
 # PHASE 1: Fresh Install
 log "PHASE 1: Fresh Install (mode=${ACFS_TEST_MODE})"
-if bash install.sh --yes --mode "${ACFS_TEST_MODE}" ${STRICT_FLAG} > "${ARTIFACTS_DIR}/install.log" 2>&1; then
+if bash install.sh --yes --skip-ubuntu-upgrade --mode "${ACFS_TEST_MODE}" ${STRICT_FLAG} > "${ARTIFACTS_DIR}/install.log" 2>&1; then
     log "Install successful"
 else
     log "Install failed! Last 50 lines:"
@@ -58,23 +58,23 @@ run_check() {
 
 failed_checks=0
 
-run_check "doctor" "zsh -ic 'acfs doctor'" || ((failed_checks++))
-run_check "state_file" "test -f ~/.acfs/VERSION" || ((failed_checks++))
-run_check "onboard" "zsh -ic 'onboard --help >/dev/null'" || ((failed_checks++))
-run_check "ntm" "zsh -ic 'ntm --help >/dev/null'" || ((failed_checks++))
-run_check "gh" "zsh -ic 'gh --version >/dev/null'" || ((failed_checks++))
-run_check "jq" "zsh -ic 'jq --version >/dev/null'" || ((failed_checks++))
-run_check "sg" "zsh -ic 'sg --version >/dev/null'" || ((failed_checks++))
-run_check "codex" "zsh -ic 'codex --version >/dev/null'" || ((failed_checks++))
-run_check "gemini" "zsh -ic 'gemini --version >/dev/null'" || ((failed_checks++))
-run_check "claude" "zsh -ic 'claude --version >/dev/null'" || ((failed_checks++))
-run_check "ru" "zsh -ic 'ru --version >/dev/null'" || ((failed_checks++))
-run_check "dcg" "zsh -ic 'dcg --version >/dev/null'" || ((failed_checks++))
+run_check "doctor" "zsh -ic 'acfs doctor'" || failed_checks=$((failed_checks + 1))
+run_check "state_file" "test -f ~/.acfs/VERSION" || failed_checks=$((failed_checks + 1))
+run_check "onboard" "zsh -ic 'onboard --help >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "ntm" "zsh -ic 'ntm --help >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "gh" "zsh -ic 'gh --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "jq" "zsh -ic 'jq --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "sg" "zsh -ic 'sg --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "codex" "zsh -ic 'codex --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "gemini" "zsh -ic 'gemini --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "claude" "zsh -ic 'claude --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "ru" "zsh -ic 'ru --version >/dev/null'" || failed_checks=$((failed_checks + 1))
+run_check "dcg" "zsh -ic 'dcg --version >/dev/null'" || failed_checks=$((failed_checks + 1))
 
 # Check DCG hook
-run_check "dcg_hook" "zsh -ic 'set -o pipefail; dcg doctor --format json 2>/dev/null | jq -e \".hook_registered == true\" >/dev/null || dcg doctor 2>/dev/null | grep -qi \"hook wiring.*OK\"'" || ((failed_checks++))
-run_check "dcg_block" "zsh -ic 'dcg test \"git reset --hard\" | grep -Eqi \"deny|block\"'" || ((failed_checks++))
-run_check "dcg_allow" "zsh -ic 'dcg test \"git status\" | grep -Eqi \"allow\"'" || ((failed_checks++))
+run_check "dcg_hook" "zsh -ic 'set -o pipefail; dcg doctor --format json 2>/dev/null | jq -e \".hook_registered == true\" >/dev/null || dcg doctor 2>/dev/null | grep -qi \"hook wiring.*OK\"'" || failed_checks=$((failed_checks + 1))
+run_check "dcg_block" "zsh -ic 'dcg test \"git reset --hard\" | grep -Eqi \"deny|block\"'" || failed_checks=$((failed_checks + 1))
+run_check "dcg_allow" "zsh -ic 'dcg test \"git status\" | grep -Eqi \"allow\"'" || failed_checks=$((failed_checks + 1))
 
 # Resume checks
 if bash /repo/tests/vm/resume_checks.sh >> "$VERIFY_LOG" 2>&1; then
@@ -121,7 +121,7 @@ fi
 
 # PHASE 3: Idempotency
 log "PHASE 3: Idempotency Check"
-if bash install.sh --yes --mode "${ACFS_TEST_MODE}" ${STRICT_FLAG} > "${ARTIFACTS_DIR}/idempotency.log" 2>&1; then
+if bash install.sh --yes --skip-ubuntu-upgrade --mode "${ACFS_TEST_MODE}" ${STRICT_FLAG} > "${ARTIFACTS_DIR}/idempotency.log" 2>&1; then
     log "Idempotency run successful"
 else
     log "Idempotency run failed! Last 50 lines:"

@@ -1,4 +1,4 @@
-# checksums.yaml - Auto-generated 2026-01-30T21:10:00+00:00
+# checksums.yaml - Auto-generated 2026-02-05T08:23:50+00:00
 # Run: ./scripts/lib/security.sh --update-checksums
 
 installers:
@@ -32,7 +32,7 @@ installers:
 
   dcg:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh"
-    sha256: "8a1cd1c91f40b1561a73f904d4809ee93e9ea9415f5cccaf8f996f095916f8c1"
+    sha256: "b3a4a7b5195cc7c95c31afc663103c216d005ab2bd72b7a2f133dde1a6e43e68"
 
   claude:
     url: "https://claude.ai/install.sh"
@@ -60,11 +60,11 @@ installers:
 
   uv:
     url: "https://astral.sh/uv/install.sh"
-    sha256: "2206437df06d0fff515d0e95193cfc2f4c2719d4c82f569d70057bbf5c4caba7"
+    sha256: "e10ae0dcd7b12acc506b3fee059f1eddd3288e277d9bdf657dd0261f574f53b4"
 
   pt:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/process_triage/master/install.sh"
-    sha256: "9bd53fc4f77441b79ed897e1029f962df8e89476653f46064a6dd7702ab232c5"
+    sha256: "536a8f7e2bcf4eddd2ed11b37513c27777515b4951a8ee3534bcf9e64e0e4a9c"
 
   tru:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/toon_rust/master/install.sh"
@@ -108,7 +108,7 @@ installers:
 
   jfp:
     url: "https://jeffreysprompts.com/install-cli.sh"
-    sha256: "97db629240b4065349e63601f05cd483fcec4b1e16008e986d6eed3c3a0367b7"
+    sha256: "FETCH_FAILED"
 
   rust:
     url: "https://sh.rustup.rs"

@@ -167,10 +167,10 @@ const COMMANDS: CommandEntry[] = [
     learnMoreHref: "/learn/ntm-palette",
   },
   {
-    name: "bd",
+    name: "br",
     fullName: "Beads CLI",
     description: "Create/update issues and dependencies",
-    example: "bd ready",
+    example: "br ready",
     category: "stack",
     learnMoreHref: "/learn/tools/beads",
   },
@@ -514,7 +514,7 @@ function CategoryCard({
                       <code className="font-mono text-lg font-bold text-white">
                         {cmd.name}
                       </code>
-                      <span className="text-sm font-medium text-white/40">
+                      <span className="text-sm font-medium text-white/60">
                         {cmd.fullName}
                       </span>
                     </div>
@@ -525,7 +525,7 @@ function CategoryCard({
                   <div className="flex items-center gap-4 shrink-0">
                     <Link
                       href={`#${anchorId}`}
-                      className="text-xs text-white/30 hover:text-white/60 transition-colors font-mono"
+                      className="text-xs text-white/50 hover:text-white/70 transition-colors font-mono"
                     >
                       #{anchorId}
                     </Link>
@@ -676,14 +676,14 @@ export default function CommandReferencePage() {
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/30 via-violet-500/20 to-primary/30 blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
 
             <div className="relative">
-              <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-white/30 transition-colors group-focus-within:text-primary" />
+              <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50 transition-colors group-focus-within:text-primary" />
               <input
                 type="text"
                 placeholder="Search commands..."
                 aria-label="Search commands"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-4 pl-14 pr-5 text-white placeholder:text-white/30 backdrop-blur-xl transition-all duration-300 focus:border-primary/50 focus:bg-white/[0.05] focus:outline-none focus:shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)]"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-4 pl-14 pr-5 text-white placeholder:text-white/50 backdrop-blur-xl transition-all duration-300 focus:border-primary/50 focus:bg-white/[0.05] focus:outline-none focus:shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)]"
               />
             </div>
           </div>
@@ -739,10 +739,10 @@ export default function CommandReferencePage() {
               <div className="relative inline-flex mb-6">
                 <div className="absolute inset-0 bg-white/10 rounded-2xl blur-xl" />
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.05] border border-white/[0.08]">
-                  <Search className="h-8 w-8 text-white/30" />
+                  <Search className="h-8 w-8 text-white/50" />
                 </div>
               </div>
-              <p className="text-lg text-white/40">
+              <p className="text-lg text-white/60">
                 No commands match your search.
               </p>
               <p className="text-sm text-white/25 mt-2">

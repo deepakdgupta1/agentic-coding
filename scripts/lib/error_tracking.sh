@@ -750,8 +750,9 @@ try_step_with_backoff() {
         LAST_ERROR_CODE=0
         LAST_ERROR_OUTPUT=""
         return 0
+    else
+        exit_code=$?
     fi
-    exit_code=$?
 
     # Failure - error context already set by retry_with_backoff
     if type -t state_phase_fail &>/dev/null; then
@@ -839,8 +840,9 @@ install_tool_tracked() {
             log_success "$tool_name installed successfully"
         fi
         return 0
+    else
+        exit_code=$?
     fi
-    exit_code=$?
 
     track_failed_tool "$tool_name" "Exit code $exit_code"
     return 1

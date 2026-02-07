@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # ACFS newproj - Create a new project with full ACFS tooling
-# Creates a project with git, beads (bd), multi-agent configs, and AGENTS.md
+# Creates a project with git, beads (br), Claude settings, and AGENTS.md
 # Supports both CLI mode and interactive TUI wizard mode
 # ============================================================
 
@@ -87,7 +87,7 @@ print_help() {
     echo "Usage: acfs newproj [options] <project-name> [directory]"
     echo "       acfs newproj --interactive"
     echo ""
-    echo "Create a new project with ACFS tooling (git, bd, agent configs, AGENTS.md)"
+    echo "Create a new project with ACFS tooling (git, br, claude settings, AGENTS.md)"
     echo ""
     echo "Arguments:"
     echo "  project-name    Name of the project (required in CLI mode)"
@@ -98,8 +98,8 @@ print_help() {
     echo "                      (recommended for first-time users)"
     echo ""
     echo "CLI mode options:"
-    echo "  --no-bd         Skip beads (bd) initialization"
-    echo "  --no-agent-configs  Skip agent settings (Claude, Gemini, Codex, AMP, Antigravity)"
+    echo "  --no-br         Skip beads (br) initialization"
+    echo "  --no-claude     Skip Claude settings creation"
     echo "  --no-agents     Skip AGENTS.md template creation"
     echo "  -h, --help      Show this help message"
     echo ""
@@ -213,9 +213,7 @@ Example structure:
 PROJECT_NAME_PLACEHOLDER/
 ├── README.md
 ├── AGENTS.md
-├── GEMINI.md -> AGENTS.md         # Gemini CLI / Antigravity
-├── .agent/                        # Shared rules + skills (Antigravity)
-├── .beads/                        # Issue tracking (bd)
+├── .beads/                        # Issue tracking (br)
 ├── .claude/                       # Claude Code settings
 ├── .gemini/                       # Gemini CLI rules
 ├── .codex/                        # Codex CLI rules
@@ -332,13 +330,10 @@ Common pitfalls:
 
 All issue tracking goes through **Beads**. No other TODO systems.
 
-**Note:** `br` is a convenience alias (installed by `acfs/zsh/acfs.zshrc`) for the real Beads CLI: `bd`.
-If `br` is unavailable (CI / non-interactive shells), use `bd` directly.
-
 Key invariants:
 
 - `.beads/` is authoritative state and **must always be committed** with code changes.
-- Do not edit `.beads/*.jsonl` directly; only via `br` / `bd`.
+- Do not edit `.beads/*.jsonl` directly; only via `br`.
 
 ### Basics
 
@@ -548,8 +543,8 @@ run_interactive_mode() {
 main() {
     local project_name=""
     local project_dir=""
-    local skip_bd=false
-    local skip_agent_configs=false
+    local skip_br=false
+    local skip_claude=false
     local skip_agents=false
     local interactive_mode=false
 
@@ -564,8 +559,8 @@ main() {
                 interactive_mode=true
                 shift
                 ;;
-            --no-bd)
-                skip_bd=true
+            --no-br)
+                skip_br=true
                 shift
                 ;;
             --no-agent-configs)
@@ -766,7 +761,7 @@ EOF
     fi
 
     # Initialize beads (br) if available and not skipped
-    if [[ "$skip_bd" == "false" ]]; then
+    if [[ "$skip_br" == "false" ]]; then
         if command -v br &>/dev/null; then
             if [[ ! -d .beads ]]; then
                 echo -e "${GREEN}Initializing beads (br)...${NC}"
@@ -905,7 +900,7 @@ EOF
     if [[ "$skip_agents" == "false" ]] && [[ -f AGENTS.md ]]; then
         echo "  # Edit AGENTS.md to customize for your project"
     fi
-    if [[ "$skip_bd" == "false" ]] && command -v br &>/dev/null; then
+    if [[ "$skip_br" == "false" ]] && command -v br &>/dev/null; then
         echo "  br ready                    # Check for work"
         echo "  br create --title=\"...\"    # Create tasks"
     fi

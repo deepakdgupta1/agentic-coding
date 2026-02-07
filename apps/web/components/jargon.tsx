@@ -12,10 +12,11 @@ import {
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, springs } from "@/components/motion";
-import { X, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getJargon, type JargonTerm } from "@/lib/jargon";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 interface JargonProps {
   /** The term key to look up in the dictionary */
@@ -99,21 +100,6 @@ export function Jargon({ term, children, className, gradientHeading }: JargonPro
     setTooltipLayout({ position, style: { left, ...verticalStyle } });
   }, [isOpen, isMobile]);
 
-  // Lock body scroll when mobile sheet is open
-  useEffect(() => {
-    if (isOpen && isMobile) {
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
-      return () => {
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.width = "";
-        window.scrollTo(0, scrollY);
-      };
-    }
-  }, [isOpen, isMobile]);
 
   const handleMouseEnter = useCallback(() => {
     if (isMobile) return;
@@ -164,25 +150,6 @@ export function Jargon({ term, children, className, gradientHeading }: JargonPro
     setIsOpen(false);
   }, []);
 
-  // Handle click outside for mobile
-  useEffect(() => {
-    if (!isOpen || !isMobile) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        triggerRef.current &&
-        !triggerRef.current.contains(target) &&
-        tooltipRef.current &&
-        !tooltipRef.current.contains(target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, isMobile]);
 
   if (!jargonData) {
     // If term not found, just render children without styling
@@ -241,7 +208,7 @@ export function Jargon({ term, children, className, gradientHeading }: JargonPro
               }
               transition={prefersReducedMotion ? { duration: 0.12 } : springs.snappy}
               className={cn(
-                "fixed z-[9999] w-80 max-w-[calc(100vw-2rem)]",
+                "fixed z-50 w-80 max-w-[calc(100vw-2rem)]",
                 "rounded-xl border border-border/50 bg-card/95 p-4 shadow-2xl backdrop-blur-xl",
                 // Gradient accent line at top
                 "before:absolute before:inset-x-0 before:h-1 before:rounded-t-xl before:bg-gradient-to-r before:from-primary/50 before:via-[oklch(0.7_0.2_330/0.5)] before:to-primary/50",
@@ -271,60 +238,18 @@ export function Jargon({ term, children, className, gradientHeading }: JargonPro
         document.body
       )}
 
-      {/* Mobile Bottom Sheet - rendered via portal to escape stacking contexts */}
-      {canUsePortal && createPortal(
-        <AnimatePresence>
-          {isOpen && isMobile && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={prefersReducedMotion ? { duration: 0.12 } : { duration: 0.2 }}
-                className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm"
-                onClick={handleClose}
-                aria-hidden="true"
-              />
-
-              {/* Sheet */}
-              <motion.div
-                ref={tooltipRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={`jargon-sheet-title-${termKey}`}
-                initial={prefersReducedMotion ? { opacity: 0 } : { y: "100%" }}
-                animate={prefersReducedMotion ? { opacity: 1 } : { y: 0 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { y: "100%" }}
-                transition={prefersReducedMotion ? { duration: 0.12 } : springs.smooth}
-                className="fixed inset-x-0 bottom-0 z-[9999] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border/50 bg-card/98 shadow-2xl backdrop-blur-xl"
-              >
-                {/* Handle */}
-                <div className="flex shrink-0 justify-center pt-3 pb-1">
-                  <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-                </div>
-
-                {/* Close button */}
-                <button
-                  onClick={handleClose}
-                  className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-
-                {/* Content - iOS needs overscroll-contain and touch-action for proper scrolling */}
-                <div
-                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-2 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"
-                  style={{ WebkitOverflowScrolling: 'touch' }}
-                >
-                  <SheetContent term={jargonData} termKey={termKey} />
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>,
-        document.body
+      {/* Mobile Bottom Sheet */}
+      {canUsePortal && (
+        <BottomSheet
+          open={isOpen && isMobile}
+          onClose={handleClose}
+          title={jargonData.term}
+          showHandle
+          closeOnBackdrop
+          swipeable={!prefersReducedMotion}
+        >
+          <SheetContent term={jargonData} termKey={termKey} />
+        </BottomSheet>
       )}
     </>
   );
@@ -360,14 +285,14 @@ function TooltipContent({ term, termKey }: { term: JargonTerm; termKey: string }
       )}
 
       {/* Tap for more hint */}
-      <p className="text-[11px] text-muted-foreground/60">
+      <p className="text-xs text-muted-foreground/60">
         Hover or focus to learn more
       </p>
 
       <Link
         href={glossaryHref}
         className={cn(
-          "inline-block text-[11px] font-medium text-primary underline-offset-4 hover:underline",
+          "inline-block text-xs font-medium text-primary underline-offset-4 hover:underline",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm"
         )}
       >

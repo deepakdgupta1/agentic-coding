@@ -11,6 +11,29 @@ if command -v gum &>/dev/null; then
     HAS_GUM=true
 fi
 
+# ============================================================
+# NO_COLOR Support (https://no-color.org/)
+# Fallback colors respect NO_COLOR env var and TTY status.
+# Related: bd-39ye
+# ============================================================
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 1 ]]; then
+    GUM_FB_BLUE='\033[0;34m'
+    GUM_FB_GREEN='\033[0;32m'
+    GUM_FB_YELLOW='\033[0;33m'
+    GUM_FB_RED='\033[0;31m'
+    GUM_FB_GRAY='\033[0;90m'
+    GUM_FB_PURPLE='\033[0;35m'
+    GUM_FB_NC='\033[0m'
+else
+    GUM_FB_BLUE=''
+    GUM_FB_GREEN=''
+    GUM_FB_YELLOW=''
+    GUM_FB_RED=''
+    GUM_FB_GRAY=''
+    GUM_FB_PURPLE=''
+    GUM_FB_NC=''
+fi
+
 # ACFS Color scheme (Catppuccin Mocha inspired)
 ACFS_PRIMARY="#89b4fa"    # Blue
 ACFS_SUCCESS="#a6e3a1"    # Green
@@ -44,7 +67,7 @@ print_banner() {
             --foreground "$ACFS_PRIMARY" \
             --bold
     else
-        echo -e "\033[0;34m$banner\033[0m"
+        echo -e "${GUM_FB_BLUE}$banner${GUM_FB_NC}"
     fi
 }
 
@@ -83,7 +106,7 @@ gum_step() {
         echo -n " "
         gum style "$message"
     else
-        echo -e "\033[0;34m[$step/$total]\033[0m $message"
+        echo -e "${GUM_FB_BLUE}[$step/$total]${GUM_FB_NC} $message"
     fi
 }
 
@@ -97,7 +120,7 @@ gum_detail() {
             --margin "0 0 0 4" \
             "→ $message"
     else
-        echo -e "\033[0;90m    → $message\033[0m"
+        echo -e "${GUM_FB_GRAY}    → $message${GUM_FB_NC}"
     fi
 }
 
@@ -111,7 +134,7 @@ gum_success() {
             --bold \
             "✓ $message"
     else
-        echo -e "\033[0;32m✓ $message\033[0m"
+        echo -e "${GUM_FB_GREEN}✓ $message${GUM_FB_NC}"
     fi
 }
 
@@ -124,7 +147,7 @@ gum_warn() {
             --foreground "$ACFS_WARNING" \
             "⚠ $message"
     else
-        echo -e "\033[0;33m⚠ $message\033[0m"
+        echo -e "${GUM_FB_YELLOW}⚠ $message${GUM_FB_NC}"
     fi
 }
 
@@ -138,7 +161,7 @@ gum_error() {
             --bold \
             "✖ $message"
     else
-        echo -e "\033[0;31m✖ $message\033[0m"
+        echo -e "${GUM_FB_RED}✖ $message${GUM_FB_NC}"
     fi
 }
 
@@ -162,7 +185,7 @@ gum_spin() {
             --title "$message" \
             -- "$@"
     else
-        echo -e "\033[0;90m⏳ $message...\033[0m"
+        echo -e "${GUM_FB_GRAY}⏳ $message...${GUM_FB_NC}"
         "$@"
     fi
 }
@@ -291,7 +314,7 @@ gum_section() {
     else
         echo ""
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo -e "\033[0;35m $title\033[0m"
+        echo -e "${GUM_FB_PURPLE} $title${GUM_FB_NC}"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     fi
 }
@@ -347,7 +370,7 @@ $content"
     else
         echo ""
         echo "╔═══════════════════════════════════════════╗"
-        echo -e "║ \033[0;32m$title\033[0m"
+        echo -e "║ ${GUM_FB_GREEN}$title${GUM_FB_NC}"
         echo "╠═══════════════════════════════════════════╣"
         # shellcheck disable=SC2001
         echo "$content" | sed 's/^/║ /'

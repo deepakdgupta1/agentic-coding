@@ -106,7 +106,7 @@ function CollapsibleSection({
             <div className="flex items-center gap-2">
               <span className="text-lg font-semibold tracking-tight">{title}</span>
               {badge && (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/20 text-primary">
                   {badge}
                 </span>
               )}
@@ -408,7 +408,7 @@ const PROMPT_BEST_OF_ALL_WORLDS = `I asked 3 competing LLMs to do the exact same
 
 const PROMPT_100_IDEAS = `OK so now I want you to come up with your top 10 most brilliant ideas for adding extremely powerful and cool functionality that will make this system far more compelling, useful, intuitive, versatile, powerful, robust, reliable, etc for the users. Use ultrathink. But be pragmatic and don't think of features that will be extremely hard to implement or which aren't necessarily worth the additional complexity burden they would introduce. But I don't want you to just think of 10 ideas: I want you to seriously think hard and come up with one HUNDRED ideas and then only tell me your 10 VERY BEST and most brilliant, clever, and radically innovative and powerful ideas.`;
 
-const PROMPT_CREATE_BEADS = `OK so please take ALL of that and elaborate on it more and then create a comprehensive and granular set of beads for all this with tasks, subtasks, and dependency structure overlaid, with detailed comments so that the whole thing is totally self-contained and self-documenting (including relevant background, reasoning/justification, considerations, etc.-- anything we'd want our "future self" to know about the goals and intentions and thought process and how it serves the over-arching goals of the project.) Use the \`bd\` tool repeatedly to create the actual beads. Use ultrathink.`;
+const PROMPT_CREATE_BEADS = `OK so please take ALL of that and elaborate on it more and then create a comprehensive and granular set of beads for all this with tasks, subtasks, and dependency structure overlaid, with detailed comments so that the whole thing is totally self-contained and self-documenting (including relevant background, reasoning/justification, considerations, etc.-- anything we'd want our "future self" to know about the goals and intentions and thought process and how it serves the over-arching goals of the project.) Use the \`br\` tool repeatedly to create the actual beads. Use ultrathink.`;
 
 const PROMPT_REVIEW_BEADS = `Check over each bead super carefully-- are you sure it makes sense? Is it optimal? Could we change anything to make the system work better for users? If so, revise the beads. It's a lot easier and faster to operate in "plan space" before we start implementing these things! Use ultrathink.`;
 
@@ -450,7 +450,7 @@ const PROMPT_IMPROVE_README = `What else can we put in there to make the README 
 
 const PROMPT_DO_GH_FLOW = `Do all the GitHub stuff: commit, deploy, create tag, bump version, release, monitor gh actions, compute checksums, etc.`;
 
-const PROMPT_DO_ALL_OF_IT = `OK, please do ALL of that now. Track work via bd beads (no markdown TODO lists): create/claim/update/close beads as you go so nothing gets lost, and keep communicating via Agent Mail when you start/finish work.`;
+const PROMPT_DO_ALL_OF_IT = `OK, please do ALL of that now. Track work via br beads (no markdown TODO lists): create/claim/update/close beads as you go so nothing gets lost, and keep communicating via Agent Mail when you start/finish work.`;
 
 const PROMPT_CHECK_MAIL = `Be sure to check your agent mail and to promptly respond if needed to any messages, and also acknowledge any contact requests; make sure you know the names of all active agents using the MCP Agent Mail system.`;
 
@@ -638,7 +638,7 @@ export default function WorkflowPage() {
             <div className="text-center mb-6">
               <div className="mb-3 flex items-center justify-center gap-2">
                 <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
                 <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
               </div>
               <h3 className="text-xl font-bold tracking-tight mb-2">The Self-Reinforcing Flywheel</h3>
@@ -666,7 +666,7 @@ export default function WorkflowPage() {
                   </div>
                   <div className="text-center">
                     <span className="text-xs font-bold block">{tool.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{tool.desc}</span>
+                    <span className="text-xs text-muted-foreground">{tool.desc}</span>
                   </div>
                 </motion.div>
               ))}
@@ -789,15 +789,15 @@ export default function WorkflowPage() {
                   <p className="text-xs text-muted-foreground mt-1">Deterministic triage output (recommended)</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">
-                  <code className="text-sm font-mono text-primary">bd ready</code>
+                  <code className="text-sm font-mono text-primary">br ready</code>
                   <p className="text-xs text-muted-foreground mt-1">Show beads ready to work on</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">
-                  <code className="text-sm font-mono text-primary">bd stats</code>
+                  <code className="text-sm font-mono text-primary">br stats</code>
                   <p className="text-xs text-muted-foreground mt-1">Project statistics overview</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">
-                  <code className="text-sm font-mono text-primary">bd blocked</code>
+                  <code className="text-sm font-mono text-primary">br blocked</code>
                   <p className="text-xs text-muted-foreground mt-1">Show blocked issues</p>
                 </div>
               </div>
@@ -862,11 +862,11 @@ export default function WorkflowPage() {
               <p className="mb-3">Key coordination tools agents use:</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">
-                  <code className="text-sm font-mono text-primary">bd update ID --status=in_progress</code>
+                  <code className="text-sm font-mono text-primary">br update ID --status=in_progress</code>
                   <p className="text-xs text-muted-foreground mt-1">Claim a bead before working</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">
-                  <code className="text-sm font-mono text-primary">bd close ID</code>
+                  <code className="text-sm font-mono text-primary">br close ID</code>
                   <p className="text-xs text-muted-foreground mt-1">Mark a bead complete</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 bg-card/50">

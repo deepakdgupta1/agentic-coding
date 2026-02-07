@@ -134,10 +134,12 @@ SKIP_UBUNTU_UPGRADE=false
 TARGET_UBUNTU_VERSION="25.10"
 
 # Target user configuration
-# Default: install for the "ubuntu" user (typical VPS images).
-# Advanced: override with env vars (see README):
-#   TARGET_USER=myuser TARGET_HOME=/home/myuser ...
-TARGET_USER="${TARGET_USER:-ubuntu}"
+# Default: detect the current user (or SUDO_USER if running under sudo).
+# Override with env var: TARGET_USER=myuser
+# Note: Previously defaulted to "ubuntu" which broke non-ubuntu VPS installs.
+_ACFS_DETECTED_USER="${SUDO_USER:-$(whoami)}"
+TARGET_USER="${TARGET_USER:-$_ACFS_DETECTED_USER}"
+unset _ACFS_DETECTED_USER
 # Leave TARGET_HOME unset by default; init_target_paths will derive it from:
 # - $HOME when running as TARGET_USER
 # - /home/$TARGET_USER otherwise
@@ -656,7 +658,9 @@ acfs_log_init() {
     # If tee logging fails, we fall back to simple file redirection.
     local tee_logging_ok=false
     if command -v tee >/dev/null 2>&1; then
-        # Test if process substitution works before committing to it
+        # Test if process substitution works before committing to it.
+        # On bash 5.3+, bare `exec` under set -e can exit the script
+        # before `if` catches the failure, so we test in a subshell.
         # shellcheck disable=SC2261
         if (exec 3>&1; echo test > >(cat >/dev/null)) 2>/dev/null; then
             # Process substitution works - set up tee logging
@@ -664,8 +668,9 @@ acfs_log_init() {
             exec 3>&2 || true
             # Now redirect stderr to tee (which sends to both log and original stderr)
             # shellcheck disable=SC2261
-            if exec 2> >(tee -a "$ACFS_LOG_FILE" >&3); then
-                tee_logging_ok=true
+            # Use subshell test first to prevent exec from exiting under bash 5.3+
+            if (set +e; exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)) 2>/dev/null; then
+                exec 2> >(tee -a "$ACFS_LOG_FILE" >&3) && tee_logging_ok=true
             fi
         fi
     fi
@@ -955,6 +960,10 @@ cleanup() {
         log_error ""
         # Emit failure summary (best-effort)
         acfs_summary_emit "failure" 0 2>/dev/null || true
+        # Send webhook notification for failure (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "failure" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
     fi
     # Finalize log file (restore stderr, strip colors, add footer)
     acfs_log_close 2>/dev/null || true
@@ -1136,6 +1145,20 @@ parse_args() {
                 NO_DEPS=true
                 shift
                 ;;
+            --webhook|--webhook=*)
+                # Webhook URL for install completion notification (bd-2zqr)
+                if [[ "$1" == "--webhook" ]]; then
+                    if [[ -z "${2:-}" ]]; then
+                        log_fatal "--webhook requires a URL (e.g., --webhook https://hooks.slack.com/...)"
+                    fi
+                    export ACFS_WEBHOOK_URL="$2"
+                    shift 2
+                else
+                    # Handle --webhook=https://... format
+                    export ACFS_WEBHOOK_URL="${1#*=}"
+                    shift
+                fi
+                ;;
             *)
                 log_warn "Unknown option: $1"
                 shift
@@ -1290,7 +1313,9 @@ detect_environment() {
         ACFS_CHECKSUMS_YAML="$SCRIPT_DIR/checksums.yaml"
         ACFS_MANIFEST_YAML="$SCRIPT_DIR/acfs.manifest.yaml"
     else
-        # Fallback: current directory
+        # Fallback: current directory (only valid for testing from repo root)
+        # This should NOT be reached in curl-pipe mode since bootstrap_repo_archive
+        # sets ACFS_BOOTSTRAP_DIR. If we reach here without SCRIPT_DIR, something is wrong.
         ACFS_LIB_DIR="./scripts/lib"
         ACFS_GENERATED_DIR="./scripts/generated"
         ACFS_ASSETS_DIR="./acfs"
@@ -1299,6 +1324,20 @@ detect_environment() {
     fi
 
     export ACFS_LIB_DIR ACFS_GENERATED_DIR ACFS_ASSETS_DIR ACFS_CHECKSUMS_YAML ACFS_MANIFEST_YAML
+
+    # Validate that library directory exists - if not, fail early with a clear message
+    if [[ ! -d "$ACFS_LIB_DIR" ]]; then
+        local abs_lib_dir="$ACFS_LIB_DIR"
+        # Try to show absolute path for better debugging
+        if [[ "$ACFS_LIB_DIR" == ./* ]]; then
+            abs_lib_dir="$(pwd)/${ACFS_LIB_DIR#./}"
+        fi
+        echo "ERROR: Library directory not found: $abs_lib_dir" >&2
+        echo "This typically means bootstrap failed or the script is being run from an unexpected location." >&2
+        echo "For curl|bash installation, ensure network connectivity to GitHub." >&2
+        echo "For local installation, run from the repository root directory." >&2
+        exit 1
+    fi
 
     # Source minimal libs in correct order (logging, then helpers)
     if [[ -f "$ACFS_LIB_DIR/logging.sh" ]]; then
@@ -1376,6 +1415,12 @@ detect_environment() {
     if [[ -f "$ACFS_LIB_DIR/autofix_existing.sh" ]]; then
         # shellcheck source=scripts/lib/autofix_existing.sh
         source "$ACFS_LIB_DIR/autofix_existing.sh"
+    fi
+
+    # Source webhook notification library (bd-2zqr)
+    if [[ -f "$ACFS_LIB_DIR/webhook.sh" ]]; then
+        # shellcheck source=scripts/lib/webhook.sh
+        source "$ACFS_LIB_DIR/webhook.sh"
     fi
 
     # Source manifest index (data-only, safe to source)
@@ -1758,9 +1803,9 @@ acfs_curl_with_retry() {
 
         if acfs_curl -o "$output_path" "$url"; then
             return 0
+        else
+            exit_code=$?
         fi
-
-        exit_code=$?
         if ! acfs_is_retryable_curl_exit_code "$exit_code"; then
             return "$exit_code"
         fi
@@ -2626,10 +2671,18 @@ acfs_chown_tree() {
     fi
 
     # GNU coreutils: -h = do not dereference symlinks; -R = recursive.
-    if ! $SUDO chown -hR "$owner_group" "$resolved"; then
-        log_error "acfs_chown_tree: chown failed for $resolved"
-        return 1
-    fi
+    # Transient files (SSH control sockets, etc.) may vanish during the
+    # recursive walk of a live home directory.  Only fail on non-transient errors.
+    local _chown_err=""
+    _chown_err=$($SUDO chown -hR "$owner_group" "$resolved" 2>&1) || {
+        local _real_err
+        _real_err=$(printf '%s\n' "$_chown_err" | grep -v "No such file or directory" || true)
+        if [[ -n "$_real_err" ]]; then
+            log_error "acfs_chown_tree: chown failed for $resolved"
+            return 1
+        fi
+        log_detail "acfs_chown_tree: transient file warnings during chown (safe to ignore)"
+    }
 }
 
 confirm_or_exit() {
@@ -2659,8 +2712,8 @@ confirm_or_exit() {
 # Set up target-specific paths
 # Must be called after ensure_root
 init_target_paths() {
-    # If running as ubuntu, use ubuntu's home
-    # If running as root, install for ubuntu user
+    # If running as the target user, use their $HOME directly.
+    # If running as root (or another user), derive TARGET_HOME from TARGET_USER.
     if [[ "$(whoami)" == "$TARGET_USER" ]]; then
         TARGET_HOME="${TARGET_HOME:-$HOME}"
     else
@@ -2676,8 +2729,8 @@ init_target_paths() {
     fi
 
     # ACFS directories for target user
-    ACFS_HOME="$TARGET_HOME/.acfs"
-    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    ACFS_HOME="${ACFS_HOME:-$TARGET_HOME/.acfs}"
+    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
 
     # Basic hardening: refuse to use a symlinked ACFS_HOME when running with
     # elevated privileges (prevents clobbering arbitrary paths via symlink tricks).
@@ -2910,7 +2963,13 @@ run_ubuntu_upgrade_phase() {
             log_info "Automatically rebooting to clear pending updates..."
 
             # Initialize state file early for tracking
-            mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}"
+            # Try without sudo first, fall back to sudo for system directories
+            if ! mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}" 2>/dev/null; then
+                if [[ $EUID -ne 0 ]] && command -v sudo &>/dev/null; then
+                    sudo mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}"
+                    sudo chown "$(id -u):$(id -g)" "${ACFS_RESUME_DIR:-/var/lib/acfs}" 2>/dev/null || true
+                fi
+            fi
             if type -t state_ensure_valid &>/dev/null; then
                 state_ensure_valid || true
             fi
@@ -3133,8 +3192,13 @@ normalize_user() {
                 
                 # Print password for the operator (important for safe mode)
                 echo "" >&2
-                log_warn "Generated password for '$TARGET_USER': $user_password"
-                log_warn "Save this password! You may need it for sudo access (safe mode)."
+                if declare -f log_sensitive >/dev/null; then
+                    log_sensitive "Generated password for '$TARGET_USER': $user_password"
+                    log_sensitive "Save this password! You may need it for sudo access (safe mode)."
+                else
+                    log_warn "Generated password for '$TARGET_USER': $user_password"
+                    log_warn "Save this password! You may need it for sudo access (safe mode)."
+                fi
                 echo "" >&2
             else
                 log_warn "Failed to generate password for $TARGET_USER"
@@ -3546,12 +3610,17 @@ install_cli_tools() {
         try_step "Configuring git-lfs" run_as_target git lfs install --skip-repo || true
     fi
 
-    # Install optional apt packages individually to prevent one failure from blocking others
+    # Install optional apt packages - batch install for speed (14→1 apt-get calls)
     log_detail "Installing optional apt packages"
     local optional_pkgs=(lsd eza bat fd-find btop dust neovim htop tree ncdu httpie entr mtr pv docker.io docker-compose-plugin)
-    for pkg in "${optional_pkgs[@]}"; do
-        $SUDO apt-get install -y "$pkg" >/dev/null 2>&1 || log_detail "$pkg not available (optional)"
-    done
+    # First attempt: batch install all at once (fastest path)
+    if ! $SUDO apt-get install -y "${optional_pkgs[@]}" >/dev/null 2>&1; then
+        # Fallback: some packages failed, install individually to get what we can
+        log_detail "Batch install failed, trying packages individually"
+        for pkg in "${optional_pkgs[@]}"; do
+            $SUDO apt-get install -y "$pkg" >/dev/null 2>&1 || log_detail "$pkg not available (optional)"
+        done
+    fi
 
     # Robust lazygit install (apt or binary fallback)
     if ! command_exists lazygit; then
@@ -3792,13 +3861,21 @@ install_languages_legacy_tools() {
         try_step "Installing Atuin" acfs_run_verified_upstream_script_as_target "atuin" "sh" || return 1
     fi
 
-    # Zoxide (install as target user)
+    # Zoxide - prefer apt to avoid GitHub API rate limits in CI
     # Check multiple possible locations
     if [[ -x "$TARGET_HOME/.local/bin/zoxide" ]] || [[ -x "/usr/local/bin/zoxide" ]] || command -v zoxide &>/dev/null; then
         log_detail "Zoxide already installed"
     else
         log_detail "Installing Zoxide for $TARGET_USER"
-        try_step "Installing Zoxide" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+        # Prefer apt (avoids GitHub API rate limits), fall back to upstream script
+        if apt-cache show zoxide &>/dev/null; then
+            try_step "Installing Zoxide (apt)" $SUDO apt-get install -y zoxide || {
+                log_detail "apt install failed, falling back to upstream script"
+                try_step "Installing Zoxide (upstream)" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+            }
+        else
+            try_step "Installing Zoxide" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+        fi
     fi
 }
 
@@ -4511,11 +4588,32 @@ NTM_CONFIG_EOF
     fi
 
     # SLB (Simultaneous Launch Button)
+    # The upstream install script calls GitHub API for latest version, which hits rate limits in CI.
+    # We install via .deb package directly to avoid this.
     if binary_installed "slb"; then
         log_detail "SLB already installed"
     else
         log_detail "Installing SLB"
-        try_step "Installing SLB" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+        local slb_version="0.2.0"
+        local slb_arch="amd64"
+        [[ "$(uname -m)" == "aarch64" ]] && slb_arch="arm64"
+        local slb_deb="slb_${slb_version}_linux_${slb_arch}.deb"
+        local slb_url="https://github.com/Dicklesworthstone/slb/releases/download/v${slb_version}/${slb_deb}"
+        local slb_tmp
+        slb_tmp="$(mktemp -d "${TMPDIR:-/tmp}/acfs-slb.XXXXXX" 2>/dev/null)" || slb_tmp=""
+        if [[ -n "$slb_tmp" ]] && [[ -d "$slb_tmp" ]]; then
+            if acfs_curl -o "${slb_tmp}/${slb_deb}" "$slb_url" && \
+               $SUDO dpkg -i "${slb_tmp}/${slb_deb}"; then
+                log_success "SLB installed via .deb"
+            else
+                log_warn "SLB .deb install failed, trying upstream script"
+                try_step "Installing SLB (upstream)" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+            fi
+            rm -rf "$slb_tmp"
+        else
+            log_warn "Failed to create temp directory for SLB, trying upstream script"
+            try_step "Installing SLB (upstream)" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+        fi
     fi
 
     # RU (Repo Updater)
@@ -4637,6 +4735,7 @@ finalize() {
     try_step "Installing continue.sh" install_asset "scripts/lib/continue.sh" "$ACFS_HOME/scripts/lib/continue.sh" || return 1
     try_step "Installing info.sh" install_asset "scripts/lib/info.sh" "$ACFS_HOME/scripts/lib/info.sh" || return 1
     try_step "Installing cheatsheet.sh" install_asset "scripts/lib/cheatsheet.sh" "$ACFS_HOME/scripts/lib/cheatsheet.sh" || return 1
+    try_step "Installing webhook.sh" install_asset "scripts/lib/webhook.sh" "$ACFS_HOME/scripts/lib/webhook.sh" || return 1
     try_step "Installing dashboard.sh" install_asset "scripts/lib/dashboard.sh" "$ACFS_HOME/scripts/lib/dashboard.sh" || return 1
     try_step "Installing agent_resources.sh" install_asset "scripts/lib/agent_resources.sh" "$ACFS_HOME/scripts/lib/agent_resources.sh" || return 1
     try_step "Installing agent resources templates" install_agent_resources_templates || return 1
@@ -4646,6 +4745,17 @@ finalize() {
     try_step "Setting acfs-update permissions" $SUDO chmod 755 "$ACFS_HOME/bin/acfs-update" || return 1
     try_step "Setting acfs-update ownership" $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/bin/acfs-update" || return 1
     try_step "Linking acfs-update command" run_as_target ln -sf "$ACFS_HOME/bin/acfs-update" "$TARGET_HOME/.local/bin/acfs-update" || return 1
+
+    # Install root AGENTS.md generator (if available) and generate /AGENTS.md once
+    if [[ -n "${SCRIPT_DIR:-}" ]] && [[ -f "$SCRIPT_DIR/scripts/generate-root-agents-md.sh" ]]; then
+        try_step "Installing flywheel-update-agents-md" install_asset "scripts/generate-root-agents-md.sh" "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Setting flywheel-update-agents-md permissions" $SUDO chmod 755 "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Setting flywheel-update-agents-md ownership" $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Linking flywheel-update-agents-md command" $SUDO ln -sf "$ACFS_HOME/bin/flywheel-update-agents-md" "/usr/local/bin/flywheel-update-agents-md" || return 1
+        try_step "Generating /AGENTS.md" $SUDO /usr/local/bin/flywheel-update-agents-md || true
+    else
+        log_warn "Root AGENTS.md generator not found; skipping /AGENTS.md generation"
+    fi
 
     # Install services-setup wizard
     try_step "Installing services-setup.sh" install_asset "scripts/services-setup.sh" "$ACFS_HOME/scripts/services-setup.sh" || return 1
@@ -5271,7 +5381,19 @@ main() {
             ACFS_RAW="https://raw.githubusercontent.com/${ACFS_REPO_OWNER}/${ACFS_REPO_NAME}/${ACFS_REF}"
             export ACFS_REF ACFS_RAW
         fi
-        bootstrap_repo_archive
+        # Download and extract the repo archive for curl-pipe mode.
+        # This sets ACFS_BOOTSTRAP_DIR and related paths. If it fails, we cannot continue
+        # because the library files (install_helpers.sh, etc.) won't be available.
+        if ! bootstrap_repo_archive; then
+            log_error "Bootstrap failed. Cannot continue without library files."
+            log_error "Try again, or run from a local checkout instead of curl|bash."
+            exit 1
+        fi
+        # Verify bootstrap succeeded - ACFS_BOOTSTRAP_DIR must be set for curl-pipe mode
+        if [[ -z "${ACFS_BOOTSTRAP_DIR:-}" ]]; then
+            log_error "Bootstrap did not set ACFS_BOOTSTRAP_DIR. This is a bug."
+            exit 1
+        fi
     fi
 
     # Detect environment and source manifest index (mjt.5.3)
@@ -5286,12 +5408,15 @@ main() {
         local _acfs_lock_dir="${ACFS_HOME:-$HOME/.acfs}"
         mkdir -p "$_acfs_lock_dir" 2>/dev/null || true
         local _acfs_lock_file="$_acfs_lock_dir/.install.lock"
-        # NOTE: exec with high FDs can fail on some bash versions (5.3+).
-        # We try FD 199, then 198 as fallback, and skip locking if both fail.
+        # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
+        # before `if` can catch the failure. We test in a subshell first,
+        # then only exec in the main shell if the subshell succeeded.
         local _acfs_lock_fd=""
-        if exec 199>"$_acfs_lock_file" 2>/dev/null; then
+        if (exec 199>"$_acfs_lock_file") 2>/dev/null; then
+            exec 199>"$_acfs_lock_file"
             _acfs_lock_fd=199
-        elif exec 198>"$_acfs_lock_file" 2>/dev/null; then
+        elif (exec 198>"$_acfs_lock_file") 2>/dev/null; then
+            exec 198>"$_acfs_lock_file"
             _acfs_lock_fd=198
         fi
         if [[ -n "$_acfs_lock_fd" ]]; then
@@ -5466,7 +5591,7 @@ main() {
     # ============================================================
     # Initialize state file location (uses TARGET_USER's home)
     ACFS_HOME="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}"
-    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
     export ACFS_HOME ACFS_STATE_FILE
 
     # Validate and handle existing state file
@@ -5596,6 +5721,11 @@ main() {
 
         # Emit install summary JSON (bd-31ps.3.2)
         acfs_summary_emit "success" "$total_seconds" 2>/dev/null || true
+
+        # Send webhook notification if configured (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "success" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
 
         SMOKE_TEST_FAILED=false
         if ! run_smoke_test; then

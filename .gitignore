@@ -123,3 +123,6 @@ a.out
 .vercel
 .env*.local
 tests/artifacts/
+
+# Stray bv/CLI artifacts (malformed flag creates files like --graph-format.svg)
+--graph-format*

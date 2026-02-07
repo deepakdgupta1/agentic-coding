@@ -279,7 +279,7 @@ function CommandSection({
                 {key}
               </kbd>
               {i < keyCombo.length - 1 && (
-                <span className="text-white/30">then</span>
+                <span className="text-white/50">then</span>
               )}
             </span>
           ))}
@@ -320,7 +320,7 @@ function KeyboardShortcutGrid({ shortcuts }: { shortcuts: ShortcutItem[] }) {
                     {key}
                   </kbd>
                   {j < shortcut.keys.length - 1 && (
-                    <span className="text-white/30 text-xs">+</span>
+                    <span className="text-white/50 text-xs">+</span>
                   )}
                 </span>
               ))}

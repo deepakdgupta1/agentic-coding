@@ -334,7 +334,7 @@ function AgentInfoCard({
           <Bot className="h-7 w-7 text-white" />
         </div>
         <span className="font-bold text-white">{name}</span>
-        <span className="text-xs text-white/40 mt-1">{company}</span>
+        <span className="text-xs text-white/60 mt-1">{company}</span>
 
         <div className="mt-4 flex flex-col gap-2 w-full">
           <code className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.08] text-xs font-mono text-white/70">
@@ -423,7 +423,7 @@ function LoginStep({
       <h4 className="font-bold text-white mb-3 group-hover:text-primary transition-colors">{agent}</h4>
       <div className="mb-3 rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden group-hover:bg-black/40 transition-colors">
         <pre className="p-3 text-sm font-mono text-emerald-400">
-          <span className="text-white/30">$ </span>
+          <span className="text-white/50">$ </span>
           {command}
         </pre>
       </div>
@@ -473,7 +473,7 @@ function CodexLoginSection() {
         </ol>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-sm font-mono text-emerald-400">
-            <span className="text-white/30">$ </span>codex login --device-auth
+            <span className="text-white/50">$ </span>codex login --device-auth
           </pre>
         </div>
       </div>
@@ -489,22 +489,22 @@ function CodexLoginSection() {
         </ol>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-xs font-mono text-emerald-400 overflow-x-auto">
-            <span className="text-white/30"># On laptop:</span>{"\n"}
-            <span className="text-white/30">$ </span>ssh -L 1455:localhost:1455 ubuntu@YOUR_VPS_IP{"\n"}
-            <span className="text-white/30"># Then on VPS:</span>{"\n"}
-            <span className="text-white/30">$ </span>codex login
+            <span className="text-white/50"># On laptop:</span>{"\n"}
+            <span className="text-white/50">$ </span>ssh -L 1455:localhost:1455 ubuntu@YOUR_VPS_IP{"\n"}
+            <span className="text-white/50"># Then on VPS:</span>{"\n"}
+            <span className="text-white/50">$ </span>codex login
           </pre>
         </div>
       </div>
 
       {/* Option 3: Standard */}
       <div>
-        <p className="text-xs font-semibold text-white/40 mb-2">
+        <p className="text-xs font-semibold text-white/60 mb-2">
           Option 3: Standard (if you have a browser)
         </p>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-sm font-mono text-emerald-400">
-            <span className="text-white/30">$ </span>codex login
+            <span className="text-white/50">$ </span>codex login
           </pre>
         </div>
       </div>

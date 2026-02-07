@@ -56,10 +56,14 @@ function CopyButton({
       onClick={() => copy(text)}
       aria-label={copied ? "Copied!" : "Copy to clipboard"}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+        "inline-flex items-center gap-1.5 rounded-lg text-xs font-medium",
+        "transition-all duration-200",
+        // Minimum touch target for mobile (44px when compact)
         compact
-          ? "p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-          : "px-2.5 py-1.5 text-white/40 hover:text-white hover:bg-white/10",
+          ? "min-h-[44px] min-w-[44px] justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95"
+          : "px-3 py-2 text-white/60 hover:text-white hover:bg-white/10 active:scale-95",
+        // Focus ring for keyboard navigation
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >
@@ -67,7 +71,7 @@ function CopyButton({
         <>
           <Check
             className={cn(
-              "h-3.5 w-3.5",
+              "h-4 w-4",
               compact ? "text-[oklch(0.72_0.19_145)]" : "text-emerald-400",
             )}
           />
@@ -75,7 +79,7 @@ function CopyButton({
         </>
       ) : (
         <>
-          <Copy className="h-3.5 w-3.5" />
+          <Copy className="h-4 w-4" />
           {!compact && <span>Copy</span>}
         </>
       )}
@@ -152,9 +156,9 @@ export function CodeBlock({
             <div className="w-3 h-3 rounded-full bg-green-500/80" />
           </div>
           {filename ? (
-            <span className="text-xs text-white/40 font-mono">{filename}</span>
+            <span className="text-xs text-white/60 font-mono">{filename}</span>
           ) : (
-            <div className="flex items-center gap-1.5 text-white/40">
+            <div className="flex items-center gap-1.5 text-white/60">
               <Terminal className="h-3.5 w-3.5" />
               <span className="text-xs font-mono">{language}</span>
             </div>
@@ -167,9 +171,16 @@ export function CodeBlock({
       <div className="relative p-5 overflow-x-auto">
         <pre className="font-mono text-sm">
           {lines.map((line, i) => (
-            <div key={i} className="flex">
+            <div
+              key={i}
+              className={cn(
+                "flex -mx-5 px-5 transition-colors duration-150",
+                // Line highlight on hover for better readability
+                "hover:bg-white/[0.03]"
+              )}
+            >
               {showLineNumbers && (
-                <span className="select-none w-8 text-white/20 text-right pr-4">
+                <span className="select-none w-8 text-white/20 text-right pr-4 shrink-0">
                   {i + 1}
                 </span>
               )}
@@ -180,7 +191,7 @@ export function CodeBlock({
                     <span className="text-white/90">{line.slice(1)}</span>
                   </>
                 ) : line.startsWith("#") ? (
-                  <span className="text-white/40">{line}</span>
+                  <span className="text-white/50">{line}</span>
                 ) : (
                   line
                 )}

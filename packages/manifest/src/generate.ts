@@ -912,6 +912,34 @@ function generateManifestIndex(manifest: Manifest, manifestSha256: string): stri
   lines.push(')');
   lines.push('');
 
+  // Module descriptions for progress display (bd-21kh)
+  lines.push('declare -gA ACFS_MODULE_DESC=(');
+  for (const module of orderedModules) {
+    lines.push(`  [${module.id}]="${escapeBash(module.description || module.id)}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  // Installed check commands for skip-if-present logic (bd-1eop)
+  lines.push('declare -gA ACFS_MODULE_INSTALLED_CHECK=(');
+  for (const module of orderedModules) {
+    if (module.installed_check?.command) {
+      lines.push(`  [${module.id}]="${escapeBash(module.installed_check.command)}"`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
+  // Installed check run_as context (bd-1eop)
+  lines.push('declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=(');
+  for (const module of orderedModules) {
+    if (module.installed_check?.run_as) {
+      lines.push(`  [${module.id}]="${escapeBash(module.installed_check.run_as)}"`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
   // Mark that the index is fully loaded (used by acfs_resolve_selection)
   lines.push('ACFS_MANIFEST_INDEX_LOADED=true');
   lines.push('');
@@ -1009,7 +1037,8 @@ function generateDoctorChecks(manifest: Manifest): string {
 
     for (let i = 0; i < module.verify.length; i++) {
       const verify = module.verify[i];
-      const isOptional = /\|\|\s*true\s*$/.test(verify);
+      // Module is optional if: the module itself is marked optional OR the command ends with || true
+      const isOptional = module.optional || /\|\|\s*true\s*$/.test(verify);
       const cleanCmd = verify.replace(/\s*\|\|\s*true\s*$/, '').trim();
       const suffix = module.verify.length > 1 ? `.${i + 1}` : '';
       const description = escapeBash(module.description);
@@ -1040,14 +1069,15 @@ function generateDoctorChecks(manifest: Manifest): string {
   // Run the command string in a fresh bash so quoted commands remain intact.
   // Use `bash -o pipefail -c "$cmd"` (NOT `bash -c "… $cmd"`) to avoid breaking
   // when `$cmd` itself contains quotes.
+  // Use ${ACFS_*-default} to respect NO_COLOR (empty preserves empty). Related: bd-39ye
   lines.push('        if bash -o pipefail -c "$cmd" &>/dev/null; then');
-  lines.push('            echo -e "\\033[0;32m[ok]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_GREEN-\\033[0;32m}[ok]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((passed += 1))');
   lines.push('        elif [[ "$optional" = "optional" ]]; then');
-  lines.push('            echo -e "\\033[0;33m[skip]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_YELLOW-\\033[0;33m}[skip]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((skipped += 1))');
   lines.push('        else');
-  lines.push('            echo -e "\\033[0;31m[fail]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_RED-\\033[0;31m}[fail]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((failed += 1))');
   lines.push('        fi');
   lines.push('    done');

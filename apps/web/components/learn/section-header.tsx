@@ -59,7 +59,7 @@ export function SectionHeader({
           )}
         >
           <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">
             {label}
           </span>
           <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />

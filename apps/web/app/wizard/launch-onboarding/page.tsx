@@ -674,7 +674,7 @@ export default function LaunchOnboardingPage() {
 
         {/* SSH Config tip */}
         <details className="mt-6 group">
-          <summary className="cursor-pointer font-medium text-[oklch(0.75_0.18_195)] hover:text-[oklch(0.65_0.18_195)] transition-colors">
+          <summary className="cursor-pointer font-medium text-[oklch(0.75_0.18_195)] hover:text-[oklch(0.65_0.18_195)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
             💡 Pro tip: Set up SSH config for easier access
           </summary>
           <div className="mt-4 space-y-4 pl-6 border-l-2 border-[oklch(0.75_0.18_195/0.3)]">
@@ -745,7 +745,7 @@ export default function LaunchOnboardingPage() {
       {/* Manual editing escape hatch */}
       <Card className="border-border/50 bg-card/50 p-4 backdrop-blur-sm">
         <details className="group">
-          <summary className="cursor-pointer font-semibold text-foreground hover:text-primary transition-colors">
+          <summary className="cursor-pointer font-semibold text-foreground hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
             How to edit files manually (when AI gets something wrong)
           </summary>
           <div className="mt-4 space-y-6 pl-4 border-l-2 border-primary/20">

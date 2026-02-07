@@ -666,7 +666,7 @@ function TemporalConcept({
     >
       <Clock className="h-4 w-4 text-primary shrink-0" />
       <span className="font-medium text-white">{concept}</span>
-      <span className="text-white/40">—</span>
+      <span className="text-white/50">—</span>
       <span className="text-sm text-white/50">{description}</span>
     </motion.div>
   );
@@ -691,7 +691,7 @@ function PrincipleCard({
     >
       <Layers className="h-4 w-4 text-blue-400 shrink-0" />
       <span className="font-medium text-blue-300">{principle}</span>
-      <span className="text-white/40">—</span>
+      <span className="text-white/50">—</span>
       <span className="text-sm text-white/50">{description}</span>
     </motion.div>
   );
@@ -722,7 +722,7 @@ function PatternBreakdown() {
         {patterns.map((p, i) => (
           <div key={i} className="flex items-center gap-3 text-sm">
             <span className="w-32 shrink-0 text-primary font-medium">{p.name}</span>
-            <span className="text-white/40">←</span>
+            <span className="text-white/50">←</span>
             <code className="text-white/60 font-mono text-xs">&quot;{p.line}&quot;</code>
           </div>
         ))}
@@ -751,15 +751,15 @@ function QuickRefItem({
       className="group grid grid-cols-3 gap-4 p-4 rounded-xl border border-white/[0.08] bg-white/[0.02] transition-all duration-300 hover:border-primary/30"
     >
       <div>
-        <span className="text-xs text-white/40 uppercase">Pattern</span>
+        <span className="text-xs text-white/60 uppercase">Pattern</span>
         <p className="font-bold text-primary">{pattern}</p>
       </div>
       <div>
-        <span className="text-xs text-white/40 uppercase">When</span>
+        <span className="text-xs text-white/60 uppercase">When</span>
         <p className="text-sm text-white/70">{when}</p>
       </div>
       <div>
-        <span className="text-xs text-white/40 uppercase">Key Phrases</span>
+        <span className="text-xs text-white/60 uppercase">Key Phrases</span>
         <p className="text-xs text-white/50 font-mono">{key_phrases}</p>
       </div>
     </motion.div>

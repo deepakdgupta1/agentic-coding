@@ -220,7 +220,7 @@ verify:
 | Install services-setup.sh | ❌ No |
 | Install checksums.yaml + VERSION | ❌ No |
 | Install acfs CLI (doctor.sh) | `acfs.doctor` (partial) |
-| Install Claude Git Safety Guard hook | ❌ No |
+| Install DCG (Destructive Command Guard) hook | ❌ No |
 | Create state.json | ❌ No (orchestration) |
 
 **Gap:** Most finalize actions are orchestration-level, not module-level.
@@ -242,7 +242,7 @@ These are things the installer does that the manifest doesn't specify:
 9. **Tmux configuration** linking
 10. **ACFS scripts/lib/** installation
 11. **acfs-update wrapper** installation
-12. **Claude Git Safety Guard** hook installation
+12. **DCG (Destructive Command Guard)** hook installation
 13. **State file** creation and management
 14. **Smoke test** verification
 

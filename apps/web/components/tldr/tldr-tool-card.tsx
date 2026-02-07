@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Cog,
   Image,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatStarCount, formatStarCountFull } from "@/lib/format-stars";
@@ -86,25 +87,68 @@ function SynergyPill({
   const linkedTool = allTools.find((t) => t.id === synergy.toolId);
   if (!linkedTool) return null;
 
+  const colorDef = getColorDefinition(linkedTool.color);
+
   return (
-    <div className="group/synergy relative flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5 transition-colors hover:bg-white/10 sm:px-3 sm:py-2">
+    <div
+      className="group/synergy relative flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 ring-1 ring-white/10 transition-all duration-300 hover:bg-white/10 hover:ring-white/20 sm:px-3 sm:py-2"
+      style={{
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      }}
+    >
+      {/* Subtle color glow on hover */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover/synergy:opacity-100"
+        style={{
+          background: `radial-gradient(circle at center, rgba(${colorDef.rgb}, 0.1), transparent 70%)`,
+        }}
+      />
+
       <div
         className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br sm:h-6 sm:w-6",
+          "relative flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br shadow-md sm:h-6 sm:w-6",
           linkedTool.color
         )}
       >
         <DynamicIcon name={linkedTool.icon} className="h-2.5 w-2.5 text-white sm:h-3 sm:w-3" />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1">
         <span className="block text-xs font-semibold text-white sm:text-xs">
           {linkedTool.shortName}
         </span>
-        <span className="block truncate text-xs text-muted-foreground group-hover/synergy:text-foreground/70 sm:text-xs">
+        <span className="block truncate text-xs text-muted-foreground transition-colors duration-200 group-hover/synergy:text-foreground/70 sm:text-xs">
           {synergy.description}
         </span>
       </div>
+      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-all duration-200 group-hover/synergy:translate-x-0.5 group-hover/synergy:opacity-100" />
     </div>
+  );
+}
+
+// =============================================================================
+// FEATURE LIST ITEM
+// =============================================================================
+
+function FeatureItem({ feature }: { feature: string }) {
+  return (
+    <li className="group/feature flex items-start gap-2 text-xs text-foreground/80 transition-colors duration-200 hover:text-foreground sm:text-sm">
+      <div className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-primary transition-colors duration-200 group-hover/feature:bg-primary/20">
+        <ArrowUpRight className="h-2.5 w-2.5" aria-hidden="true" />
+      </div>
+      {feature}
+    </li>
+  );
+}
+
+// =============================================================================
+// TECH BADGE
+// =============================================================================
+
+function TechBadge({ tech }: { tech: string }) {
+  return (
+    <span className="rounded-lg bg-white/5 px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-white/10 transition-all duration-200 hover:bg-white/10 hover:text-foreground/80">
+      {tech}
+    </span>
   );
 }
 
@@ -118,6 +162,7 @@ export function TldrToolCard({
 }: TldrToolCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [spotlightOpacity, setSpotlightOpacity] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
   const isTouchDevice = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(hover: none)").matches,
     []
@@ -140,7 +185,7 @@ export function TldrToolCard({
     [reducedMotion, isTouchDevice]
   );
 
-  const spotlightRgb = getColorDefinition(tool.color).rgb;
+  const colorDef = getColorDefinition(tool.color);
 
   return (
     <motion.div
@@ -154,15 +199,36 @@ export function TldrToolCard({
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
-        onMouseEnter={() => setSpotlightOpacity(1)}
-        onMouseLeave={() => setSpotlightOpacity(0)}
+        onMouseEnter={() => {
+          setSpotlightOpacity(1);
+          setIsHovered(true);
+        }}
+        onMouseLeave={() => {
+          setSpotlightOpacity(0);
+          setIsHovered(false);
+        }}
         className={cn(
-          "relative h-full flex flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm",
+          "relative h-full flex flex-col overflow-hidden rounded-xl sm:rounded-2xl",
+          "border border-border/50 bg-card/50 backdrop-blur-sm",
           "transition-all duration-300",
           "hover:border-border hover:bg-card/70",
-          "active:scale-[0.98] active:border-border"
+          "active:scale-[0.98]"
         )}
+        style={{
+          boxShadow: isHovered
+            ? `0 0 40px -10px rgba(${colorDef.rgb}, 0.3), 0 20px 40px -15px rgba(0, 0, 0, 0.4)`
+            : "0 4px 20px -5px rgba(0, 0, 0, 0.2)",
+          transition: "box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease",
+        }}
       >
+        {/* Top border glow on hover */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px transition-opacity duration-300"
+          style={{
+            background: `linear-gradient(90deg, transparent, rgba(${colorDef.rgb}, ${isHovered ? 0.5 : 0}), transparent)`,
+          }}
+        />
+
         {/* Gradient background */}
         <div
           className={cn(
@@ -177,7 +243,7 @@ export function TldrToolCard({
           className="pointer-events-none absolute -inset-px transition-opacity duration-500"
           style={{
             opacity: spotlightOpacity,
-            background: `radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(${spotlightRgb}, 0.15), transparent 40%)`,
+            background: `radial-gradient(500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(${colorDef.rgb}, 0.15), transparent 40%)`,
           }}
           aria-hidden="true"
         />
@@ -191,11 +257,19 @@ export function TldrToolCard({
               <div className="flex items-start gap-3 sm:gap-4">
                 <div
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg sm:h-12 sm:w-12",
+                    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br sm:h-12 sm:w-12",
                     tool.color
                   )}
+                  style={{
+                    boxShadow: isHovered
+                      ? `0 0 25px -5px rgba(${colorDef.rgb}, 0.5), 0 8px 20px -5px rgba(0, 0, 0, 0.3)`
+                      : "0 4px 15px -3px rgba(0, 0, 0, 0.3)",
+                    transition: "box-shadow 0.3s ease",
+                  }}
                 >
-                  <DynamicIcon name={tool.icon} className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                  <DynamicIcon name={tool.icon} className="h-5 w-5 text-white drop-shadow sm:h-6 sm:w-6" />
+                  {/* Inner highlight */}
+                  <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/20" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -203,7 +277,12 @@ export function TldrToolCard({
                       {tool.shortName}
                     </h3>
                     {tool.category === "core" && (
-                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-primary sm:text-xs">
+                      <span
+                        className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-primary ring-1 ring-primary/30"
+                        style={{
+                          boxShadow: "0 0 10px -2px rgba(var(--primary-rgb, 139, 92, 246), 0.3)",
+                        }}
+                      >
                         Core
                       </span>
                     )}
@@ -216,7 +295,10 @@ export function TldrToolCard({
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 {tool.stars && (
                   <span
-                    className="relative inline-flex items-center gap-1 overflow-hidden rounded-full bg-gradient-to-r from-accent/20 via-accent/15 to-accent/20 px-2 py-1 text-xs font-bold text-accent shadow-lg shadow-accent/10 ring-1 ring-inset ring-accent/30 transition-all duration-300 hover:ring-accent/50 hover:shadow-accent/20 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs"
+                    className="relative inline-flex items-center gap-1 overflow-hidden rounded-full bg-gradient-to-r from-accent/20 via-accent/15 to-accent/20 px-2 py-1 text-xs font-bold text-accent ring-1 ring-inset ring-accent/30 transition-all duration-300 hover:ring-accent/50 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs"
+                    style={{
+                      boxShadow: "0 0 15px -3px rgba(251, 191, 36, 0.3)",
+                    }}
                     aria-label={`${formatStarCountFull(tool.stars)} GitHub stars`}
                     title={`${formatStarCountFull(tool.stars)} stars`}
                   >
@@ -230,7 +312,7 @@ export function TldrToolCard({
                   href={tool.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-white sm:h-11 sm:w-11"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-muted-foreground ring-1 ring-white/10 transition-all duration-200 hover:bg-white/10 hover:text-white hover:ring-white/20 sm:h-11 sm:w-11"
                   aria-label={`View ${tool.name} on GitHub`}
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -249,8 +331,10 @@ export function TldrToolCard({
             <div className="space-y-4 p-4 sm:space-y-5 sm:p-5">
               {/* Why it's useful */}
               <div>
-                <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                <h4 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                  <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                   Why It&apos;s Useful
+                  <span className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
                 </h4>
                 <p className="text-xs leading-relaxed text-foreground/80 sm:text-sm">
                   {tool.whyItsUseful}
@@ -259,35 +343,28 @@ export function TldrToolCard({
 
               {/* Key features */}
               <div>
-                <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                <h4 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                  <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                   Key Features
+                  <span className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
                 </h4>
-                <ul className="space-y-1 sm:space-y-1.5">
+                <ul className="space-y-1.5 sm:space-y-2">
                   {tool.keyFeatures.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2 text-xs text-foreground/80 sm:text-sm"
-                    >
-                      <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" aria-hidden="true" />
-                      {feature}
-                    </li>
+                    <FeatureItem key={feature} feature={feature} />
                   ))}
                 </ul>
               </div>
 
               {/* Tech stack */}
               <div>
-                <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                <h4 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                  <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                   Tech Stack
+                  <span className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
                 </h4>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {tool.techStack.map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-md bg-white/5 px-1.5 py-0.5 text-xs font-medium text-muted-foreground sm:px-2 sm:py-1 sm:text-xs"
-                    >
-                      {tech}
-                    </span>
+                    <TechBadge key={tech} tech={tech} />
                   ))}
                 </div>
               </div>
@@ -295,8 +372,10 @@ export function TldrToolCard({
               {/* Synergies */}
               {tool.synergies.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                  <h4 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:mb-2 sm:text-xs">
+                    <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                     Synergies
+                    <span className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
                   </h4>
                   <div className="grid gap-1.5 sm:gap-2 sm:grid-cols-2">
                     {tool.synergies.map((synergy) => (

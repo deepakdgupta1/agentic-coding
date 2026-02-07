@@ -479,7 +479,7 @@ function SlbDiagram() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="text-white/30 text-xl"
+          className="text-white/50 text-xl"
         >
           ↓
         </motion.div>
@@ -499,7 +499,7 @@ function SlbDiagram() {
             <span className="text-xs text-white/50 font-medium group-hover:text-emerald-400 transition-colors">Agent 1</span>
           </motion.div>
 
-          <span className="text-white/30 text-xl">+</span>
+          <span className="text-white/50 text-xl">+</span>
 
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -520,7 +520,7 @@ function SlbDiagram() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35 }}
-          className="text-white/30 text-xl"
+          className="text-white/50 text-xl"
         >
           ↓
         </motion.div>
@@ -632,7 +632,7 @@ function UseCase({
       </div>
       <div>
         <span className="font-medium text-white group-hover:text-primary transition-colors">{scenario}</span>
-        <span className="text-white/40 mx-2">—</span>
+        <span className="text-white/50 mx-2">—</span>
         <span className="text-sm text-white/50">{description}</span>
       </div>
     </motion.div>

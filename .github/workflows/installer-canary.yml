@@ -28,8 +28,11 @@ jobs:
         run: |
           chmod +x ./tests/vm/test_install_ubuntu.sh
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.ubuntu }}" == "all" ]]; then
-            ./tests/vm/test_install_ubuntu.sh --all --mode "${{ inputs.mode }}"
+          UBUNTU="${{ inputs.ubuntu || '24.04' }}"
+          MODE="${{ inputs.mode || 'vibe' }}"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$UBUNTU" == "all" ]]; then
+            ./tests/vm/test_install_ubuntu.sh --all --mode "$MODE"
           else
-            ./tests/vm/test_install_ubuntu.sh --ubuntu "${{ inputs.ubuntu }}" --mode "${{ inputs.mode }}"
+            ./tests/vm/test_install_ubuntu.sh --ubuntu "$UBUNTU" --mode "$MODE"
           fi

@@ -364,7 +364,7 @@ function ProblemCard({
       <div className="flex-1">
         <span className="text-white/50 line-through">{problem}</span>
       </div>
-      <div className="text-white/30 group-hover:text-white/50 transition-colors">→</div>
+      <div className="text-white/50 group-hover:text-white/70 transition-colors">→</div>
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500/30 transition-colors">
         ✓
       </div>
@@ -516,7 +516,7 @@ function CoordinationFlow() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.1 + 0.2 }}
-                className="hidden sm:block text-white/30 text-xl font-light"
+                className="hidden sm:block text-white/50 text-xl font-light"
               >
                 →
               </motion.span>

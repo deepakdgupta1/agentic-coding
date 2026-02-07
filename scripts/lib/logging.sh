@@ -45,8 +45,31 @@ if ! declare -f acfs_log_init >/dev/null 2>&1; then
 
         # Tee stderr: all stderr output goes to both terminal and log file.
         # fd 3 = original stderr (preserved for terminal output).
-        exec 3>&2
-        exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)
+        #
+        # NOTE: Process substitution >(tee ...) can fail on some systems
+        # (especially Ubuntu 25.04 with bash 5.3+). We test first and
+        # fall back to simple file logging if it fails.
+        local tee_logging_ok=false
+        if command -v tee >/dev/null 2>&1; then
+            # Test if process substitution works before committing to it.
+            # On bash 5.3+, bare `exec` under set -e can exit the script
+            # before `if` catches the failure, so we test in a subshell.
+            # shellcheck disable=SC2261
+            if (exec 3>&1; echo test > >(cat >/dev/null)) 2>/dev/null; then
+                exec 3>&2 || true
+                # shellcheck disable=SC2261
+                # Use set +e locally to prevent exec from exiting under bash 5.3+
+                if (set +e; exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)) 2>/dev/null; then
+                    exec 2> >(tee -a "$ACFS_LOG_FILE" >&3) && tee_logging_ok=true
+                fi
+            fi
+        fi
+
+        if [[ "$tee_logging_ok" != "true" ]]; then
+            # Fallback: rely on explicit logging calls instead of automatic tee
+            ACFS_LOG_FALLBACK=true
+            export ACFS_LOG_FALLBACK
+        fi
     }
 fi
 
@@ -85,13 +108,48 @@ if [[ -n "${_ACFS_LOGGING_SH_LOADED:-}" ]]; then
 fi
 _ACFS_LOGGING_SH_LOADED=1
 
-# Colors
-export ACFS_RED='\033[0;31m'
-export ACFS_GREEN='\033[0;32m'
-export ACFS_YELLOW='\033[0;33m'
-export ACFS_BLUE='\033[0;34m'
-export ACFS_GRAY='\033[0;90m'
-export ACFS_NC='\033[0m' # No Color
+# ============================================================
+# Color Support with NO_COLOR Standard (https://no-color.org/)
+# ============================================================
+#
+# Respects:
+# - NO_COLOR env var (any value = disable colors)
+# - Non-TTY output (pipes, redirects)
+#
+# Related: bd-39ye
+
+# Initialize colors based on environment
+_acfs_init_colors() {
+    # Disable colors if NO_COLOR is set (any value) or output is not a TTY
+    if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]]; then
+        # No colors - empty strings
+        export ACFS_RED=''
+        export ACFS_GREEN=''
+        export ACFS_YELLOW=''
+        export ACFS_BLUE=''
+        export ACFS_GRAY=''
+        export ACFS_NC=''
+        export ACFS_COLORS_ENABLED=false
+    else
+        # Colors enabled
+        export ACFS_RED='\033[0;31m'
+        export ACFS_GREEN='\033[0;32m'
+        export ACFS_YELLOW='\033[0;33m'
+        export ACFS_BLUE='\033[0;34m'
+        export ACFS_GRAY='\033[0;90m'
+        export ACFS_NC='\033[0m'
+        export ACFS_COLORS_ENABLED=true
+    fi
+}
+
+# Initialize colors on first load
+_acfs_init_colors
+
+# Check if colors are enabled
+# Usage: if acfs_colors_enabled; then echo "colors!"; fi
+acfs_colors_enabled() {
+    [[ "${ACFS_COLORS_ENABLED:-true}" == "true" ]]
+}
 
 # Log a major step (blue)
 # Usage: log_step "1/8" "Installing packages..."
@@ -149,6 +207,29 @@ fi
 if ! declare -f log_warn >/dev/null; then
     log_warn() {
         echo -e "$1" | sed "1s/^/${ACFS_YELLOW}⚠ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
+    }
+fi
+
+# Log sensitive warning message (tries to bypass log tee to avoid storing secrets)
+# Usage: log_sensitive "Generated password for user: ..."
+if ! declare -f log_sensitive >/dev/null; then
+    log_sensitive() {
+        local message="$1"
+
+        # If stderr is being tee'd, fd 3 is the original terminal stderr.
+        if { true >&3; } 2>/dev/null; then
+            printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" >&3
+            return 0
+        fi
+
+        # Fall back to /dev/tty when available to avoid log capture.
+        if [[ -w /dev/tty ]]; then
+            printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" > /dev/tty
+            return 0
+        fi
+
+        # Last resort: stderr (may be logged).
+        printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" >&2
     }
 fi
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Terminal, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
+import { CodeBlock } from "@/components/ui/code-block";
 import { AlertCard } from "@/components/alert-card";
 import { OutputPreview } from "@/components/alert-card";
 import { TrackedLink } from "@/components/tracked-link";
@@ -369,9 +370,9 @@ function WindowsContent() {
             <div className="space-y-4">
               <GuideStep number={1} title="Type the command">
                 In the Windows Terminal window, type exactly:
-                <code className="mt-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-sm">
-                  ssh -V
-                </code>
+                <div className="mt-2">
+                  <CodeBlock code="ssh -V" variant="compact" />
+                </div>
                 <em className="mt-1 block text-xs">
                   That&apos;s &quot;ssh&quot; (lowercase), a space, a dash, and a capital &quot;V&quot;
                 </em>

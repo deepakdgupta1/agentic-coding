@@ -23,6 +23,26 @@ fi
 _ACFS_STATE_SH_LOADED=1
 
 # ============================================================
+# Color Constants - respect NO_COLOR standard (https://no-color.org/)
+# Related: bd-39ye
+# ============================================================
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 2 ]]; then
+    _STATE_BLUE='\033[0;34m'
+    _STATE_GREEN='\033[0;32m'
+    _STATE_YELLOW='\033[0;33m'
+    _STATE_RED='\033[0;31m'
+    _STATE_GRAY='\033[0;90m'
+    _STATE_NC='\033[0m'
+else
+    _STATE_BLUE=''
+    _STATE_GREEN=''
+    _STATE_YELLOW=''
+    _STATE_RED=''
+    _STATE_GRAY=''
+    _STATE_NC=''
+fi
+
+# ============================================================
 # State File Schema v3 Documentation
 # ============================================================
 #
@@ -142,7 +162,17 @@ state_init() {
 
     # Ensure directory exists
     if [[ ! -d "$state_dir" ]]; then
-        mkdir -p "$state_dir" || return 1
+        # Try without sudo first (works for user directories like ~/.acfs)
+        # Fall back to sudo for system directories like /var/lib/acfs
+        if ! mkdir -p "$state_dir" 2>/dev/null; then
+            if [[ $EUID -ne 0 ]] && command -v sudo &>/dev/null; then
+                sudo mkdir -p "$state_dir" || return 1
+                # Fix ownership so current user can write to it
+                sudo chown "$(id -u):$(id -g)" "$state_dir" 2>/dev/null || true
+            else
+                return 1
+            fi
+        fi
 
         # If running as root but targeting a non-root user, ensure the directory
         # is owned by the target user so they can access the state file later.
@@ -382,19 +412,18 @@ _state_acquire_lock() {
     fi
 
     # Open lock file on FD 200 (same FD convention as autofix.sh)
-    # NOTE: On some bash versions (5.3+), exec with high FDs can fail.
-    # We use eval to work around potential issues with direct exec.
-    # The 2>/dev/null suppresses errors from the redirection itself.
-    if ! eval 'exec 200>"$lock_file"' 2>/dev/null; then
-        # Try alternate FD if 200 fails
-        if ! eval 'exec 199>"$lock_file"' 2>/dev/null; then
-            # Lock acquisition not possible, return failure
-            return 1
-        fi
-        # Use FD 199 instead
+    # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
+    # before `if` can catch the failure. We test in a subshell first,
+    # then only exec in the main shell if the subshell succeeded.
+    if (exec 200>"$lock_file") 2>/dev/null; then
+        exec 200>"$lock_file"
+        ACFS_LOCK_FD=200
+    elif (exec 199>"$lock_file") 2>/dev/null; then
+        exec 199>"$lock_file"
         ACFS_LOCK_FD=199
     else
-        ACFS_LOCK_FD=200
+        # Lock acquisition not possible, return failure
+        return 1
     fi
 
     # Try to acquire lock with a 5-second timeout
@@ -653,27 +682,26 @@ confirm_resume() {
         return 1
     fi
 
-    # Check for completed phases
-    local completed_count
+    # Extract all resume info in a single jq call (5→1 subprocess spawns)
+    # Note: Uses ASCII Unit Separator (0x1f) as delimiter since bash strips null bytes
+    local completed_count=0 last_phase="" started_at="" failed_phase="" mode=""
     if command -v jq &>/dev/null; then
-        completed_count=$(echo "$state" | jq -r '.completed_phases | length')
-    else
-        completed_count=0
+        local extracted
+        extracted=$(echo "$state" | jq -r '
+            [
+                (.completed_phases | length | tostring),
+                (.completed_phases[-1] // "unknown"),
+                (.started_at // "unknown"),
+                (.failed_phase // ""),
+                (.mode // "unknown")
+            ] | join("\u001f")
+        ')
+        IFS=$'\x1f' read -r completed_count last_phase started_at failed_phase mode <<< "$extracted"
     fi
 
     # If no phases completed, nothing to resume
     if [[ "$completed_count" -eq 0 ]]; then
         return 1
-    fi
-
-    # Extract resume info
-    local last_phase="" started_at="" failed_phase="" mode=""
-    if command -v jq &>/dev/null; then
-        # Get the last completed phase
-        last_phase=$(echo "$state" | jq -r '.completed_phases[-1] // "unknown"')
-        started_at=$(echo "$state" | jq -r '.started_at // "unknown"')
-        failed_phase=$(echo "$state" | jq -r '.failed_phase // empty')
-        mode=$(echo "$state" | jq -r '.mode // "unknown"')
     fi
 
     local last_phase_name="${ACFS_PHASE_NAMES[$last_phase]:-$last_phase}"
@@ -714,9 +742,7 @@ confirm_resume() {
                     .completed_phases = (.completed_phases | map(select(. != "finalize"))) |
                     .version = $ver
                 ')
-                local state_file_path
-                state_file_path="$(state_get_file)"
-                printf '%s\n' "$updated_state" > "$state_file_path"
+                state_save "$updated_state"
             fi
         fi
     fi
@@ -807,7 +833,7 @@ _confirm_resume_log_info() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" "$msg" >&2
     else
-        echo -e "\033[0;34m$msg\033[0m" >&2
+        echo -e "${_STATE_BLUE}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -817,7 +843,7 @@ _confirm_resume_log_warn() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f9e2af" "$msg" >&2
     else
-        echo -e "\033[0;33m$msg\033[0m" >&2
+        echo -e "${_STATE_YELLOW}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -1204,6 +1230,7 @@ state_upgrade_get_progress() {
 
 # Print upgrade status for user display
 # Usage: state_upgrade_print_status
+# Optimized: Single jq call extracts all fields (was 11 subprocess spawns, now 1)
 state_upgrade_print_status() {
     if ! command -v jq &>/dev/null; then
         echo "Upgrade status unavailable (jq required)"
@@ -1216,19 +1243,33 @@ state_upgrade_print_status() {
         return 0
     fi
 
-    local enabled
-    enabled=$(echo "$state" | jq -r '.ubuntu_upgrade.enabled // false')
+    # Extract all fields in a single jq call (11→1 subprocess spawns)
+    # Note: Uses ASCII Unit Separator (0x1f) as delimiter since bash strips null bytes
+    local extracted
+    extracted=$(echo "$state" | jq -r '
+        .ubuntu_upgrade as $u |
+        [
+            ($u.enabled // false | tostring),
+            ($u.original_version // ""),
+            ($u.target_version // ""),
+            ($u.current_stage // ""),
+            ($u.completed_upgrades | length | tostring),
+            ($u.upgrade_path | length | tostring),
+            ($u.completed_upgrades // [] | map("  ✓ \(.from) → \(.to)") | join("\n")),
+            ($u.current_upgrade.from // ""),
+            ($u.current_upgrade.to // ""),
+            ($u.last_error // "")
+        ] | join("\u001f")
+    ')
+
+    # Parse unit-separator-delimited fields
+    local enabled original target stage completed_count total_count completed_list current_from current_to error
+    IFS=$'\x1f' read -r enabled original target stage completed_count total_count completed_list current_from current_to error <<< "$extracted"
+
     if [[ "$enabled" != "true" ]]; then
         echo "No upgrade in progress"
         return 0
     fi
-
-    local original target stage completed_count total_count
-    original=$(echo "$state" | jq -r '.ubuntu_upgrade.original_version')
-    target=$(echo "$state" | jq -r '.ubuntu_upgrade.target_version')
-    stage=$(echo "$state" | jq -r '.ubuntu_upgrade.current_stage')
-    completed_count=$(echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades | length')
-    total_count=$(echo "$state" | jq -r '.ubuntu_upgrade.upgrade_path | length')
 
     echo "=== Ubuntu Upgrade Status ==="
     echo "Original: $original → Target: $target"
@@ -1236,26 +1277,19 @@ state_upgrade_print_status() {
     echo "Stage: $stage"
 
     # Show completed upgrades
-    if [[ "$completed_count" -gt 0 ]]; then
+    if [[ "$completed_count" -gt 0 ]] && [[ -n "$completed_list" ]]; then
         echo ""
         echo "Completed upgrades:"
-        echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades[] | "  ✓ \(.from) → \(.to)"'
+        echo "$completed_list"
     fi
 
     # Show current upgrade if any
-    local current
-    current=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade // empty')
-    if [[ -n "$current" ]]; then
-        local from to
-        from=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.from')
-        to=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.to')
+    if [[ -n "$current_from" ]]; then
         echo ""
-        echo "Current upgrade: $from → $to"
+        echo "Current upgrade: $current_from → $current_to"
     fi
 
     # Show error if any
-    local error
-    error=$(echo "$state" | jq -r '.ubuntu_upgrade.last_error // empty')
     if [[ -n "$error" ]]; then
         echo ""
         echo "Last error: $error"
@@ -2308,7 +2342,7 @@ _run_phase_log_skip() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#6c7086" "[$display_name] Skipped ($reason)" >&2
     else
-        echo -e "\033[0;90m[$display_name] Skipped ($reason)\033[0m" >&2
+        echo -e "${_STATE_GRAY}[$display_name] Skipped ($reason)${_STATE_NC}" >&2
     fi
 }
 
@@ -2319,7 +2353,7 @@ _run_phase_log_start() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" --bold "[$display_name] Starting..." >&2
     else
-        echo -e "\033[0;34m[$display_name] Starting...\033[0m" >&2
+        echo -e "${_STATE_BLUE}[$display_name] Starting...${_STATE_NC}" >&2
     fi
 }
 
@@ -2336,7 +2370,7 @@ _run_phase_log_success() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#a6e3a1" --bold "$msg" >&2
     else
-        echo -e "\033[0;32m$msg\033[0m" >&2
+        echo -e "${_STATE_GREEN}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -2348,6 +2382,6 @@ _run_phase_log_failure() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f38ba8" --bold "[$display_name] FAILED (exit code: $exit_code)" >&2
     else
-        echo -e "\033[0;31m[$display_name] FAILED (exit code: $exit_code)\033[0m" >&2
+        echo -e "${_STATE_RED}[$display_name] FAILED (exit code: $exit_code)${_STATE_NC}" >&2
     fi
 }

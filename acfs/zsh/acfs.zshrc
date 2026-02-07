@@ -23,6 +23,8 @@ if [[ -n "$TERM" ]] && ! infocmp "$TERM" &>/dev/null; then
 fi
 
 # --- Paths (early) ---
+# User ~/bin takes highest precedence (for custom shims)
+[[ -d "$HOME/bin" ]] && export PATH="$HOME/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # Go (support both apt-style and /usr/local/go)
@@ -395,6 +397,28 @@ acfs() {
         return 1
       fi
       ;;
+    changelog|changes|log)
+      if [[ -f "$acfs_home/scripts/lib/changelog.sh" ]]; then
+        bash "$acfs_home/scripts/lib/changelog.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" changelog "$@"
+      else
+        echo "Error: changelog.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
+    export-config|export)
+      if [[ -f "$acfs_home/scripts/lib/export-config.sh" ]]; then
+        bash "$acfs_home/scripts/lib/export-config.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" export-config "$@"
+      else
+        echo "Error: export-config.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
     version|-v|--version)
       if [[ -f "$acfs_home/VERSION" ]]; then
         cat "$acfs_home/VERSION"
@@ -408,8 +432,8 @@ acfs() {
       echo "Usage: acfs <command>"
       echo ""
       echo "Commands:"
-      echo "  newproj         Create new project (TUI or CLI)"
-      echo "  agent-resources Manage shared agent resources for projects"
+      echo "  newproj         Create new project (git, br, AGENTS.md, Claude settings)"
+      echo "                  Use 'acfs newproj -i' for interactive TUI wizard"
       echo "  info            Quick system overview (hostname, IP, uptime, progress)"
       echo "  cheatsheet      Command reference (aliases, shortcuts)"
       echo "  dashboard, dash <generate|serve> - Static HTML dashboard"
@@ -419,6 +443,8 @@ acfs() {
       echo "  status          Quick one-line health summary (fast, no network)"
       echo "  session         List/export/import agent sessions (cass)"
       echo "  support-bundle  Collect diagnostic data for troubleshooting"
+      echo "  changelog       Show recent changes (--all, --since 7d, --json)"
+      echo "  export-config   Export config for backup/migration (--json, --minimal)"
       echo "  update          Update ACFS tools to latest versions"
       echo "  version         Show ACFS version"
       echo "  help            Show this help message"
@@ -441,6 +467,14 @@ acfs() {
   esac
 }
 
+# --- ACFS Tab Completion (zsh) ---
+# Load acfs completions if the function is available
+if [[ -f "$HOME/.acfs/completions/_acfs" ]]; then
+  # Add to fpath before compinit, or load directly if compinit already ran
+  fpath=("$HOME/.acfs/completions" $fpath)
+  autoload -Uz _acfs 2>/dev/null
+fi
+
 # --- Agent aliases (dangerously enabled by design) ---
 alias cc='NODE_OPTIONS="--max-old-space-size=32768" ~/.local/bin/claude --dangerously-skip-permissions'
 alias cod='codex --dangerously-bypass-approvals-and-sandbox'
@@ -452,8 +486,12 @@ alias bdev='bun run dev'
 alias bl='bun run lint'
 alias bt='bun run type-check'
 
-# Beads shortcuts: alias old bd command to new br (beads_rust)
-alias bd='br'
+# --- br (beads_rust) alias guard ---
+# Older ACFS versions incorrectly aliased br='bun run'. Remove stale alias if br binary exists.
+# whence -p finds the binary path, ignoring aliases/functions (zsh-specific)
+if whence -p br &>/dev/null && alias br &>/dev/null; then
+  unalias br 2>/dev/null
+fi
 
 # MCP Agent Mail helper (installer usually adds `am`, but keep a fallback)
 alias am='cd ~/mcp_agent_mail 2>/dev/null && scripts/run_server_with_token.sh || echo "mcp_agent_mail not found in ~/mcp_agent_mail"'
@@ -478,3 +516,34 @@ bindkey "^[[H" beginning-of-line
 bindkey "^[[F" end-of-line
 bindkey "^[[1~" beginning-of-line
 bindkey "^[[4~" end-of-line
+
+# --- Beads Viewer (bv) protection ---
+# Prevent gcloud's 'bv' (BigQuery Visualizer) from shadowing beads_viewer.
+# This function ensures the correct bv is always invoked, regardless of PATH order.
+# Must be defined AFTER .zshrc.local is sourced (where gcloud SDK may modify PATH).
+bv() {
+  local bv_bin=""
+  # Check known locations in order of preference
+  for candidate in "$HOME/.local/bin/bv" "$HOME/.bun/bin/bv" "$HOME/go/bin/bv" "$HOME/.cargo/bin/bv"; do
+    if [[ -x "$candidate" ]]; then
+      bv_bin="$candidate"
+      break
+    fi
+  done
+  # Fallback: search PATH but skip gcloud's bv
+  if [[ -z "$bv_bin" ]]; then
+    while IFS= read -r p; do
+      if [[ "$p" != *"google-cloud-sdk"* ]]; then
+        bv_bin="$p"
+        break
+      fi
+    done < <(whence -ap bv 2>/dev/null)
+  fi
+  if [[ -n "$bv_bin" ]]; then
+    "$bv_bin" "$@"
+  else
+    echo "Error: beads_viewer (bv) not found. Install with:" >&2
+    echo "  curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash" >&2
+    return 1
+  fi
+}

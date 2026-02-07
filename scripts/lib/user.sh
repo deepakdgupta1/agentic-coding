@@ -81,7 +81,10 @@ ensure_user() {
             
             # Print password so user isn't locked out of sudo in safe mode
             echo "" >&2
-            if declare -f log_warn >/dev/null; then
+            if declare -f log_sensitive >/dev/null; then
+                log_sensitive "Generated password for '$target': $passwd"
+                log_sensitive "Save this password! You may need it for sudo access."
+            elif declare -f log_warn >/dev/null; then
                 log_warn "Generated password for '$target': $passwd"
                 log_warn "Save this password! You may need it for sudo access."
             else
@@ -347,7 +350,7 @@ prompt_ssh_key() {
     echo ""
 
     # 4. Read the key (handle pipe vs tty)
-    local pubkey
+    local pubkey=""
     if [[ -t 0 ]]; then
         read -r -p "Paste your public key: " pubkey
     else

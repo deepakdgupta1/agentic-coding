@@ -376,7 +376,7 @@ function MemoryDiagram() {
             <Database className="h-10 w-10 text-blue-400" />
           </div>
           <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">Past Sessions</span>
-          <span className="text-xs text-white/40">Raw conversations</span>
+          <span className="text-xs text-white/60">Raw conversations</span>
         </motion.div>
 
         {/* Arrow */}
@@ -384,7 +384,7 @@ function MemoryDiagram() {
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-white/30 text-2xl hidden md:block"
+          className="text-white/50 text-2xl hidden md:block"
         >
           →
         </motion.div>
@@ -392,7 +392,7 @@ function MemoryDiagram() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-white/30 text-2xl md:hidden rotate-90"
+          className="text-white/50 text-2xl md:hidden rotate-90"
         >
           →
         </motion.div>
@@ -409,7 +409,7 @@ function MemoryDiagram() {
             <Brain className="h-10 w-10 text-primary" />
           </div>
           <span className="text-sm font-semibold text-white group-hover:text-primary transition-colors">CM Analysis</span>
-          <span className="text-xs text-white/40">Extract lessons</span>
+          <span className="text-xs text-white/60">Extract lessons</span>
         </motion.div>
 
         {/* Arrow */}
@@ -417,7 +417,7 @@ function MemoryDiagram() {
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-white/30 text-2xl hidden md:block"
+          className="text-white/50 text-2xl hidden md:block"
         >
           →
         </motion.div>
@@ -425,7 +425,7 @@ function MemoryDiagram() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-white/30 text-2xl md:hidden rotate-90"
+          className="text-white/50 text-2xl md:hidden rotate-90"
         >
           →
         </motion.div>
@@ -442,7 +442,7 @@ function MemoryDiagram() {
             <BookOpen className="h-10 w-10 text-emerald-400" />
           </div>
           <span className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">Playbook</span>
-          <span className="text-xs text-white/40">Actionable rules</span>
+          <span className="text-xs text-white/60">Actionable rules</span>
         </motion.div>
       </div>
     </div>

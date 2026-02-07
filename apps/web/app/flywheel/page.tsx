@@ -585,7 +585,7 @@ function ToolCard({ tool, index }: { tool: FlywheelTool; index: number }) {
         {/* Install command */}
         {tool.installCommand && (
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-muted-foreground">
               {tool.installCommand.length > 60
                 ? tool.installCommand.slice(0, 60) + "..."
                 : tool.installCommand}

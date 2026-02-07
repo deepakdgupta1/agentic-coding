@@ -115,14 +115,40 @@ export const radius = {
  * Section header typography
  */
 export const typography = {
-  /** Section label (uppercase, small) */
-  sectionLabel: "text-[11px] font-bold uppercase tracking-[0.25em] text-primary",
+  /** Section label (uppercase, small, min 12px for accessibility) */
+  sectionLabel: "text-xs font-bold uppercase tracking-[0.25em] text-primary",
   /** Section heading */
   sectionHeading: "font-mono text-3xl font-bold tracking-tight",
   /** Large section heading */
   sectionHeadingLg: "font-mono text-3xl sm:text-4xl font-bold tracking-tight",
   /** Section description */
   sectionDescription: "mx-auto max-w-2xl text-muted-foreground",
+} as const;
+
+/**
+ * Display typography - fluid values for hero sections (used in CSS variables)
+ */
+export const displayTypography = {
+  /** Font sizes using CSS clamp for fluid scaling */
+  fontSize: {
+    "5xl": "clamp(3rem, 2.5rem + 2.5vw, 5rem)",
+    "6xl": "clamp(3.5rem, 3rem + 3vw, 6rem)",
+  },
+  /** Letter spacing for large display text */
+  tracking: {
+    "5xl": "-0.035em",
+    "6xl": "-0.04em",
+  },
+  /** Line heights for large display text */
+  leading: {
+    "5xl": 1.05,
+    "6xl": 1,
+  },
+  /** Tailwind utility classes for display text */
+  classes: {
+    "5xl": "text-display-5xl",
+    "6xl": "text-display-6xl",
+  },
 } as const;
 
 // =============================================================================

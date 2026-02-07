@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, BookOpen, Home, Search, Wrench, ShieldCheck, Type, FileQuestion, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllTerms, type JargonTerm } from "@/lib/jargon";
 import { motion, springs, staggerContainer, fadeUp } from "@/components/motion";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type GlossaryCategory = "concepts" | "tools" | "protocols" | "acronyms";
 type CategoryFilter = "all" | GlossaryCategory;
@@ -20,7 +21,7 @@ function toAnchorId(value: string): string {
 const TOOL_TERMS = new Set([
   "tmux", "zsh", "bash", "bun", "uv", "cargo", "rust", "go", "git", "gh",
   "lazygit", "rg", "ripgrep", "fzf", "direnv", "zoxide", "atuin", "ntm",
-  "bv", "bd", "ubs", "cass", "cm", "caam", "slb", "dcg", "vault", "wrangler",
+  "bv", "br", "ubs", "cass", "cm", "caam", "slb", "dcg", "vault", "wrangler",
   "supabase", "vercel", "postgres",
 ]);
 
@@ -153,7 +154,7 @@ function TermCard({ term }: { term: JargonTerm }) {
             </div>
             <Link
               href={`#${anchorId}`}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors font-mono shrink-0"
+              className="text-xs text-white/50 hover:text-white/70 transition-colors font-mono shrink-0"
             >
               #{anchorId}
             </Link>
@@ -356,13 +357,13 @@ export default function GlossaryPage() {
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/30 via-emerald-500/20 to-primary/30 blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
 
             <div className="relative">
-              <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-white/30 transition-colors group-focus-within:text-primary" />
+              <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50 transition-colors group-focus-within:text-primary" />
               <input
                 type="text"
                 placeholder="Search terms..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-4 pl-14 pr-5 text-white placeholder:text-white/30 backdrop-blur-xl transition-all duration-300 focus:border-primary/50 focus:bg-white/[0.05] focus:outline-none focus:shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)]"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-4 pl-14 pr-5 text-white placeholder:text-white/50 backdrop-blur-xl transition-all duration-300 focus:border-primary/50 focus:bg-white/[0.05] focus:outline-none focus:shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)]"
               />
             </div>
           </div>
@@ -392,7 +393,7 @@ export default function GlossaryPage() {
 
         {/* Count display */}
         <motion.p
-          className="mb-10 text-center text-sm text-white/40"
+          className="mb-10 text-center text-sm text-white/60"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ ...springs.smooth, delay: 0.4 }}
@@ -435,35 +436,35 @@ export default function GlossaryPage() {
             ))
           ) : (
             <motion.div
-              className="py-20 text-center"
-              initial={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center backdrop-blur-xl"
+              initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={springs.smooth}
             >
-              <div className="relative inline-flex mb-6">
-                <div className="absolute inset-0 bg-white/10 rounded-2xl blur-xl" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-white/[0.05] border border-white/[0.08]">
-                  <FileQuestion className="h-10 w-10 text-white/30" />
-                </div>
-              </div>
-              <h3 className="mb-3 text-xl font-bold text-white">
-                No terms found
-              </h3>
-              <p className="mx-auto max-w-sm text-white/50 mb-6">
-                Try adjusting your search or category filter to find what you&apos;re looking for.
-              </p>
-              <motion.button
-                onClick={() => {
-                  setSearchQuery("");
-                  setCategory("all");
-                }}
-                className="rounded-full bg-gradient-to-r from-primary/20 to-violet-500/20 border border-primary/30 px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:from-primary/30 hover:to-violet-500/30 hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={springs.snappy}
-              >
-                Clear filters
-              </motion.button>
+              <EmptyState
+                icon={FileQuestion}
+                title="No terms found"
+                description="Try adjusting your search or category filter to find what you're looking for."
+                action={
+                  <motion.button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setCategory("all");
+                    }}
+                    className="rounded-full bg-gradient-to-r from-primary/20 to-violet-500/20 border border-primary/30 px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:from-primary/30 hover:to-violet-500/30 hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={springs.snappy}
+                  >
+                    Clear filters
+                  </motion.button>
+                }
+                iconContainerClassName="bg-white/[0.05] border border-white/[0.08] shadow-[0_0_30px_rgba(255,255,255,0.08)]"
+                iconClassName="text-white/60"
+                titleClassName="text-white"
+                descriptionClassName="text-white/50"
+                variant="default"
+              />
             </motion.div>
           )}
         </motion.div>

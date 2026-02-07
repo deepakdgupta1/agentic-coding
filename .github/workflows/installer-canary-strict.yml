@@ -31,18 +31,21 @@ jobs:
         env:
           ACFS_CHECKSUMS_REF: main
         run: |
-          set -o pipefail
           chmod +x ./tests/vm/test_install_ubuntu.sh
 
+          UBUNTU="${{ inputs.ubuntu || 'all' }}"
+          MODE="${{ inputs.mode || 'vibe' }}"
+
+          rc=0
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            ./tests/vm/test_install_ubuntu.sh --all --mode "vibe" --strict 2>&1 | tee canary.log
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.ubuntu }}" == "all" ]]; then
-            ./tests/vm/test_install_ubuntu.sh --all --mode "${{ inputs.mode }}" --strict 2>&1 | tee canary.log
+            (set -o pipefail; ./tests/vm/test_install_ubuntu.sh --all --mode "vibe" --strict 2>&1 | tee canary.log) || rc=$?
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "$UBUNTU" == "all" ]]; then
+            (set -o pipefail; ./tests/vm/test_install_ubuntu.sh --all --mode "$MODE" --strict 2>&1 | tee canary.log) || rc=$?
           else
-            ./tests/vm/test_install_ubuntu.sh --ubuntu "${{ inputs.ubuntu }}" --mode "${{ inputs.mode }}" --strict 2>&1 | tee canary.log
+            (set -o pipefail; ./tests/vm/test_install_ubuntu.sh --ubuntu "$UBUNTU" --mode "$MODE" --strict 2>&1 | tee canary.log) || rc=$?
           fi
 
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Detect checksum mismatch
         id: detect

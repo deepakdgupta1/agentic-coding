@@ -70,7 +70,7 @@ function RelatedToolCard({ toolId }: { toolId: ToolId }) {
           </div>
         </div>
         <ChevronRight
-          className="relative h-4 w-4 text-white/40 group-hover:text-white/70 transition-colors"
+          className="relative h-4 w-4 text-white/60 group-hover:text-white/80 transition-colors"
           aria-hidden="true"
         />
       </motion.div>
@@ -102,7 +102,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white/40 transition-colors hover:bg-white/10 hover:text-white/70"
+      className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white/80"
       aria-label={copied ? "Copied!" : "Copy command"}
     >
       {copied ? (
@@ -281,7 +281,7 @@ export function ToolPageContent({ tool: doc }: ToolPageContentProps) {
                       <div className="w-3 h-3 rounded-full bg-red-500/70" aria-hidden="true" />
                       <div className="w-3 h-3 rounded-full bg-yellow-500/70" aria-hidden="true" />
                       <div className="w-3 h-3 rounded-full bg-green-500/70" aria-hidden="true" />
-                      <span className="ml-2 text-xs text-white/30">
+                      <span className="ml-2 text-xs text-white/50">
                         terminal
                       </span>
                     </div>

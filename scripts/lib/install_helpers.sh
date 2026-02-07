@@ -16,6 +16,12 @@ if [[ -z "${ACFS_BLUE:-}" ]]; then
     source "$INSTALL_HELPERS_DIR/logging.sh" 2>/dev/null || true
 fi
 
+# Source progress bar library (bd-21kh)
+if [[ -z "${ACFS_PROGRESS_TOTAL:-}" ]]; then
+    # shellcheck source=progress.sh
+    source "$INSTALL_HELPERS_DIR/progress.sh" 2>/dev/null || true
+fi
+
 # ------------------------------------------------------------
 # Selection state (populated by parse_args or manifest selection)
 # ------------------------------------------------------------
@@ -879,7 +885,19 @@ acfs_run_generated_category_phase() {
     local module=""
     local key=""
     local func=""
+    local desc=""
     local ran_any=false
+
+    # Count modules for progress tracking (bd-21kh)
+    local module_count=0
+    if declare -f progress_count_modules >/dev/null 2>&1; then
+        module_count=$(progress_count_modules "$category" "$phase")
+    fi
+
+    # Initialize progress bar if we have modules
+    if [[ "$module_count" -gt 0 ]] && declare -f progress_init >/dev/null 2>&1; then
+        progress_init "$module_count"
+    fi
 
     for module in "${ACFS_EFFECTIVE_PLAN[@]}"; do
         key="$module"
@@ -890,28 +908,46 @@ acfs_run_generated_category_phase() {
             continue
         fi
         func="${ACFS_MODULE_FUNC[$key]:-}"
+        desc="${ACFS_MODULE_DESC[$key]:-$module}"
         if [[ -z "$func" ]]; then
             log_error "Missing generated function for $module"
+            if declare -f progress_finish >/dev/null 2>&1; then progress_finish; fi
             return 1
         fi
         if ! declare -f "$func" >/dev/null 2>&1; then
             log_error "Generated function not found: $func (module $module)"
+            if declare -f progress_finish >/dev/null 2>&1; then progress_finish; fi
             return 1
         fi
 
         # Skip-if-installed check (bd-1eop)
         if acfs_should_skip_module "$module"; then
             log_info "Skipping $module (already installed)"
+            # Still update progress bar to show skip
+            if declare -f progress_update >/dev/null 2>&1; then
+                progress_update "$module" "$desc [skipped]"
+            fi
             ran_any=true
             continue
         fi
 
+        # Update progress bar before installing (bd-21kh)
+        if declare -f progress_update >/dev/null 2>&1; then
+            progress_update "$module" "$desc"
+        fi
+
         if ! "$func"; then
             log_error "Generated module failed: $module"
+            if declare -f progress_finish >/dev/null 2>&1; then progress_finish; fi
             return 1
         fi
         ran_any=true
     done
+
+    # Finish progress bar
+    if [[ "$module_count" -gt 0 ]] && declare -f progress_finish >/dev/null 2>&1; then
+        progress_finish
+    fi
 
     if [[ "$ran_any" != "true" ]]; then
         log_detail "No generated modules selected for $category (phase $phase)"

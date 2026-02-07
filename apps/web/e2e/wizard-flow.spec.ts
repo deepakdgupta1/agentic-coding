@@ -754,6 +754,94 @@ test.describe("Step 10: Run Installer Page", () => {
     // Warning message should be visible
     await expect(page.locator('text=/don.t close the terminal/i')).toBeVisible();
   });
+
+  test("should have pin-ref toggle checkbox", async ({ page }) => {
+    await page.goto("/wizard/run-installer");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Pin checkbox should be visible
+    const pinCheckbox = page.locator('#pin-ref');
+    await expect(pinCheckbox).toBeVisible();
+    // Should be unchecked by default
+    await expect(pinCheckbox).not.toBeChecked();
+  });
+
+  test("should show pinned ref input when toggle is enabled", async ({ page }) => {
+    await page.goto("/wizard/run-installer");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Initially, input should not be visible
+    const refInput = page.locator('input[placeholder*="main, v1.0.0"]');
+    await expect(refInput).not.toBeVisible();
+
+    // Enable the pin toggle
+    await page.locator('#pin-ref').click();
+
+    // Now input should be visible
+    await expect(refInput).toBeVisible();
+    // Default value should be "main"
+    await expect(refInput).toHaveValue("main");
+  });
+
+  test("should update command when pinned ref is set", async ({ page }) => {
+    await page.goto("/wizard/run-installer");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Get the default command (without pinning)
+    const commandElement = page.locator('code').filter({ hasText: 'curl -fsSL' }).first();
+    const defaultCommand = await commandElement.textContent();
+    expect(defaultCommand).not.toContain('ACFS_REF=');
+
+    // Enable pinning and set a custom ref
+    await page.locator('#pin-ref').click();
+    const refInput = page.locator('input[placeholder*="main, v1.0.0"]');
+    await refInput.clear();
+    await refInput.fill("v1.2.3");
+    await refInput.blur();
+
+    // Command should now include ACFS_REF
+    await expect(commandElement).toContainText('ACFS_REF="v1.2.3"');
+    await expect(commandElement).toContainText('v1.2.3/install.sh');
+  });
+
+  test("should include commit SHA in command when pinned", async ({ page }) => {
+    await page.goto("/wizard/run-installer");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Enable pinning with a commit SHA
+    await page.locator('#pin-ref').click();
+    const refInput = page.locator('input[placeholder*="main, v1.0.0"]');
+    await refInput.clear();
+    await refInput.fill("abc123def456");
+    await refInput.blur();
+
+    // Command should include the SHA
+    const commandElement = page.locator('code').filter({ hasText: 'curl -fsSL' }).first();
+    await expect(commandElement).toContainText('ACFS_REF="abc123def456"');
+    await expect(commandElement).toContainText('abc123def456/install.sh');
+  });
+
+  test("should revert to default command when pin toggle is disabled", async ({ page }) => {
+    await page.goto("/wizard/run-installer");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Enable pinning
+    await page.locator('#pin-ref').click();
+    const refInput = page.locator('input[placeholder*="main, v1.0.0"]');
+    await refInput.clear();
+    await refInput.fill("custom-ref");
+    await refInput.blur();
+
+    // Verify pinned command
+    const commandElement = page.locator('code').filter({ hasText: 'curl -fsSL' }).first();
+    await expect(commandElement).toContainText('ACFS_REF="custom-ref"');
+
+    // Disable pinning
+    await page.locator('#pin-ref').click();
+
+    // Command should no longer include ACFS_REF
+    await expect(commandElement).not.toContainText('ACFS_REF=');
+  });
 });
 
 // =============================================================================
@@ -1405,5 +1493,237 @@ test.describe("Accessibility", () => {
     // First checkbox should be clickable
     await checkboxes.first().click();
     await expect(checkboxes.first()).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+// =============================================================================
+// COMMAND BUILDER - E2E Tests (bd-31ps.4.3)
+// =============================================================================
+test.describe("Command Builder Panel", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
+  });
+
+  test("should display command builder on launch-onboarding page", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Command builder panel should be visible
+    await expect(page.locator('text="Your Commands"')).toBeVisible();
+  });
+
+  test("should show SSH root command with stored IP", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // SSH root command should include the stored IP
+    await expect(page.locator('text="ssh root@192.168.1.100"')).toBeVisible();
+  });
+
+  test("should show installer command in vibe mode by default", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Installer command should include --mode vibe
+    await expect(page.locator('code').filter({ hasText: '--mode vibe' }).first()).toBeVisible();
+  });
+
+  test("should update installer command when mode is changed to safe", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Click on Safe mode button
+    const safeModeBtn = page.locator('button:has-text("Safe")');
+    await safeModeBtn.click();
+
+    // Installer command should now include --mode safe
+    await expect(page.locator('code').filter({ hasText: '--mode safe' }).first()).toBeVisible();
+  });
+
+  test("should show advanced settings when clicked", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Advanced settings should be hidden initially
+    const usernameInput = page.locator('#cb-user');
+    await expect(usernameInput).not.toBeVisible();
+
+    // Click Advanced toggle
+    await page.click('button:has-text("Advanced")');
+
+    // Now username and ref inputs should be visible
+    await expect(usernameInput).toBeVisible();
+    await expect(page.locator('#cb-ref')).toBeVisible();
+  });
+
+  test("should update SSH user command when username is changed", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Default should show ubuntu user
+    await expect(page.locator('text="SSH as ubuntu"')).toBeVisible();
+
+    // Open advanced settings
+    await page.click('button:has-text("Advanced")');
+
+    // Change username
+    const usernameInput = page.locator('#cb-user');
+    await usernameInput.clear();
+    await usernameInput.fill("devuser");
+    await usernameInput.blur();
+
+    // Command label and command should update
+    await expect(page.locator('text="SSH as devuser"')).toBeVisible();
+    await expect(page.locator('code').filter({ hasText: 'devuser@192.168.1.100' }).first()).toBeVisible();
+  });
+
+  test("should include ACFS_REF in installer command when ref is set", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Open advanced settings
+    await page.click('button:has-text("Advanced")');
+
+    // Set a pinned ref
+    const refInput = page.locator('#cb-ref');
+    await refInput.clear();
+    await refInput.fill("v1.0.0");
+    await refInput.blur();
+
+    // Installer command should include ACFS_REF
+    await expect(page.locator('code').filter({ hasText: 'ACFS_REF="v1.0.0"' }).first()).toBeVisible();
+  });
+
+  test("should have share link button that copies URL", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Share button should be visible
+    const shareBtn = page.locator('button:has-text("Share link")');
+    await expect(shareBtn).toBeVisible();
+
+    // Click share button
+    await shareBtn.click();
+
+    // Button text should change to "Copied!"
+    await expect(page.locator('button:has-text("Copied!")')).toBeVisible();
+  });
+
+  test("should have copy buttons for each command", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Should have multiple copy buttons (one for each command)
+    const copyButtons = page.locator('button[aria-label*="Copy"]');
+    const count = await copyButtons.count();
+    expect(count).toBeGreaterThanOrEqual(4); // ssh-root, installer, ssh-user, doctor, onboard
+  });
+
+  test("should show checkmark after clicking copy button", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Click first copy button
+    const copyBtn = page.locator('button[aria-label*="Copy"]').first();
+    await copyBtn.click();
+
+    // Check icon should appear briefly (indicating copied state)
+    // The button contains an SVG that changes from Copy to Check
+    await expect(copyBtn.locator('svg.text-\\[oklch\\(0\\.72_0\\.19_145\\)\\]')).toBeVisible();
+  });
+
+  test("should restore state from URL query params", async ({ page }) => {
+    // Navigate with query params
+    await page.goto("/wizard/launch-onboarding?ip=10.20.30.40&mode=safe&user=admin&ref=v2.0.0");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Commands should reflect the URL params
+    // Note: IP might still use localStorage if set; this tests fresh load
+    await expect(page.locator('code').filter({ hasText: '--mode safe' }).first()).toBeVisible();
+  });
+
+  test("should display IP input when no IP is stored", async ({ page }) => {
+    // Clear state and navigate
+    await page.goto("/");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // IP input should be visible when no IP is stored
+    const ipInput = page.locator('#cb-ip');
+    await expect(ipInput).toBeVisible();
+
+    // Should show placeholder message
+    await expect(page.locator('text="Enter your VPS IP to generate personalized commands."')).toBeVisible();
+  });
+
+  test("should validate IP input and show error for invalid IP", async ({ page }) => {
+    // Clear state
+    await page.goto("/");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Enter invalid IP
+    const ipInput = page.locator('#cb-ip');
+    await ipInput.fill("not-an-ip");
+    await ipInput.blur();
+
+    // Error message should appear
+    await expect(page.locator('text="Enter a valid IP (e.g., 203.0.113.42)"')).toBeVisible();
+  });
+
+  test("should generate commands when valid IP is entered", async ({ page }) => {
+    // Clear state
+    await page.goto("/");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Enter valid IP
+    const ipInput = page.locator('#cb-ip');
+    await ipInput.fill("203.0.113.42");
+    await ipInput.blur();
+
+    // Commands should appear with the entered IP
+    await expect(page.locator('text="ssh root@203.0.113.42"')).toBeVisible();
+  });
+});
+
+// =============================================================================
+// COMMAND BUILDER - Mobile Tests (bd-31ps.4.3)
+// =============================================================================
+test.describe("Command Builder Panel - Mobile", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await setupWizardState(page, { os: "mac", ip: "192.168.1.100" });
+  });
+
+  test("should display command builder on mobile", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Command builder should be visible on mobile
+    await expect(page.locator('text="Your Commands"')).toBeVisible();
+  });
+
+  test("should have horizontally scrollable command text", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Code blocks should have overflow-x-auto for scrolling
+    const codeBlock = page.locator('code.overflow-x-auto').first();
+    await expect(codeBlock).toBeVisible();
+  });
+
+  test("should toggle mode on mobile", async ({ page }) => {
+    await page.goto("/wizard/launch-onboarding");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+
+    // Toggle to Safe mode
+    await page.click('button:has-text("Safe")');
+
+    // Command should update
+    await expect(page.locator('code').filter({ hasText: '--mode safe' }).first()).toBeVisible();
   });
 });

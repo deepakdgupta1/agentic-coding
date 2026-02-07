@@ -10,6 +10,7 @@ import { cn, safeGetItem, safeSetItem } from "@/lib/utils";
 import { useDetectedOS, useUserOS } from "@/lib/userPreferences";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { springs } from "@/components/motion";
+import { trackInteraction } from "@/lib/analytics";
 
 export interface CommandCardProps {
   /** The default command to display */
@@ -136,6 +137,13 @@ export function CommandCard({
     try {
       await navigator.clipboard.writeText(displayCommand);
       setCopied(true);
+      // Track copy event for analytics
+      trackInteraction("copy", persistKey || "command-card", "command", {
+        command_length: displayCommand.length,
+        command_preview: displayCommand.slice(0, 50),
+        run_location: runLocation,
+        os,
+      });
       setTimeout(() => {
         setCopied(false);
         setCopyAnimation(false);
@@ -151,12 +159,19 @@ export function CommandCard({
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
+      // Track copy event for analytics (fallback path)
+      trackInteraction("copy", persistKey || "command-card", "command", {
+        command_length: displayCommand.length,
+        command_preview: displayCommand.slice(0, 50),
+        run_location: runLocation,
+        os,
+      });
       setTimeout(() => {
         setCopied(false);
         setCopyAnimation(false);
       }, 2000);
     }
-  }, [displayCommand]);
+  }, [displayCommand, persistKey, runLocation, os]);
 
   const handleCheckboxChange = useCallback(
     (checked: CheckedState) => {
@@ -321,6 +336,11 @@ export function CodeBlock({
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
+      // Track copy event for analytics
+      trackInteraction("copy", `code-block-${language}`, "code-block", {
+        code_length: code.length,
+        language,
+      });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback
@@ -333,9 +353,14 @@ export function CodeBlock({
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
+      // Track copy event for analytics (fallback path)
+      trackInteraction("copy", `code-block-${language}`, "code-block", {
+        code_length: code.length,
+        language,
+      });
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [code]);
+  }, [code, language]);
 
   return (
     <div

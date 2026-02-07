@@ -180,6 +180,17 @@ modules:
         fi
         curl "${CURL_ARGS[@]}" -o ~/.acfs/zsh/acfs.zshrc "${ACFS_RAW}/acfs/zsh/acfs.zshrc"
       - |
+        # Install ACFS shell completions (zsh)
+        ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+        mkdir -p ~/.acfs/completions
+        CURL_ARGS=(-fsSL)
+        if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+          CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+        fi
+        curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/_acfs "${ACFS_RAW}/scripts/completions/_acfs"
+        # Also install bash completions for users who switch shells
+        curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/acfs.bash "${ACFS_RAW}/scripts/completions/acfs.bash"
+      - |
         # Install pre-configured Powerlevel10k settings (prevents config wizard on first login)
         ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
         CURL_ARGS=(-fsSL)
@@ -1291,7 +1302,7 @@ modules:
       language: "Rust"
       stars: 128
       cli_name: "br"
-      cli_aliases: ["bd"]
+      cli_aliases: []
       command_example: "br ready --json"
     dependencies:
       - lang.rust
