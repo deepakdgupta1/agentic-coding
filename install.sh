@@ -4529,7 +4529,7 @@ NTM_CONFIG_EOF
                     run_as_target tmux kill-session -t "$tmux_session" 2>/dev/null || true
 
                     # Create new detached session and run the installer
-                    if try_step "Installing MCP Agent Mail in tmux" run_as_target tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$target_dir" --yes; then
+                    if try_step "Installing MCP Agent Mail in tmux" run_as_target bash -lc "exec 198>&- 199>&- 200>&-; tmux new-session -d -s \"$tmux_session\" \"$tmp_install\" --dir \"$target_dir\" --yes"; then
                         log_success "MCP Agent Mail installing in tmux session '$tmux_session'"
                         log_info "Attach with: tmux attach -t $tmux_session"
                         # Give it a moment to start

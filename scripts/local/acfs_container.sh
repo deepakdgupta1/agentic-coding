@@ -82,7 +82,7 @@ cmd_create() {
     # Copy installer and repo files to container via tar pipe
     # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
     log_detail "Transferring ACFS repo to container..."
-    if ! tar -C "$REPO_ROOT" -cf - install.sh scripts acfs acfs.manifest.yaml checksums.yaml 2>/dev/null | \
+    if ! tar -C "$REPO_ROOT" -cf - install.sh scripts acfs packages/onboard acfs.manifest.yaml checksums.yaml 2>/dev/null | \
         acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/; then
         log_error "Failed to transfer ACFS repo to container"
         return 1
@@ -91,6 +91,10 @@ cmd_create() {
     # Verify critical bootstrap files exist in container
     if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/scripts/acfs-global 2>/dev/null; then
         log_error "Bootstrap verification failed: scripts/acfs-global not in container"
+        return 1
+    fi
+    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/packages/onboard/onboard.sh 2>/dev/null; then
+        log_error "Bootstrap verification failed: packages/onboard/onboard.sh not in container"
         return 1
     fi
 
