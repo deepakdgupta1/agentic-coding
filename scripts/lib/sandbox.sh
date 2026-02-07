@@ -28,6 +28,7 @@ ACFS_PROFILE_NAME="acfs-local-profile"
 ACFS_LXD_ZFS_DEVICE="${ACFS_LXD_ZFS_DEVICE:-}"
 ACFS_LXD_ZFS_POOL="${ACFS_LXD_ZFS_POOL:-lxd_pool}"
 ACFS_LXD_STORAGE_DRIVER="${ACFS_LXD_STORAGE_DRIVER:-dir}"
+ACFS_LXD_STORAGE_POOL="${ACFS_LXD_STORAGE_POOL:-}"
 
 # ============================================================
 # Logging (fallbacks if not sourced from install.sh)
@@ -219,6 +220,49 @@ _acfs_sandbox_fix_storage_pool() {
     fi
 }
 
+# Pick a storage pool name for the default profile root device.
+_acfs_sandbox_default_storage_pool() {
+    local pools
+    pools="$(acfs_sudo lxc storage list --format csv -c n 2>/dev/null || true)"
+
+    if [[ -n "${ACFS_LXD_STORAGE_POOL:-}" ]]; then
+        echo "$ACFS_LXD_STORAGE_POOL"
+        return 0
+    fi
+
+    if printf '%s\n' "$pools" | grep -qx "default"; then
+        echo "default"
+        return 0
+    fi
+
+    if [[ -n "${ACFS_LXD_ZFS_POOL:-}" ]] && printf '%s\n' "$pools" | grep -qx "${ACFS_LXD_ZFS_POOL}"; then
+        echo "${ACFS_LXD_ZFS_POOL}"
+        return 0
+    fi
+
+    # If only one pool exists, use it.
+    local count
+    count="$(printf '%s\n' "$pools" | sed '/^$/d' | wc -l | tr -d ' ')"
+    if [[ "$count" == "1" ]]; then
+        printf '%s\n' "$pools"
+        return 0
+    fi
+
+    log_fatal "No suitable LXD storage pool found for default profile root device."
+}
+
+# Ensure the default profile has a root disk device.
+_acfs_sandbox_ensure_root_device() {
+    if acfs_sudo lxc profile device show default root &>/dev/null 2>&1; then
+        return 0
+    fi
+
+    local pool
+    pool="$(_acfs_sandbox_default_storage_pool)"
+    log_warn "Default LXD profile missing root disk device. Adding root device (pool=$pool)."
+    acfs_sudo lxc profile device add default root disk path=/ pool="$pool"
+}
+
 # Ensure current user has access to LXD (auto-refresh permissions)
 grant_acfs_sandbox_access() {
     # Check if LXD is usable by current user
@@ -341,6 +385,8 @@ profiles:
 EOF
     fi
 
+    _acfs_sandbox_ensure_root_device
+
     # Ensure lxdbr0 exists if no other network is present
     if ! acfs_lxc network show lxdbr0 &>/dev/null 2>&1; then
         log_detail "Ensuring lxdbr0 network exists..."
@@ -412,6 +458,8 @@ acfs_sandbox_create() {
 
     # Create profile
     _acfs_create_profile
+
+    _acfs_sandbox_ensure_root_device
 
     # Launch container
     set_terminal_title "ACFS Sandbox: Launching Ubuntu..."
