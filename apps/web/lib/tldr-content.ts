@@ -968,18 +968,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "Found tweets can become memories",
       },
     ],
-<<<<<<< Updated upstream
-    techStack: ["Rust", "Tantivy", "SQLite", "FNV-1a hash embeddings"],
-    keyFeatures: [
-      "Sub-millisecond lexical, <10ms hybrid search",
-      "DM context view with full conversation threads",
-      "JSON/CSV/compact output formats",
-      "Interactive REPL shell (xf shell)",
-    ],
-    useCases: [
-      "Finding that thread you bookmarked months ago",
-      "Searching DMs with full conversation context",
-      "Exporting tweets to JSON for analysis pipelines",
     techStack: ["Rust", "Tantivy", "SQLite", "SIMD", "F16 quantization"],
     keyFeatures: [
       "Sub-millisecond lexical search (<10ms typical)",
@@ -989,17 +977,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     ],
     useCases: [
       "Finding that thread you bookmarked months ago",
-=======
-    techStack: ["Rust", "Tantivy", "SQLite", "SIMD", "F16 quantization"],
-    keyFeatures: [
-      "Sub-millisecond lexical search (<10ms typical)",
-      "Hybrid BM25 + semantic with RRF fusion",
-      "DM context search with full threads",
-      "Indexes tweets, likes, DMs, Grok chats",
-    ],
-    useCases: [
-      "Finding that thread you bookmarked months ago",
->>>>>>> Stashed changes
       "Searching DM conversations with full context",
       "Researching past discussions on a topic",
     ],
@@ -1481,16 +1458,8 @@ export const tldrPageData = {
     title: "The Agentic Coding Flywheel",
     subtitle: "TL;DR Edition",
     description:
-<<<<<<< Updated upstream
-      "15 core tools and 7 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
-    stats: [
-      { label: "Ecosystem Tools", value: "22" },
       "16 core tools and 13 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
     stats: [
-=======
-      "16 core tools and 13 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
-    stats: [
->>>>>>> Stashed changes
       { label: "Ecosystem Tools", value: "29" },
       { label: "GitHub Stars", value: "3,600+" },
       { label: "Languages", value: "5" },
