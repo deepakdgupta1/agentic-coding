@@ -23,6 +23,11 @@ ACFS_WORKSPACE_HOST="${ACFS_WORKSPACE_HOST:-$HOME/acfs-workspace}"
 ACFS_WORKSPACE_CONTAINER="/data/projects"
 ACFS_DASHBOARD_PORT="${ACFS_DASHBOARD_PORT:-38080}"
 ACFS_PROFILE_NAME="acfs-local-profile"
+# Optional ZFS storage configuration for LXD (host-side)
+# If ACFS_LXD_ZFS_DEVICE is set, ACFS will attempt to create/use a ZFS pool.
+ACFS_LXD_ZFS_DEVICE="${ACFS_LXD_ZFS_DEVICE:-}"
+ACFS_LXD_ZFS_POOL="${ACFS_LXD_ZFS_POOL:-lxd_pool}"
+ACFS_LXD_STORAGE_DRIVER="${ACFS_LXD_STORAGE_DRIVER:-dir}"
 
 # ============================================================
 # Logging (fallbacks if not sourced from install.sh)
@@ -159,6 +164,61 @@ acfs_sandbox_running() {
 # LXD Initialization
 # ============================================================
 
+# Determine desired storage driver for LXD init.
+_acfs_sandbox_storage_driver() {
+    if [[ -n "${ACFS_LXD_ZFS_DEVICE:-}" ]]; then
+        echo "zfs"
+        return 0
+    fi
+    echo "${ACFS_LXD_STORAGE_DRIVER:-dir}"
+}
+
+# Ensure a ZFS pool exists (create if missing and device provided).
+_acfs_sandbox_ensure_zpool() {
+    local pool="$1"
+    local device="${2:-}"
+
+    if ! command -v zpool &>/dev/null; then
+        log_detail "Installing ZFS utilities..."
+        acfs_sudo apt-get update -y >/dev/null 2>&1 || true
+        acfs_sudo apt-get install -y zfsutils-linux >/dev/null 2>&1 || true
+    fi
+
+    if acfs_sudo zpool list -H -o name "$pool" &>/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [[ -z "$device" ]]; then
+        log_fatal "ZFS pool '$pool' is missing. Set ACFS_LXD_ZFS_DEVICE to create it."
+    fi
+    if [[ ! -b "$device" ]]; then
+        log_fatal "ZFS device not found: $device"
+    fi
+
+    log_warn "Creating ZFS pool '$pool' on device '$device' (this will wipe the device)."
+    acfs_sudo zpool create -f "$pool" "$device"
+}
+
+# If LXD is already initialized, try to recover unavailable storage pools.
+_acfs_sandbox_fix_storage_pool() {
+    local info
+    info="$(acfs_sudo lxc storage show default 2>/dev/null || true)"
+    if [[ -z "$info" ]]; then
+        return 0
+    fi
+
+    local driver status source
+    driver="$(printf '%s\n' "$info" | awk -F': ' '/^driver:/{print $2; exit}')"
+    status="$(printf '%s\n' "$info" | awk -F': ' '/^status:/{print $2; exit}')"
+    source="$(printf '%s\n' "$info" | awk -F': ' '/^[[:space:]]*source:/{print $2; exit}')"
+
+    if [[ "$status" == "Unavailable" && "$driver" == "zfs" ]]; then
+        local pool="${source:-${ACFS_LXD_ZFS_POOL:-lxd_pool}}"
+        log_warn "LXD storage pool 'default' is unavailable (driver=zfs, source=$pool)."
+        _acfs_sandbox_ensure_zpool "$pool" "${ACFS_LXD_ZFS_DEVICE:-}"
+    fi
+}
+
 # Ensure current user has access to LXD (auto-refresh permissions)
 grant_acfs_sandbox_access() {
     # Check if LXD is usable by current user
@@ -241,8 +301,19 @@ acfs_sandbox_init_lxd() {
     grant_acfs_sandbox_access
 
     # Initialize LXD if not already done (and sudo check failed)
-    if ! acfs_sudo lxc info &>/dev/null 2>&1; then
+    if acfs_sudo lxc info &>/dev/null 2>&1; then
+        _acfs_sandbox_fix_storage_pool
+    else
         log_detail "Running LXD initialization..."
+        local storage_driver storage_config zfs_pool
+        storage_driver="$(_acfs_sandbox_storage_driver)"
+        storage_config=""
+        if [[ "$storage_driver" == "zfs" ]]; then
+            zfs_pool="${ACFS_LXD_ZFS_POOL:-lxd_pool}"
+            _acfs_sandbox_ensure_zpool "$zfs_pool" "${ACFS_LXD_ZFS_DEVICE:-}"
+            storage_config=$'    config:\n      source: '"$zfs_pool"
+        fi
+
         # Use preseed for non-interactive init
         cat <<EOF | acfs_sudo lxd init --preseed
 config: {}
@@ -254,7 +325,8 @@ networks:
       ipv6.address: none
 storage_pools:
   - name: default
-    driver: dir
+    driver: ${storage_driver}
+${storage_config}
 profiles:
   - name: default
     devices:

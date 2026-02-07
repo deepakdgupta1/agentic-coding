@@ -61,6 +61,14 @@ This provisions an **LXD system container** that:
 - snap installed (default on Ubuntu)
 - ~10GB disk space for container
 
+**Optional: ZFS-backed LXD storage (higher performance)**
+```bash
+# WARNING: This will wipe the device
+ACFS_LXD_ZFS_DEVICE=/dev/nvme0n1p6 \
+ACFS_LXD_ZFS_POOL=lxd_pool \
+./install.sh --local --yes
+```
+
 **Access your ACFS environment:**
 ```bash
 acfs-local shell       # Enter sandbox shell
