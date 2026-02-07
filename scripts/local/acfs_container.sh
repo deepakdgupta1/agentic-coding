@@ -12,6 +12,7 @@
 #   acfs-local stop       - Stop container
 #   acfs-local start      - Start container
 #   acfs-local destroy    - Remove container (preserves workspace)
+#   acfs-local uninstall  - Remove container + optional cleanup
 #   acfs-local dashboard  - Open dashboard in browser
 #   acfs-local doctor     - Run acfs doctor inside container
 #   acfs-local update     - Run acfs update inside container
@@ -189,6 +190,113 @@ cmd_destroy() {
     acfs_sandbox_destroy "$@"
 }
 
+cmd_uninstall() {
+    local yes=false
+    local purge_workspace=false
+    local remove_wrapper=false
+    local delete_lxd_pool=""
+    local delete_zfs_pool=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yes|-y)
+                yes=true
+                ;;
+            --purge-workspace)
+                purge_workspace=true
+                ;;
+            --remove-wrapper)
+                remove_wrapper=true
+                ;;
+            --delete-lxd-pool)
+                shift
+                delete_lxd_pool="${1:-}"
+                ;;
+            --delete-zfs-pool)
+                shift
+                delete_zfs_pool="${1:-}"
+                ;;
+            --help|-h)
+                cat <<'EOF'
+Usage: acfs-local uninstall [options]
+
+Options:
+  --yes, -y            Skip confirmation prompt
+  --purge-workspace    Delete workspace directory on host
+  --remove-wrapper     Remove ~/.local/bin/acfs-local
+  --delete-lxd-pool    Delete an LXD storage pool (name required)
+  --delete-zfs-pool    Destroy a ZFS pool (name required)
+EOF
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [[ "$yes" != "true" ]]; then
+        if [[ -t 0 ]]; then
+            echo ""
+            echo "This will remove the ACFS container and profile."
+            if [[ "$purge_workspace" == "true" ]]; then
+                echo "Workspace WILL be deleted: $ACFS_WORKSPACE_HOST"
+            else
+                echo "Workspace will be preserved: $ACFS_WORKSPACE_HOST"
+            fi
+            if [[ -n "$delete_lxd_pool" ]]; then
+                echo "LXD storage pool WILL be deleted: $delete_lxd_pool"
+            fi
+            if [[ -n "$delete_zfs_pool" ]]; then
+                echo "ZFS pool WILL be destroyed: $delete_zfs_pool"
+            fi
+            echo ""
+            read -r -p "Type 'uninstall' to confirm: " confirm
+            if [[ "$confirm" != "uninstall" ]]; then
+                echo "Cancelled"
+                return 1
+            fi
+        else
+            echo "Non-interactive shell. Re-run with --yes to proceed."
+            return 1
+        fi
+    fi
+
+    if acfs_sandbox_exists; then
+        acfs_sandbox_destroy true || true
+    else
+        echo "Container not found. Skipping container removal."
+    fi
+
+    if [[ "$remove_wrapper" == "true" ]]; then
+        rm -f "$HOME/.local/bin/acfs-local"
+    fi
+
+    if [[ "$purge_workspace" == "true" ]]; then
+        if [[ -z "${ACFS_WORKSPACE_HOST:-}" || "$ACFS_WORKSPACE_HOST" == "/" ]]; then
+            echo "Refusing to delete workspace: invalid path '$ACFS_WORKSPACE_HOST'"
+        else
+            rm -rf "$ACFS_WORKSPACE_HOST"
+        fi
+    fi
+
+    if [[ -n "$delete_lxd_pool" ]]; then
+        acfs_lxc storage delete "$delete_lxd_pool" 2>/dev/null || true
+    fi
+
+    if [[ -n "$delete_zfs_pool" ]]; then
+        if command -v zpool &>/dev/null; then
+            acfs_sudo zpool destroy "$delete_zfs_pool" || true
+        else
+            echo "zpool not found; cannot destroy ZFS pool '$delete_zfs_pool'"
+        fi
+    fi
+
+    echo "Uninstall complete."
+}
+
 cmd_dashboard() {
     grant_acfs_sandbox_access
     if ! acfs_sandbox_running; then
@@ -250,6 +358,7 @@ Commands:
   start       Start the container
   stop        Stop the container
   destroy     Remove container (preserves workspace)
+  uninstall   Remove container + optional cleanup
   dashboard   Open dashboard in browser
   doctor      Run acfs doctor inside container
   update      Run acfs update inside container
@@ -265,6 +374,7 @@ Examples:
   acfs-local shell            # Enter sandbox
   acfs-local doctor           # Health check
   acfs-local destroy --force  # Remove without confirmation
+  acfs-local uninstall --yes --purge-workspace --remove-wrapper
 EOF
 }
 
@@ -294,6 +404,9 @@ main() {
             ;;
         destroy)
             cmd_destroy "$@"
+            ;;
+        uninstall)
+            cmd_uninstall "$@"
             ;;
         dashboard)
             cmd_dashboard "$@"
