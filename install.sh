@@ -12,6 +12,7 @@
 #   --mode vibe   Enable passwordless sudo, full agent permissions
 #   --dry-run     Print what would be done without changing system
 #   --print       Print upstream scripts/versions that will be run
+#   --idempotency-audit  Dry-run idempotency audit for local modes
 #   --skip-postgres   Skip PostgreSQL 18 installation
 #   --skip-vault      Skip HashiCorp Vault installation
 #   --skip-cloud      Skip cloud CLIs (wrangler, supabase, vercel)
@@ -97,6 +98,7 @@ DRY_RUN=false
 PRINT_MODE=false
 PIN_REF_MODE=false
 MODE="vibe"
+IDEMPOTENCY_AUDIT=false
 SKIP_POSTGRES=false
 SKIP_VAULT=false
 SKIP_CLOUD=false
@@ -104,6 +106,7 @@ SKIP_CLOUD=false
 # Local desktop installation mode (LXD sandboxing)
 # When true, ACFS runs inside an LXD container to protect the host
 LOCAL_MODE=false
+MACOS_MODE=false
 
 # Manifest-driven selection options (mjt.5.3)
 LIST_MODULES=false
@@ -987,6 +990,11 @@ parse_args() {
                 DRY_RUN=true
                 shift
                 ;;
+            --idempotency-audit|--audit-idempotency)
+                IDEMPOTENCY_AUDIT=true
+                DRY_RUN=true
+                shift
+                ;;
             --print)
                 PRINT_MODE=true
                 shift
@@ -1019,6 +1027,12 @@ parse_args() {
             --local|--desktop)
                 # Enable local desktop installation mode with LXD sandboxing
                 LOCAL_MODE=true
+                shift
+                ;;
+            --macos)
+                # Enable local desktop installation mode via Multipass on macOS
+                LOCAL_MODE=true
+                MACOS_MODE=true
                 shift
                 ;;
             --resume)
@@ -2264,8 +2278,10 @@ run_as_target() {
 # Upstream installer verification (checksums.yaml)
 # ============================================================
 
-declare -A ACFS_UPSTREAM_URLS=()
-declare -A ACFS_UPSTREAM_SHA256=()
+if [[ "${BASH_VERSINFO[0]:-0}" -ge 4 ]]; then
+    eval "declare -A ACFS_UPSTREAM_URLS=()"
+    eval "declare -A ACFS_UPSTREAM_SHA256=()"
+fi
 ACFS_UPSTREAM_LOADED=false
 
 acfs_calculate_sha256() {
@@ -5307,14 +5323,484 @@ $summary_content"
 }
 
 # ============================================================
+# Interactive Startup
+# ============================================================
+
+is_macos() {
+    [[ "$(uname -s)" == "Darwin" ]]
+}
+
+acfs_interactive_mode_select() {
+    # Skip if args provided (expert mode)
+    if [[ $# -gt 0 ]]; then
+        return 0
+    fi
+    
+    # Skip if --yes or non-interactive
+    if [[ "$YES_MODE" == "true" ]] || [[ ! -t 0 ]]; then
+        return 0
+    fi
+
+    # Don't prompt if we're already inside a container
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        if [[ "${ID:-}" == "ubuntu" ]] && [[ "${container:-}" == "lxc" ]]; then
+            return 0
+        fi
+    fi
+
+    print_banner
+
+    echo ""
+    echo "╔═════════════════════════════════════════════════════════════════╗"
+    echo "║           ACFS Installation Mode Selection                      ║"
+    echo "╠═════════════════════════════════════════════════════════════════╣"
+    echo "║  Choose how you want to install ACFS:                           ║"
+    echo "║                                                                 ║"
+    echo "║  1) VPS (Remote Ubuntu Server) - [Standard]                     ║"
+    echo "║     - Installs directly on the current machine                   ║"
+    echo "║     - Best for fresh Ubuntu servers (OVH, Contabo, etc.)        ║"
+    echo "║                                                                 ║"
+    echo "║  2) macOS Local (Isolated Sandbox via Multipass VM)             ║"
+    echo "║     - Creates a lightweight Ubuntu VM on your Mac               ║"
+    echo "║     - Runs ACFS inside a sandbox for total safety               ║"
+    echo "║                                                                 ║"
+    echo "║  3) Ubuntu Desktop Local (Isolated Sandbox via LXD)             ║"
+    echo "║     - Uses Linux-native containers on your Ubuntu PC            ║"
+    echo "║     - No performance overhead; preserves your host files         ║"
+    echo "╚═════════════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    local choice=""
+    local current_os
+    current_os=$(uname -s)
+
+    while [[ -z "$choice" ]]; do
+        printf "  Select mode [1-3]: "
+        read -r choice
+        case "$choice" in
+            1)
+                log_info "Proceeding with standard VPS installation."
+                ;;
+            2)
+                if [[ "$current_os" != "Darwin" ]]; then
+                    log_warn "macOS mode selected but you are on $current_os. Proceeding anyway..."
+                fi
+                LOCAL_MODE=true
+                MACOS_MODE=true
+                ;;
+            3)
+                if [[ "$current_os" != "Linux" ]]; then
+                    log_error "Ubuntu Local mode requires a Linux host. Please choose (2) macOS mode instead."
+                    choice=""
+                    continue
+                fi
+                LOCAL_MODE=true
+                # Ask for ZFS
+                echo ""
+                echo "─── Ubuntu Local Storage Configuration ───"
+                echo "ACFS can use a raw partition for ZFS storage (higher performance)."
+                printf "Specify device path (e.g. /dev/nvme0n1p6) or press Enter for 'dir' driver: "
+                read -r zfs_dev
+                if [[ -n "$zfs_dev" ]]; then
+                    export ACFS_LXD_ZFS_DEVICE="$zfs_dev"
+                    log_info "Using ZFS device: $zfs_dev"
+                else
+                    log_info "Using standard directory storage."
+                fi
+                ;;
+            *)
+                log_error "Invalid selection '$choice'."
+                choice=""
+                ;;
+        esac
+    done
+}
+
+bootstrap_macos_vm() {
+    multipass_supports_wait_ready() {
+        multipass help wait-ready >/dev/null 2>&1
+    }
+
+    multipass_wait_ready() {
+        local timeout="${1:-120}"
+        local attempts=0
+        if multipass_supports_wait_ready; then
+            while [[ $attempts -lt 3 ]]; do
+                if multipass wait-ready --timeout "$timeout" >/dev/null 2>&1; then
+                    return 0
+                fi
+                attempts=$((attempts + 1))
+                sleep 2
+            done
+            return 1
+        fi
+
+        attempts=0
+        while [[ $attempts -lt 5 ]]; do
+            if multipass version >/dev/null 2>&1; then
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            sleep 2
+        done
+        return 1
+    }
+
+    multipass_get_state() {
+        local vm="$1"
+        multipass info "$vm" 2>/dev/null | awk -F': ' '/^State:/{print $2; exit}' || true
+    }
+
+    multipass_ensure_vm_running() {
+        local vm="$1"
+        local state
+        state="$(multipass_get_state "$vm")"
+        if [[ "$state" == "Running" ]]; then
+            return 0
+        fi
+        if [[ "$state" == "Stopped" || "$state" == "Suspended" ]]; then
+            if multipass start "$vm" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        if multipass restart "$vm" >/dev/null 2>&1; then
+            return 0
+        fi
+        if multipass start "$vm" >/dev/null 2>&1; then
+            return 0
+        fi
+        return 1
+    }
+
+    multipass_wait_for_exec() {
+        local vm="$1"
+        local retry=0
+        while ! multipass exec "$vm" -- true >/dev/null 2>&1; do
+            retry=$((retry + 1))
+            if [[ $retry -eq 8 ]]; then
+                log_warn "VM '$vm' not responding yet. Attempting to restart..."
+                multipass_ensure_vm_running "$vm" || true
+            fi
+            if [[ $retry -gt 30 ]]; then
+                return 1
+            fi
+            sleep 2
+        done
+        return 0
+    }
+
+    multipass_mount_workspace() {
+        local vm="$1"
+        local host_path="$2"
+        local target="acfs-workspace"
+        if multipass exec "$vm" -- bash -c 'if command -v mountpoint >/dev/null 2>&1; then mountpoint -q /home/ubuntu/acfs-workspace; else grep -q " /home/ubuntu/acfs-workspace " /proc/mounts; fi' >/dev/null 2>&1; then
+            return 0
+        fi
+        if multipass mount "$host_path" "$vm:$target" >/dev/null 2>&1; then
+            if multipass exec "$vm" -- test -d "/home/ubuntu/$target" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+
+        log_warn "Workspace mount failed. Attempting to unmount and retry..."
+        multipass umount "$vm:$target" >/dev/null 2>&1 || true
+        multipass umount "$vm:/home/ubuntu/$target" >/dev/null 2>&1 || true
+        sleep 1
+        if multipass mount "$host_path" "$vm:$target" >/dev/null 2>&1; then
+            if multipass exec "$vm" -- test -d "/home/ubuntu/$target" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        return 1
+    }
+
+    multipass_exec_retry() {
+        local vm="$1"
+        local cmd="$2"
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            if multipass exec "$vm" -- bash -c "$cmd"; then
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            log_warn "Command failed in VM (attempt $attempts/3). Retrying..."
+            multipass_ensure_vm_running "$vm" || true
+            sleep 2
+        done
+        return 1
+    }
+
+    local vm_name="acfs-host"
+    local cpus="4"
+    local mem="8G"
+    local disk="40G"
+
+    audit_macos_bootstrap() {
+        local issues=0
+        log_step "VM" "Idempotency audit (macOS Multipass)..."
+
+        if ! command -v multipass &>/dev/null; then
+            log_warn "Multipass not installed. Would install via Homebrew."
+            issues=$((issues + 1))
+        else
+            if ! multipass_wait_ready 30; then
+                log_warn "Multipass daemon not ready. Would retry and prompt to restart."
+                issues=$((issues + 1))
+            fi
+
+            local workspace_host="${ACFS_WORKSPACE_HOST:-$HOME/acfs-workspace}"
+            if [[ -e "$workspace_host" && ! -d "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' is not a directory. Would choose fallback."
+                issues=$((issues + 1))
+            elif [[ ! -d "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' does not exist. Would create it."
+                issues=$((issues + 1))
+            elif [[ ! -w "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' is not writable. Would choose fallback."
+                issues=$((issues + 1))
+            fi
+
+            if multipass list 2>/dev/null | awk '{print $1}' | grep -qx "$vm_name"; then
+                local state
+                state="$(multipass_get_state "$vm_name" || true)"
+                if [[ -z "$state" ]]; then
+                    log_warn "Unable to read VM state. Would re-check and attempt start."
+                    issues=$((issues + 1))
+                elif [[ "$state" != "Running" ]]; then
+                    log_warn "VM '$vm_name' is $state. Would start it."
+                    issues=$((issues + 1))
+                else
+                    if ! multipass exec "$vm_name" -- true >/dev/null 2>&1; then
+                        log_warn "VM '$vm_name' not responding to exec. Would restart it."
+                        issues=$((issues + 1))
+                    else
+                        if ! multipass exec "$vm_name" -- bash -c 'if command -v mountpoint >/dev/null 2>&1; then mountpoint -q /home/ubuntu/acfs-workspace; else grep -q " /home/ubuntu/acfs-workspace " /proc/mounts; fi' >/dev/null 2>&1; then
+                            log_warn "Workspace mount missing in VM. Would re-mount."
+                            issues=$((issues + 1))
+                        fi
+                        if multipass exec "$vm_name" -- bash -c 'command -v acfs-local >/dev/null 2>&1'; then
+                            if ! multipass exec "$vm_name" -- bash -c 'acfs-local audit' >/dev/null 2>&1; then
+                                log_warn "In-VM audit reported issues. Review inside VM."
+                                issues=$((issues + 1))
+                            fi
+                        else
+                            log_warn "acfs-local not found inside VM; in-VM audit skipped."
+                        fi
+                    fi
+                fi
+            else
+                log_warn "VM '$vm_name' not found. Would launch a new VM."
+                issues=$((issues + 1))
+            fi
+        fi
+
+        if [[ $issues -eq 0 ]]; then
+            log_success "Idempotency audit: no issues detected."
+        else
+            log_warn "Idempotency audit: $issues issue(s) detected."
+        fi
+        return $issues
+    }
+
+    if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
+        audit_macos_bootstrap
+        return $?
+    fi
+
+    # Check if multipass exists (auto-remediate via Homebrew if available)
+    if ! command -v multipass &>/dev/null; then
+        echo ""
+        log_warn "Multipass is required for macOS Local installation."
+        if command -v brew &>/dev/null; then
+            if [[ "$YES_MODE" == "true" ]]; then
+                log_step "VM" "Installing Multipass via Homebrew..."
+                if ! brew install --cask multipass; then
+                    log_fatal "Failed to install Multipass via Homebrew."
+                fi
+            else
+                printf "  Install Multipass via Homebrew now? [Y/n]: "
+                read -r install_choice
+                if [[ "$install_choice" =~ ^[Nn] ]]; then
+                    log_error "Please install Multipass and re-run this installer."
+                    exit 1
+                fi
+                if ! brew install --cask multipass; then
+                    log_fatal "Failed to install Multipass via Homebrew."
+                fi
+            fi
+        else
+            log_error "Homebrew not found. Install Multipass manually:"
+            echo ""
+            echo "    brew install --cask multipass"
+            echo ""
+            log_error "Then re-run this installer."
+            exit 1
+        fi
+    fi
+
+    if ! multipass_wait_ready 120; then
+        log_fatal "Multipass daemon did not become ready. Please restart Multipass and try again."
+    fi
+
+    if [[ "$YES_MODE" == "false" ]]; then
+        echo ""
+        echo "─── macOS Local VM Configuration ───"
+        printf "  VM Instance Name [%s]: " "$vm_name"
+        read -r input && [[ -n "$input" ]] && vm_name="$input"
+        printf "  CPU Cores [%s]: " "$cpus"
+        read -r input && [[ -n "$input" ]] && cpus="$input"
+        printf "  Memory (e.g. 8G) [%s]: " "$mem"
+        read -r input && [[ -n "$input" ]] && mem="$input"
+        printf "  Disk Size (e.g. 40G) [%s]: " "$disk"
+        read -r input && [[ -n "$input" ]] && disk="$input"
+        echo ""
+    fi
+
+    if [[ ! "$cpus" =~ ^[0-9]+$ ]] || [[ "$cpus" -lt 1 ]]; then
+        log_warn "Invalid CPU value '$cpus'. Using default: 4"
+        cpus="4"
+    fi
+    if [[ ! "$mem" =~ ^[0-9]+[GM]$ ]]; then
+        log_warn "Invalid memory value '$mem'. Using default: 8G"
+        mem="8G"
+    fi
+    if [[ ! "$disk" =~ ^[0-9]+[GM]$ ]]; then
+        log_warn "Invalid disk value '$disk'. Using default: 40G"
+        disk="40G"
+    fi
+
+    log_step "VM" "Checking workspace availability..."
+    local workspace_host="${ACFS_WORKSPACE_HOST:-$HOME/acfs-workspace}"
+    if [[ -e "$workspace_host" && ! -d "$workspace_host" ]]; then
+        local fallback
+        fallback="$HOME/acfs-workspace-$(date +%Y%m%d-%H%M%S)"
+        log_warn "Workspace path '$workspace_host' is not a directory. Using '$fallback' instead."
+        workspace_host="$fallback"
+    fi
+    mkdir -p "$workspace_host"
+    if [[ ! -w "$workspace_host" ]]; then
+        local fallback
+        fallback="$HOME/acfs-workspace-$(date +%Y%m%d-%H%M%S)"
+        log_warn "Workspace path '$workspace_host' is not writable. Using '$fallback' instead."
+        workspace_host="$fallback"
+        mkdir -p "$workspace_host"
+    fi
+
+    if multipass list 2>/dev/null | awk '{print $1}' | grep -qx "$vm_name"; then
+        log_warn "VM '$vm_name' already exists."
+        if [[ "$YES_MODE" == "false" ]]; then
+            printf "  Use existing VM? [Y/n]: "
+            read -r use_existing
+            if [[ "$use_existing" =~ ^[Nn] ]]; then
+                log_fatal "Aborting. Please choose a different name or delete the existing VM: multipass delete $vm_name"
+            fi
+        fi
+        if ! multipass_ensure_vm_running "$vm_name"; then
+            log_warn "Unable to start existing VM '$vm_name'."
+        fi
+    else
+        log_step "VM" "Launching Multipass VM: $vm_name ($cpus CPUs, $mem RAM, $disk Disk)..."
+        multipass launch --name "$vm_name" --cpus "$cpus" --memory "$mem" --disk "$disk" 24.04
+    fi
+
+    log_step "VM" "Waiting for VM '$vm_name' to be reachable..."
+    if ! multipass_wait_for_exec "$vm_name"; then
+        log_fatal "VM '$vm_name' did not become reachable via SSH after 60 seconds."
+    fi
+
+    log_step "VM" "Mounting workspace: $workspace_host → /home/ubuntu/acfs-workspace..."
+    if ! multipass_mount_workspace "$vm_name" "$workspace_host"; then
+        log_warn "Workspace mount failed. Continuing without host workspace sharing."
+    fi
+
+    log_step "VM" "Preparing installer inside VM..."
+    
+    # Determine how to run based on current execution mode
+    if [[ -z "${SCRIPT_DIR:-}" ]]; then
+        log_step "VM" "Running installer inside VM via curl..."
+        if ! multipass_exec_retry "$vm_name" "curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- --local --yes --mode $MODE"; then
+            log_fatal "Installer failed inside VM. Check network connectivity and retry."
+        fi
+    else
+        log_step "VM" "Transferring local ACFS repo to VM..."
+        local tmp_tar="acfs-repo-$(date +%s).tar"
+        local tmp_dir
+        tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/acfs-transfer.XXXXXX")"
+        local tmp_tar_path="$tmp_dir/$tmp_tar"
+        
+        # Create tarball locally (exclude .git and node_modules)
+        # We use a subshell to avoid changing current directory
+        # We create the tarball outside of SCRIPT_DIR to avoid "Can't add archive to itself" 
+        (cd "$SCRIPT_DIR" && COPYFILE_DISABLE=1 tar -cf "$tmp_tar_path" --exclude=".git" --exclude="node_modules" .)
+        
+        # Transfer tarball to VM
+        if ! multipass transfer "$tmp_tar_path" "$vm_name:/home/ubuntu/$tmp_tar"; then
+            log_warn "Transfer failed. Retrying..."
+            multipass_ensure_vm_running "$vm_name" || true
+            if ! multipass transfer "$tmp_tar_path" "$vm_name:/home/ubuntu/$tmp_tar"; then
+                log_fatal "Transfer failed after retry. Check VM connectivity and retry."
+            fi
+        fi
+        
+        # Clean up local tarball and tmp dir
+        rm -rf "$tmp_dir"
+        
+        # Ensure target directory exists and is clean
+        multipass exec "$vm_name" -- rm -rf /home/ubuntu/agentic-coding
+        multipass exec "$vm_name" -- mkdir -p /home/ubuntu/agentic-coding
+        
+        # Extract inside VM
+        multipass exec "$vm_name" -- tar -xf "/home/ubuntu/$tmp_tar" -C /home/ubuntu/agentic-coding
+        
+        # Clean up remote tarball
+        multipass exec "$vm_name" -- rm "/home/ubuntu/$tmp_tar"
+        
+        log_step "VM" "Starting ACFS installation inside VM..."
+        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ./install.sh --local --yes --mode $MODE"; then
+            log_fatal "Installer failed inside VM. Review logs inside the VM and retry."
+        fi
+    fi
+
+    log_success "ACFS installed in macOS host VM: $vm_name"
+    echo ""
+    echo "═════════════════════════════════════════════════════════════════"
+    echo "  Your ACFS environment is ready!"
+    echo "─────────────────────────────────────────────────────────────────"
+    echo "  To enter your ACFS sandbox:"
+    echo "    1. Connect to VM:      ${BLUE}multipass shell $vm_name${NC}"
+    echo "    2. Enter sandbox:      ${BLUE}acfs-local shell${NC}"
+    echo ""
+    echo "  Your Mac folder ${BLUE}$workspace_host${NC}"
+    echo "  is shared as ${BLUE}/data/projects${NC} inside the sandbox."
+    echo "═════════════════════════════════════════════════════════════════"
+    echo ""
+}
+
+# ============================================================
 # Main
 # ============================================================
 main() {
     parse_args "$@"
 
+    # Interactive mode selection (if no args provided)
+    acfs_interactive_mode_select "$@"
+
     # --yes should always behave non-interactively (skip prompts), regardless of flag order.
     if [[ "$YES_MODE" == "true" ]]; then
         export ACFS_INTERACTIVE=false
+    fi
+
+    # macOS Local Mode Handling
+    if [[ "$MACOS_MODE" == "true" ]]; then
+        # Check if we're already inside a Mac (Darwin) - if so, bootstrap the VM
+        if is_macos; then
+            bootstrap_macos_vm
+            exit 0
+        fi
+        # If we get here, we're likely inside the VM already (having been launched by bootstrap_macos_vm)
+        # Continue to LOCAL_MODE logic below
     fi
 
     # Local Desktop Mode: If --local/--desktop was passed and we're NOT already
@@ -5353,7 +5839,11 @@ main() {
                 echo "║  Your host system will NOT be modified.                      ║"
                 echo "╚══════════════════════════════════════════════════════════════╝"
                 echo ""
-                exec "$local_script" create
+                if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
+                    exec "$local_script" audit
+                else
+                    exec "$local_script" create
+                fi
             else
                 log_error "Local desktop mode requires scripts/local/acfs_container.sh"
                 log_error "Please clone the full ACFS repository first."

@@ -43,31 +43,26 @@ The installer is **idempotent**—if interrupted, simply re-run it. It will auto
 
 ### Local Desktop Installation (Sandboxed)
 
-Run ACFS on your personal Ubuntu desktop without modifying your host system:
+Run ACFS on your personal computer (macOS or Ubuntu) without modifying your host system. The installer now features a **Universal Selection Menu** that guides you through the setup.
 
 ```bash
-git clone https://github.com/deepakdgupta1/agentic-coding.git
-cd agentic-coding
-./install.sh --local --yes
+# Recommendation: Start the interactive installer
+curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash
 ```
 
-This provisions an **LXD system container** that:
+This provisions an isolated environment that:
 - Contains all invasive operations (passwordless sudo, SSH config, etc.)
-- Shares a workspace directory at `~/acfs-workspace`
-- Forwards dashboard to `localhost:38080`
+- Shares a workspace directory between your host and the sandbox
+- Forwards the dashboard to `localhost:38080`
 
 **Requirements:**
-- Ubuntu 22.04+ desktop
-- snap installed (default on Ubuntu)
-- ~10GB disk space for container
+- **macOS**: [Multipass](https://multipass.run/) (installed automatically via `brew` if missing)
+- **Ubuntu**: Ubuntu 22.04+ desktop with `snap` installed
+- ~40GB disk space recommended
 
-**Optional: ZFS-backed LXD storage (higher performance)**
-```bash
-# WARNING: This will wipe the device
-ACFS_LXD_ZFS_DEVICE=/dev/nvme0n1p6 \
-ACFS_LXD_ZFS_POOL=lxd_pool \
-./install.sh --local --yes
-```
+**Options:**
+- **macOS**: Choose "macOS Local" during setup to launch a Multipass VM.
+- **Ubuntu Desktop**: Choose "Ubuntu Local" and optionally specify a ZFS device for high-performance storage.
 
 **Access your ACFS environment:**
 ```bash

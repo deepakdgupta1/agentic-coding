@@ -161,6 +161,19 @@ acfs_sandbox_running() {
     [[ "$state" == "RUNNING" ]]
 }
 
+# Wait until the container responds to exec (basic readiness check).
+acfs_sandbox_wait_ready() {
+    local retries="${1:-30}"
+    while [[ $retries -gt 0 ]]; do
+        if acfs_lxc exec "$ACFS_CONTAINER_NAME" -- true >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        retries=$((retries - 1))
+    done
+    return 1
+}
+
 # ============================================================
 # LXD Initialization
 # ============================================================
@@ -305,7 +318,7 @@ _acfs_sandbox_ensure_root_device() {
             local current_pool desired_pool
             current_pool="$(acfs_sudo lxc profile device get default root pool 2>/dev/null || true)"
             desired_pool="$(_acfs_sandbox_default_storage_pool)"
-            if [[ -n "$desired_pool" && "$current_pool" != "$desired_pool" && ! acfs_sandbox_exists ]]; then
+            if [[ -n "$desired_pool" && "$current_pool" != "$desired_pool" ]] && ! acfs_sandbox_exists; then
                 log_warn "Updating default profile root pool from '$current_pool' to '$desired_pool'."
                 acfs_sudo lxc profile device set default root pool "$desired_pool" || true
             fi
@@ -333,6 +346,43 @@ _acfs_sandbox_ensure_workspace_dir() {
         log_warn "Workspace path '$ACFS_WORKSPACE_HOST' is not writable. Attempting to fix permissions."
         acfs_sudo chown "$USER:$USER" "$ACFS_WORKSPACE_HOST" 2>/dev/null || true
         acfs_sudo chmod 0775 "$ACFS_WORKSPACE_HOST" 2>/dev/null || true
+    fi
+}
+
+_acfs_sandbox_container_workspace_mounted() {
+    acfs_lxc exec "$ACFS_CONTAINER_NAME" -- bash -c '
+        if command -v mountpoint >/dev/null 2>&1; then
+            mountpoint -q "'"$ACFS_WORKSPACE_CONTAINER"'"
+        else
+            grep -q " '"$ACFS_WORKSPACE_CONTAINER"' " /proc/mounts
+        fi
+    ' >/dev/null 2>&1
+}
+
+_acfs_sandbox_container_has_workspace_device() {
+    acfs_lxc config device show "$ACFS_CONTAINER_NAME" workspace >/dev/null 2>&1
+}
+
+_acfs_sandbox_ensure_container_workspace_device() {
+    if _acfs_sandbox_container_has_workspace_device; then
+        acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace source "$ACFS_WORKSPACE_HOST" >/dev/null 2>&1 || true
+        acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace path "$ACFS_WORKSPACE_CONTAINER" >/dev/null 2>&1 || true
+        if ! acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace shift true >/dev/null 2>&1; then
+            acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace shift false >/dev/null 2>&1 || true
+            acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace uid 1000 >/dev/null 2>&1 || true
+            acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace gid 1000 >/dev/null 2>&1 || true
+        fi
+        return 0
+    fi
+
+    if ! acfs_lxc config device add "$ACFS_CONTAINER_NAME" workspace disk \
+        source="$ACFS_WORKSPACE_HOST" \
+        path="$ACFS_WORKSPACE_CONTAINER" \
+        shift=true >/dev/null 2>&1; then
+        acfs_lxc config device add "$ACFS_CONTAINER_NAME" workspace disk \
+            source="$ACFS_WORKSPACE_HOST" \
+            path="$ACFS_WORKSPACE_CONTAINER" \
+            uid=1000 gid=1000 >/dev/null 2>&1 || true
     fi
 }
 
@@ -692,9 +742,21 @@ acfs_sandbox_create() {
 
     if acfs_sandbox_exists; then
         log_detail "Container '$ACFS_CONTAINER_NAME' already exists"
+        _acfs_create_profile
         if ! acfs_sandbox_running; then
             log_detail "Starting existing container..."
             acfs_lxc start "$ACFS_CONTAINER_NAME"
+        fi
+        _acfs_sandbox_ensure_container_workspace_device
+        if ! acfs_sandbox_wait_ready 30; then
+            log_warn "Container did not become ready. Attempting restart..."
+            acfs_lxc restart "$ACFS_CONTAINER_NAME" >/dev/null 2>&1 || true
+            acfs_sandbox_wait_ready 30 || log_warn "Container still not responding to exec."
+        fi
+        if ! _acfs_sandbox_container_workspace_mounted; then
+            log_warn "Workspace mount not detected in container. Restarting to apply mount."
+            acfs_lxc restart "$ACFS_CONTAINER_NAME" >/dev/null 2>&1 || true
+            acfs_sandbox_wait_ready 30 || true
         fi
         if ! _acfs_sandbox_container_has_default_route; then
             log_warn "Existing container missing default route. Attempting network fix."
@@ -729,6 +791,9 @@ acfs_sandbox_create() {
 
     if [[ $retries -eq 0 ]]; then
         log_warn "Container may not be fully initialized, proceeding anyway..."
+    fi
+    if ! acfs_sandbox_wait_ready 30; then
+        log_warn "Container did not respond to exec after launch."
     fi
 
     # Ensure ubuntu user exists inside container
@@ -771,6 +836,14 @@ acfs_sandbox_start() {
 
     log_detail "Starting container..."
     acfs_lxc start "$ACFS_CONTAINER_NAME"
+    if ! acfs_sandbox_wait_ready 30; then
+        log_warn "Container did not become ready. Attempting restart..."
+        acfs_lxc restart "$ACFS_CONTAINER_NAME" >/dev/null 2>&1 || true
+        if ! acfs_sandbox_wait_ready 30; then
+            log_error "Container is running but not responding to exec."
+            return 1
+        fi
+    fi
     log_success "Container started"
 }
 
@@ -799,13 +872,21 @@ acfs_sandbox_exec() {
     grant_acfs_sandbox_access
 
     if ! acfs_sandbox_running; then
-        log_error "Container not running. Start it first: acfs-local start"
+        log_warn "Container not running. Starting it now..."
+        if ! acfs_sandbox_start; then
+            log_error "Container could not be started."
+            return 1
+        fi
+    fi
+
+    if ! acfs_sandbox_wait_ready 20; then
+        log_error "Container is not responding to exec."
         return 1
     fi
 
     if [[ -z "$cmd" ]]; then
         # Interactive shell
-    acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu -i
+        acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu -i
     else
         # Execute command
         acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu bash -c "$cmd"
@@ -819,7 +900,15 @@ acfs_sandbox_exec_root() {
     grant_acfs_sandbox_access
 
     if ! acfs_sandbox_running; then
-        log_error "Container not running. Start it first: acfs-local start"
+        log_warn "Container not running. Starting it now..."
+        if ! acfs_sandbox_start; then
+            log_error "Container could not be started."
+            return 1
+        fi
+    fi
+
+    if ! acfs_sandbox_wait_ready 20; then
+        log_error "Container is not responding to exec."
         return 1
     fi
 

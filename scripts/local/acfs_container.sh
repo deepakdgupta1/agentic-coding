@@ -16,6 +16,7 @@
 #   acfs-local dashboard  - Open dashboard in browser
 #   acfs-local doctor     - Run acfs doctor inside container
 #   acfs-local update     - Run acfs update inside container
+#   acfs-local audit      - Dry-run idempotency audit (no changes)
 # ============================================================
 
 set -euo pipefail
@@ -64,6 +65,195 @@ EOF
     fi
 }
 
+wait_for_sandbox_ready() {
+    if ! acfs_sandbox_running; then
+        acfs_sandbox_start || return 1
+    fi
+    if ! acfs_sandbox_wait_ready 30; then
+        log_error "Sandbox container is running but not responding."
+        return 1
+    fi
+    return 0
+}
+
+ensure_sandbox_egress() {
+    if ! declare -f _acfs_sandbox_container_has_egress &>/dev/null; then
+        return 0
+    fi
+    if _acfs_sandbox_container_has_egress; then
+        return 0
+    fi
+    log_warn "Container egress not detected. Attempting network fix..."
+    _acfs_sandbox_fix_container_network || true
+    if ! _acfs_sandbox_container_has_egress; then
+        log_warn "Container still has no outbound egress. Installer may fail."
+    fi
+}
+
+transfer_repo_with_retries() {
+    local attempts=0
+    while [[ $attempts -lt 3 ]]; do
+        if tar -C "$REPO_ROOT" -cf - install.sh scripts acfs packages/onboard acfs.manifest.yaml checksums.yaml 2>/dev/null | \
+            acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/; then
+            return 0
+        fi
+        attempts=$((attempts + 1))
+        log_warn "Repo transfer failed (attempt $attempts/3). Retrying..."
+        wait_for_sandbox_ready || true
+        sleep 2
+    done
+    return 1
+}
+
+acfs_local_install_healthy() {
+    local missing=0
+
+    if ! acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
+        missing=1
+    fi
+    if ! acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" >/dev/null 2>&1; then
+        missing=1
+    fi
+    if ! acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
+        missing=1
+    fi
+    if ! acfs_sandbox_exec "test -x ~/.local/bin/onboard" >/dev/null 2>&1; then
+        missing=1
+    fi
+
+    if [[ $missing -eq 1 ]]; then
+        return 1
+    fi
+    return 0
+}
+
+cmd_audit() {
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    printf "║              ACFS Local Idempotency Audit                     ║\n"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    local issues=0
+
+    if ! command -v lxc &>/dev/null; then
+        log_warn "LXD not installed. Would install and initialize LXD."
+        issues=$((issues + 1))
+    else
+        if ! acfs_lxc info >/dev/null 2>&1; then
+            log_warn "LXD not initialized or permission denied. Would init and refresh group."
+            issues=$((issues + 1))
+        fi
+    fi
+
+    local pool="${ACFS_LXD_STORAGE_POOL:-default}"
+    if command -v lxc &>/dev/null; then
+        if acfs_sudo lxc storage show "$pool" >/dev/null 2>&1; then
+            local status
+            status="$(acfs_sudo lxc storage show "$pool" 2>/dev/null | awk -F': ' '/^status:/{print $2; exit}' || true)"
+            if [[ "$status" == "Unavailable" ]]; then
+                log_warn "LXD storage pool '$pool' unavailable. Would repair or recreate."
+                issues=$((issues + 1))
+            fi
+        else
+            log_warn "LXD storage pool '$pool' missing. Would create it."
+            issues=$((issues + 1))
+        fi
+
+        if ! acfs_sudo lxc profile device show default root >/dev/null 2>&1; then
+            log_warn "Default profile root device missing. Would add root disk device."
+            issues=$((issues + 1))
+        fi
+    fi
+
+    if [[ -e "$ACFS_WORKSPACE_HOST" && ! -d "$ACFS_WORKSPACE_HOST" ]]; then
+        log_warn "Workspace path '$ACFS_WORKSPACE_HOST' is not a directory. Would choose fallback."
+        issues=$((issues + 1))
+    elif [[ ! -d "$ACFS_WORKSPACE_HOST" ]]; then
+        log_warn "Workspace path '$ACFS_WORKSPACE_HOST' does not exist. Would create it."
+        issues=$((issues + 1))
+    elif [[ ! -w "$ACFS_WORKSPACE_HOST" ]]; then
+        log_warn "Workspace path '$ACFS_WORKSPACE_HOST' is not writable. Would fix or choose fallback."
+        issues=$((issues + 1))
+    fi
+
+    if command -v lxc &>/dev/null; then
+        if acfs_sudo lxc profile show "$ACFS_PROFILE_NAME" >/dev/null 2>&1; then
+            if ! acfs_sudo lxc profile device show "$ACFS_PROFILE_NAME" workspace >/dev/null 2>&1; then
+                log_warn "Profile workspace device missing. Would add it."
+                issues=$((issues + 1))
+            fi
+            if ! acfs_sudo lxc profile device show "$ACFS_PROFILE_NAME" dashboard-proxy >/dev/null 2>&1; then
+                log_warn "Profile dashboard proxy missing. Would add it."
+                issues=$((issues + 1))
+            fi
+        else
+            log_warn "LXD profile '$ACFS_PROFILE_NAME' missing. Would create it."
+            issues=$((issues + 1))
+        fi
+    fi
+
+    if command -v lxc &>/dev/null; then
+        if ! acfs_sandbox_exists; then
+            log_warn "Sandbox container '$ACFS_CONTAINER_NAME' missing. Would create it."
+            issues=$((issues + 1))
+        else
+            if ! acfs_sandbox_running; then
+                log_warn "Sandbox container '$ACFS_CONTAINER_NAME' stopped. Would start it."
+                issues=$((issues + 1))
+            fi
+            if ! _acfs_sandbox_container_has_workspace_device; then
+                log_warn "Sandbox workspace device missing. Would attach it."
+                issues=$((issues + 1))
+            fi
+
+            if acfs_sandbox_running; then
+                if ! acfs_sandbox_wait_ready 10; then
+                    log_warn "Sandbox container not responding to exec. Would restart."
+                    issues=$((issues + 1))
+                else
+                    if ! _acfs_sandbox_container_workspace_mounted; then
+                        log_warn "Workspace mount not present in container. Would restart to apply mount."
+                        issues=$((issues + 1))
+                    fi
+                    if ! _acfs_sandbox_container_has_egress; then
+                        log_warn "Container egress not detected. Would add macvlan NIC."
+                        issues=$((issues + 1))
+                    fi
+
+                    local missing=0
+                    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu bash -c 'test -x ~/.local/bin/acfs' >/dev/null 2>&1; then
+                        missing=1
+                    fi
+                    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu bash -c 'test -x ~/.local/bin/onboard' >/dev/null 2>&1; then
+                        missing=1
+                    fi
+                    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- sudo -u ubuntu bash -c 'test -f ~/.acfs/scripts/lib/dashboard.sh' >/dev/null 2>&1; then
+                        missing=1
+                    fi
+                    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- bash -c 'test -x /usr/local/bin/acfs' >/dev/null 2>&1; then
+                        missing=1
+                    fi
+                    if [[ $missing -eq 1 ]]; then
+                        log_warn "In-VM install drift detected. Would re-run installer."
+                        issues=$((issues + 1))
+                    fi
+                fi
+            else
+                log_warn "Skipping in-VM audit; container not running."
+            fi
+        fi
+    fi
+
+    if [[ $issues -eq 0 ]]; then
+        log_success "Idempotency audit: no issues detected."
+    else
+        log_warn "Idempotency audit: $issues issue(s) detected."
+    fi
+
+    return $issues
+}
+
 cmd_create() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -75,40 +265,64 @@ cmd_create() {
 
     # Create container
     acfs_sandbox_create
+    if ! wait_for_sandbox_ready; then
+        return 1
+    fi
+    ensure_sandbox_egress
 
     echo ""
     echo "Container ready. Installing ACFS inside sandbox..."
     echo ""
 
-    # Copy installer and repo files to container via tar pipe
-    # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
-    log_detail "Transferring ACFS repo to container..."
-    if ! tar -C "$REPO_ROOT" -cf - install.sh scripts acfs packages/onboard acfs.manifest.yaml checksums.yaml 2>/dev/null | \
-        acfs_lxc exec "$ACFS_CONTAINER_NAME" -- tar -xf - -C /tmp/; then
-        log_error "Failed to transfer ACFS repo to container"
-        return 1
+    local needs_install=true
+    if acfs_local_install_healthy; then
+        log_info "ACFS already installed in sandbox. Skipping reinstall."
+        needs_install=false
     fi
 
-    # Verify critical bootstrap files exist in container
-    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/scripts/acfs-global 2>/dev/null; then
-        log_error "Bootstrap verification failed: scripts/acfs-global not in container"
-        return 1
-    fi
-    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/packages/onboard/onboard.sh 2>/dev/null; then
-        log_error "Bootstrap verification failed: packages/onboard/onboard.sh not in container"
-        return 1
-    fi
+    if [[ "$needs_install" == "true" ]]; then
+        # Copy installer and repo files to container via tar pipe
+        # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
+        log_detail "Transferring ACFS repo to container..."
+        if ! transfer_repo_with_retries; then
+            log_error "Failed to transfer ACFS repo to container"
+            return 1
+        fi
 
-    # Run installer inside container
-    # We set ACFS_BOOTSTRAP_DIR=/tmp so install.sh knows where to find its own scripts/lib
-    set_terminal_title "ACFS Local: Running Installer..."
-    acfs_sandbox_exec_root "
-        export DEBIAN_FRONTEND=noninteractive
-        export ACFS_CI=true
-        export ACFS_BOOTSTRAP_DIR=/tmp
-        cd /tmp
-        bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
-    "
+        # Verify critical bootstrap files exist in container
+        if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/scripts/acfs-global 2>/dev/null; then
+            log_error "Bootstrap verification failed: scripts/acfs-global not in container"
+            return 1
+        fi
+        if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- test -f /tmp/packages/onboard/onboard.sh 2>/dev/null; then
+            log_error "Bootstrap verification failed: packages/onboard/onboard.sh not in container"
+            return 1
+        fi
+
+        # Run installer inside container
+        # We set ACFS_BOOTSTRAP_DIR=/tmp so install.sh knows where to find its own scripts/lib
+        set_terminal_title "ACFS Local: Running Installer..."
+        if ! acfs_sandbox_exec_root "
+            export DEBIAN_FRONTEND=noninteractive
+            export ACFS_CI=true
+            export ACFS_BOOTSTRAP_DIR=/tmp
+            cd /tmp
+            bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
+        "; then
+            log_warn "Installer failed. Checking network and retrying once..."
+            ensure_sandbox_egress
+            if ! acfs_sandbox_exec_root "
+                export DEBIAN_FRONTEND=noninteractive
+                export ACFS_CI=true
+                export ACFS_BOOTSTRAP_DIR=/tmp
+                cd /tmp
+                bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
+            "; then
+                log_error "Installer failed inside container. Review logs and retry."
+                return 1
+            fi
+        fi
+    fi
 
     # Post-install verification
     log_info "Verifying installation..."
@@ -362,6 +576,7 @@ Commands:
   dashboard   Open dashboard in browser
   doctor      Run acfs doctor inside container
   update      Run acfs update inside container
+  audit       Dry-run idempotency audit (no changes)
   help        Show this help
 
 Environment Variables:
@@ -375,6 +590,7 @@ Examples:
   acfs-local doctor           # Health check
   acfs-local destroy --force  # Remove without confirmation
   acfs-local uninstall --yes --purge-workspace --remove-wrapper
+  acfs-local audit            # Idempotency audit
 EOF
 }
 
@@ -416,6 +632,9 @@ main() {
             ;;
         update)
             cmd_update "$@"
+            ;;
+        audit)
+            cmd_audit "$@"
             ;;
         help|--help|-h)
             cmd_help

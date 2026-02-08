@@ -9,14 +9,14 @@ Keep it updated as new failure modes are discovered.
 - Auto-repair common failure modes before they surface
 - Capture known failure modes and their mitigations
 
-## Required Inputs (decide up front)
-
 - LXD container name (default: `acfs-local`)
 - Ubuntu image (default: `ubuntu:24.04`)
 - Dashboard port (default: `38080`)
 - Storage driver choice:
   - `dir` (default) or
   - ZFS pool (recommended for performance)
+- Virtualization Host (for macOS):
+  - Multipass VM (Ubuntu 24.04 host)
 
 ## Environment Variables (supported)
 
@@ -27,7 +27,59 @@ Keep it updated as new failure modes are discovered.
 - `ACFS_DASHBOARD_PORT`: host port for the dashboard proxy (default: `38080`)
 - `ACFS_WORKSPACE_HOST`: host path for the workspace mount (default: `~/acfs-workspace`)
 
+## Universal Installer Flow
+
+The ACFS installer (`install.sh`) now features a **Universal Selection Menu** that guides you through the process based on your current OS and target environment.
+
+### 1. VPS (Remote Ubuntu)
+The standard installation for dedicated servers or cloud instances. Installs ACFS directly on the host.
+
+### 2. macOS Local (Multipass)
+For MacBook users. This flow:
+1.  Verifies/Prompts for **Multipass** installation.
+2.  Launches a lightweight Ubuntu 24.04 VM (`acfs-host`).
+3.  Mounts your host workspace folder to the VM.
+4.  Initializes an ACFS sandbox (LXD) inside the VM.
+
+### 3. Ubuntu Desktop Local (LXD)
+For Linux users. This flow:
+1.  Verifies/Configures **LXD** on your host.
+2.  Prompts for an optional **ZFS device** path for high-performance storage.
+3.  Launches an ACFS sandbox container.
+
+---
+
+## Usage (All Platforms)
+
+```bash
+# Start the interactive installer
+curl -fsSL "https://agent-flywheel.com/install" | bash
+```
+
+## Idempotency Audit Mode (Dry-Run)
+
+```bash
+# macOS (Multipass host checks + in-VM audit when available)
+./install.sh --macos --idempotency-audit
+
+# Ubuntu Desktop Local (LXD host checks + in-VM checks)
+./install.sh --local --idempotency-audit
+
+# Direct local audit (Ubuntu host)
+acfs-local audit
+```
+
 ## Resilient Install Flow (with checks and fallbacks)
+
+0. macOS host (Multipass) readiness
+   - Check: `multipass wait-ready` succeeds (daemon ready).
+   - If not ready: retry with backoff; prompt to restart Multipass if it remains unavailable.
+   - Check: VM exists; if stopped/suspended, `multipass start <vm>`.
+   - Check: VM reachable via `multipass exec <vm> -- true`.
+   - If unreachable: `multipass restart <vm>` and retry.
+   - Check: workspace mount exists.
+   - If mount fails: `multipass umount <vm>:acfs-workspace` then re-mount.
+   - If still failing: warn and proceed without host workspace sharing.
 
 1. LXD installed and initialized
    - Check: `lxc version` and `lxc info` succeed.
@@ -107,6 +159,35 @@ Keep it updated as new failure modes are discovered.
    - Check: 8/8 critical checks pass.
    - If any fail: re-run the specific phase or manually repair missing artifacts.
 
+## Idempotency Matrix
+
+### macOS host (Multipass)
+| Step | Idempotent check | No-op when | Repair action |
+| --- | --- | --- | --- |
+| Multipass daemon | `multipass wait-ready` | Daemon ready | Retry wait; prompt to restart Multipass if still unavailable |
+| VM state | `multipass info <vm>` | State is `Running` | `multipass start` if stopped/suspended; `multipass restart` if unresponsive |
+| VM reachability | `multipass exec <vm> -- true` | Exec succeeds | Restart VM, then retry exec |
+| Workspace mount | Mountpoint at `/home/ubuntu/acfs-workspace` | Mount present | `multipass umount` then re-mount; warn and continue if still failing |
+
+### Ubuntu Desktop host (LXD)
+| Step | Idempotent check | No-op when | Repair action |
+| --- | --- | --- | --- |
+| LXD availability | `lxc info` | LXD responds | Install/initialize LXD, refresh group permissions |
+| Storage pool | `lxc storage list` / `lxc storage show` | Pool exists and available | Create pool or repair ZFS source |
+| Default profile root | `lxc profile device show default root` | Root device configured | Add root device pointing at chosen pool |
+| Workspace dir | Host path exists + writable | Path valid | Create fallback path; fix permissions |
+| Profile devices | `lxc profile device show acfs-local-profile` | Devices match desired state | Update workspace, network, and dashboard proxy devices |
+| Container ready | `lxc info acfs-local` + exec | Running and responsive | Start/restart container; re-apply workspace device |
+| Container egress | Default route + outbound TCP | Egress works | Add macvlan NIC and apply netplan override |
+
+### In-VM `--local` (inside LXD container)
+| Step | Idempotent check | No-op when | Repair action |
+| --- | --- | --- | --- |
+| Install already done | `~/.local/bin/acfs`, `/usr/local/bin/acfs`, `~/.acfs/scripts/lib/dashboard.sh`, `~/.local/bin/onboard` | All present | Re-run installer if any missing |
+| Repo transfer | `tar` pipe to `/tmp` | Transfer succeeds | Retry transfer; ensure container ready |
+| Bootstrap assets | `/tmp/scripts/acfs-global` and `/tmp/packages/onboard/onboard.sh` | Both present | Re-transfer and re-validate |
+| Installer run | `install.sh --local` | Install succeeds | Retry once after network repair |
+
 ## Resilient Uninstall Flow (sandbox only)
 
 1. Confirm container exists
@@ -160,6 +241,18 @@ Keep it updated as new failure modes are discovered.
 - **Onboard missing**
   - Cause: `packages/onboard` not transferred in local mode.
   - Fix: include `packages/onboard` in the transfer (implemented).
+
+- **Multipass daemon not ready**
+  - Cause: Multipass service not ready at launch.
+  - Fix: use `multipass wait-ready` with retries; restart Multipass if it remains unavailable.
+
+- **Multipass VM unreachable**
+  - Cause: VM boot stalled or stale network state.
+  - Fix: `multipass restart <vm>` and retry `multipass exec`.
+
+- **Multipass workspace mount failed**
+  - Cause: stale mount metadata or path conflicts.
+  - Fix: `multipass umount <vm>:acfs-workspace`, re-mount, and verify in VM.
 
 ## How to Keep This Document Current
 
