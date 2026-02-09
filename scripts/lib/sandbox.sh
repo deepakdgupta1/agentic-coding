@@ -109,12 +109,56 @@ acfs_sudo() {
 }
 
 acfs_lxc() {
+    # LXD CLI hangs on write operations when stdin is a pipe (e.g. via
+    # multipass exec).  Redirect stdin from /dev/null for non-exec commands
+    # to prevent this; exec commands need interactive stdin for shells.
+    local need_stdin=false
+    if [[ "${1:-}" == "exec" ]]; then
+        need_stdin=true
+    fi
+
     if [[ -n "${ACFS_SUDO_PASS:-}" ]]; then
-        acfs_sudo lxc "$@"
+        if [[ "$need_stdin" == "true" ]]; then
+            acfs_sudo lxc "$@"
+        else
+            acfs_sudo lxc "$@" < /dev/null
+        fi
         return $?
     fi
 
-    lxc "$@"
+    if [[ "$need_stdin" == "true" ]]; then
+        lxc "$@"
+    else
+        lxc "$@" < /dev/null
+    fi
+}
+
+# Wrapper for `acfs_sudo lxc` calls that ensures stdin is redirected from
+# /dev/null for non-exec LXD commands.  Use this instead of raw
+# `acfs_sudo lxc` to avoid hanging in piped/non-interactive environments.
+_acfs_sudo_lxc() {
+    if [[ "${1:-}" == "exec" ]]; then
+        acfs_sudo lxc "$@"
+    else
+        acfs_sudo lxc "$@" < /dev/null
+    fi
+}
+
+# ============================================================
+# LXD compatibility helpers
+# ============================================================
+# LXD 5.21 does not support `lxc profile device show <profile> <device>`
+# or `lxc config device show <instance> <device>`. These helpers use grep
+# to check for a specific device in the full device listing.
+
+# Check if a device exists on a profile: _lxc_profile_has_device <profile> <device>
+_lxc_profile_has_device() {
+    acfs_lxc profile device show "$1" 2>/dev/null | grep -q "^${2}:"
+}
+
+# Check if a device exists on a container: _lxc_config_has_device <instance> <device>
+_lxc_config_has_device() {
+    acfs_lxc config device show "$1" 2>/dev/null | grep -q "^${2}:"
 }
 
 # ============================================================
@@ -216,7 +260,7 @@ _acfs_sandbox_ensure_zpool() {
 # If LXD is already initialized, try to recover unavailable storage pools.
 _acfs_sandbox_fix_storage_pool() {
     local info
-    info="$(acfs_sudo lxc storage show default 2>/dev/null || true)"
+    info="$(_acfs_sudo_lxc storage show default 2>/dev/null || true)"
     if [[ -z "$info" ]]; then
         return 0
     fi
@@ -240,34 +284,34 @@ _acfs_sandbox_ensure_storage_pool() {
 
     if [[ -n "${ACFS_LXD_STORAGE_POOL:-}" ]]; then
         pool="$ACFS_LXD_STORAGE_POOL"
-        if acfs_sudo lxc storage show "$pool" &>/dev/null 2>&1; then
+        if _acfs_sudo_lxc storage show "$pool" &>/dev/null 2>&1; then
             return 0
         fi
         log_warn "LXD storage pool '$pool' is missing. Creating it now."
         if [[ "$driver" == "zfs" ]]; then
             zfs_pool="${ACFS_LXD_ZFS_POOL:-lxd_pool}"
             _acfs_sandbox_ensure_zpool "$zfs_pool" "${ACFS_LXD_ZFS_DEVICE:-}"
-            acfs_sudo lxc storage create "$pool" zfs source="$zfs_pool"
+            _acfs_sudo_lxc storage create "$pool" zfs source="$zfs_pool"
         else
-            acfs_sudo lxc storage create "$pool" "$driver" || acfs_sudo lxc storage create "$pool" dir
+            _acfs_sudo_lxc storage create "$pool" "$driver" || _acfs_sudo_lxc storage create "$pool" dir
         fi
         return 0
     fi
 
-    if acfs_sudo lxc storage show default &>/dev/null 2>&1; then
+    if _acfs_sudo_lxc storage show default &>/dev/null 2>&1; then
         return 0
     fi
 
-    pools="$(acfs_sudo lxc storage list --format csv -c n 2>/dev/null || true)"
+    pools="$(_acfs_sudo_lxc storage list --format csv 2>/dev/null | cut -d, -f1 || true)"
     count="$(printf '%s\n' "$pools" | sed '/^$/d' | wc -l | tr -d ' ')"
     if [[ "$count" -eq 0 ]]; then
         log_warn "No LXD storage pools found. Creating 'default' pool."
         if [[ "$driver" == "zfs" ]]; then
             zfs_pool="${ACFS_LXD_ZFS_POOL:-lxd_pool}"
             _acfs_sandbox_ensure_zpool "$zfs_pool" "${ACFS_LXD_ZFS_DEVICE:-}"
-            acfs_sudo lxc storage create default zfs source="$zfs_pool"
+            _acfs_sudo_lxc storage create default zfs source="$zfs_pool"
         else
-            acfs_sudo lxc storage create default "$driver" || acfs_sudo lxc storage create default dir
+            _acfs_sudo_lxc storage create default "$driver" || _acfs_sudo_lxc storage create default dir
         fi
     fi
 }
@@ -275,7 +319,7 @@ _acfs_sandbox_ensure_storage_pool() {
 # Pick a storage pool name for the default profile root device.
 _acfs_sandbox_default_storage_pool() {
     local pools
-    pools="$(acfs_sudo lxc storage list --format csv -c n 2>/dev/null || true)"
+    pools="$(_acfs_sudo_lxc storage list --format csv 2>/dev/null | cut -d, -f1 || true)"
 
     if [[ -n "${ACFS_LXD_STORAGE_POOL:-}" ]]; then
         echo "$ACFS_LXD_STORAGE_POOL"
@@ -313,14 +357,14 @@ _acfs_sandbox_default_storage_pool() {
 
 # Ensure the default profile has a root disk device.
 _acfs_sandbox_ensure_root_device() {
-    if acfs_sudo lxc profile device show default root &>/dev/null 2>&1; then
+    if _acfs_sudo_lxc profile device show default 2>/dev/null | grep -q '^root:'; then
         if [[ -n "${ACFS_LXD_STORAGE_POOL:-}" || -n "${ACFS_LXD_ZFS_DEVICE:-}" ]]; then
             local current_pool desired_pool
-            current_pool="$(acfs_sudo lxc profile device get default root pool 2>/dev/null || true)"
+            current_pool="$(_acfs_sudo_lxc profile device get default root pool 2>/dev/null || true)"
             desired_pool="$(_acfs_sandbox_default_storage_pool)"
             if [[ -n "$desired_pool" && "$current_pool" != "$desired_pool" ]] && ! acfs_sandbox_exists; then
                 log_warn "Updating default profile root pool from '$current_pool' to '$desired_pool'."
-                acfs_sudo lxc profile device set default root pool "$desired_pool" || true
+                _acfs_sudo_lxc profile device set default root pool "$desired_pool" || true
             fi
         fi
         return 0
@@ -329,7 +373,7 @@ _acfs_sandbox_ensure_root_device() {
     local pool
     pool="$(_acfs_sandbox_default_storage_pool)"
     log_warn "Default LXD profile missing root disk device. Adding root device (pool=$pool)."
-    acfs_sudo lxc profile device add default root disk path=/ pool="$pool"
+    _acfs_sudo_lxc profile device add default root disk path=/ pool="$pool"
 }
 
 # Ensure the workspace directory exists and is usable on the host.
@@ -360,7 +404,7 @@ _acfs_sandbox_container_workspace_mounted() {
 }
 
 _acfs_sandbox_container_has_workspace_device() {
-    acfs_lxc config device show "$ACFS_CONTAINER_NAME" workspace >/dev/null 2>&1
+    _lxc_config_has_device "$ACFS_CONTAINER_NAME" workspace
 }
 
 _acfs_sandbox_ensure_container_workspace_device() {
@@ -369,8 +413,7 @@ _acfs_sandbox_ensure_container_workspace_device() {
         acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace path "$ACFS_WORKSPACE_CONTAINER" >/dev/null 2>&1 || true
         if ! acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace shift true >/dev/null 2>&1; then
             acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace shift false >/dev/null 2>&1 || true
-            acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace uid 1000 >/dev/null 2>&1 || true
-            acfs_lxc config device set "$ACFS_CONTAINER_NAME" workspace gid 1000 >/dev/null 2>&1 || true
+            acfs_lxc config set "$ACFS_CONTAINER_NAME" security.privileged true >/dev/null 2>&1 || true
         fi
         return 0
     fi
@@ -381,8 +424,8 @@ _acfs_sandbox_ensure_container_workspace_device() {
         shift=true >/dev/null 2>&1; then
         acfs_lxc config device add "$ACFS_CONTAINER_NAME" workspace disk \
             source="$ACFS_WORKSPACE_HOST" \
-            path="$ACFS_WORKSPACE_CONTAINER" \
-            uid=1000 gid=1000 >/dev/null 2>&1 || true
+            path="$ACFS_WORKSPACE_CONTAINER" >/dev/null 2>&1 || true
+        acfs_lxc config set "$ACFS_CONTAINER_NAME" security.privileged true >/dev/null 2>&1 || true
     fi
 }
 
@@ -390,7 +433,11 @@ _acfs_sandbox_profile_dashboard_port() {
     local listen
     listen="$(acfs_lxc profile device get "$ACFS_PROFILE_NAME" dashboard-proxy listen 2>/dev/null || true)"
     if [[ -z "$listen" ]]; then
-        listen="$(acfs_lxc profile device show "$ACFS_PROFILE_NAME" dashboard-proxy 2>/dev/null | awk -F': ' '/^listen:/{print $2; exit}')"
+        listen="$(acfs_lxc profile device show "$ACFS_PROFILE_NAME" 2>/dev/null | awk '
+            /^dashboard-proxy:/{in=1; next}
+            in && /^[^ ]/{exit}
+            in && /listen:/{sub(/.*listen: /, ""); print; exit}
+        ')"
     fi
     if [[ -n "$listen" ]]; then
         printf '%s\n' "${listen##*:}"
@@ -451,10 +498,10 @@ _acfs_sandbox_ensure_dashboard_port() {
 
 _acfs_sandbox_ensure_lxd_remotes() {
     local remotes
-    remotes="$(acfs_sudo lxc remote list --format csv -c n 2>/dev/null || true)"
+    remotes="$(_acfs_sudo_lxc remote list --format csv 2>/dev/null | cut -d, -f1 || true)"
     if ! printf '%s\n' "$remotes" | grep -qx "ubuntu"; then
         log_warn "LXD remote 'ubuntu' missing. Adding it now."
-        acfs_sudo lxc remote add ubuntu https://cloud-images.ubuntu.com/releases --protocol simplestreams >/dev/null 2>&1 || true
+        _acfs_sudo_lxc remote add ubuntu https://cloud-images.ubuntu.com/releases --protocol simplestreams >/dev/null 2>&1 || true
     fi
 }
 
@@ -488,7 +535,7 @@ _acfs_sandbox_fix_container_network() {
         return 1
     fi
 
-    if ! acfs_lxc config device show "$ACFS_CONTAINER_NAME" eth1 &>/dev/null 2>&1; then
+    if ! _lxc_config_has_device "$ACFS_CONTAINER_NAME" eth1; then
         log_warn "Adding macvlan NIC for container egress (parent=$parent)."
         if acfs_lxc config device add "$ACFS_CONTAINER_NAME" eth1 nic nictype=macvlan parent="$parent" name=eth1 2>/dev/null; then
             iface_added=true
@@ -536,7 +583,7 @@ grant_acfs_sandbox_access() {
 
     # Check if LXD is running but restricted (permission denied)
     # We check if sudo works (meaning LXD is up) but user access fails
-    if [[ -z "${ACFS_SUDO_PASS:-}" ]] && acfs_sudo lxc info &>/dev/null 2>&1; then
+    if [[ -z "${ACFS_SUDO_PASS:-}" ]] && _acfs_sudo_lxc info &>/dev/null 2>&1; then
         log_detail "LXD is running but current user lacks 'lxd' group permissions."
         
         # Attempt automated group refresh
@@ -609,7 +656,7 @@ acfs_sandbox_init_lxd() {
     grant_acfs_sandbox_access
 
     # Initialize LXD if not already done (and sudo check failed)
-    if acfs_sudo lxc info &>/dev/null 2>&1; then
+    if _acfs_sudo_lxc info &>/dev/null 2>&1; then
         _acfs_sandbox_fix_storage_pool
         _acfs_sandbox_ensure_storage_pool
     else
@@ -658,7 +705,7 @@ EOF
     if ! acfs_lxc network show lxdbr0 &>/dev/null 2>&1; then
         log_detail "Ensuring lxdbr0 network exists..."
         # Try to create it non-interactively
-        acfs_sudo lxc network create lxdbr0 ipv4.address=auto ipv6.address=none 2>/dev/null || true
+        _acfs_sudo_lxc network create lxdbr0 ipv4.address=auto ipv6.address=none 2>/dev/null || true
     fi
 
     log_success "LXD initialized"
@@ -682,30 +729,54 @@ _acfs_create_profile() {
     acfs_lxc profile set "$ACFS_PROFILE_NAME" security.nesting=true
 
     # Configure workspace disk device
-    if acfs_lxc profile device show "$ACFS_PROFILE_NAME" workspace &>/dev/null 2>&1; then
+    # Detect if workspace is on a non-native filesystem (e.g. Multipass SSHFS mount)
+    # where idmapped mounts (shift=true) won't work.  FUSE-backed bind mounts also
+    # fail in unprivileged containers, so we need security.privileged=true.
+    local use_shift=true
+    if mountpoint -q "$ACFS_WORKSPACE_HOST" 2>/dev/null; then
+        local ws_fstype
+        ws_fstype="$(findmnt -n -o FSTYPE "$ACFS_WORKSPACE_HOST" 2>/dev/null || true)"
+        if [[ "$ws_fstype" == "fuse"* || "$ws_fstype" == "9p" || "$ws_fstype" == "virtiofs" || "$ws_fstype" == "sshfs" ]]; then
+            log_detail "Workspace is on $ws_fstype mount; using privileged container."
+            use_shift=false
+        fi
+    fi
+
+    if [[ "$use_shift" == "false" ]]; then
+        # FUSE/SSHFS: privileged container with plain disk device (no shift/uid/gid)
+        acfs_lxc profile set "$ACFS_PROFILE_NAME" security.privileged true 2>/dev/null || true
+        if _lxc_profile_has_device "$ACFS_PROFILE_NAME" workspace; then
+            acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace source "$ACFS_WORKSPACE_HOST" || true
+            acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace path "$ACFS_WORKSPACE_CONTAINER" || true
+            acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace shift false 2>/dev/null || true
+        else
+            acfs_lxc profile device add "$ACFS_PROFILE_NAME" workspace disk \
+                source="$ACFS_WORKSPACE_HOST" \
+                path="$ACFS_WORKSPACE_CONTAINER" || true
+        fi
+    elif _lxc_profile_has_device "$ACFS_PROFILE_NAME" workspace; then
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace source "$ACFS_WORKSPACE_HOST" || true
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace path "$ACFS_WORKSPACE_CONTAINER" || true
         if ! acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace shift true 2>/dev/null; then
-            log_warn "Workspace device shift not supported. Falling back to uid/gid mapping."
+            log_warn "Workspace device shift not supported. Falling back to privileged container."
             acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace shift false 2>/dev/null || true
-            acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace uid 1000 2>/dev/null || true
-            acfs_lxc profile device set "$ACFS_PROFILE_NAME" workspace gid 1000 2>/dev/null || true
+            acfs_lxc profile set "$ACFS_PROFILE_NAME" security.privileged true 2>/dev/null || true
         fi
     else
         if ! acfs_lxc profile device add "$ACFS_PROFILE_NAME" workspace disk \
             source="$ACFS_WORKSPACE_HOST" \
             path="$ACFS_WORKSPACE_CONTAINER" \
             shift=true; then
-            log_warn "Workspace device shift failed. Retrying without shift."
+            log_warn "Workspace device shift failed. Falling back to privileged container."
             acfs_lxc profile device add "$ACFS_PROFILE_NAME" workspace disk \
                 source="$ACFS_WORKSPACE_HOST" \
-                path="$ACFS_WORKSPACE_CONTAINER" \
-                uid=1000 gid=1000 || true
+                path="$ACFS_WORKSPACE_CONTAINER" || true
+            acfs_lxc profile set "$ACFS_PROFILE_NAME" security.privileged true 2>/dev/null || true
         fi
     fi
 
     # Add ethernet device (lxdbr0)
-    if acfs_lxc profile device show "$ACFS_PROFILE_NAME" eth0 &>/dev/null 2>&1; then
+    if _lxc_profile_has_device "$ACFS_PROFILE_NAME" eth0; then
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" eth0 network lxdbr0 || true
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" eth0 name eth0 || true
     else
@@ -715,7 +786,7 @@ _acfs_create_profile() {
     fi
 
     # Add port forwarding for dashboard
-    if acfs_lxc profile device show "$ACFS_PROFILE_NAME" dashboard-proxy &>/dev/null 2>&1; then
+    if _lxc_profile_has_device "$ACFS_PROFILE_NAME" dashboard-proxy; then
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" dashboard-proxy listen "tcp:0.0.0.0:$ACFS_DASHBOARD_PORT" || true
         acfs_lxc profile device set "$ACFS_PROFILE_NAME" dashboard-proxy connect "tcp:127.0.0.1:8080" || true
     else
@@ -773,9 +844,25 @@ acfs_sandbox_create() {
     # Launch container
     set_terminal_title "ACFS Sandbox: Launching Ubuntu..."
     log_detail "Launching Ubuntu container: $ACFS_CONTAINER_IMAGE"
-    acfs_lxc launch "$ACFS_CONTAINER_IMAGE" "$ACFS_CONTAINER_NAME" \
+    if ! acfs_lxc launch "$ACFS_CONTAINER_IMAGE" "$ACFS_CONTAINER_NAME" \
         --profile default \
-        --profile "$ACFS_PROFILE_NAME"
+        --profile "$ACFS_PROFILE_NAME" 2>&1; then
+        # Launch can fail if shift=true isn't supported on the workspace
+        # filesystem (e.g. Multipass virtiofs mounts).  Fall back to
+        # uid/gid mapping and retry.
+        log_warn "Container launch failed. Retrying with privileged container..."
+        acfs_lxc delete "$ACFS_CONTAINER_NAME" --force 2>/dev/null || true
+        if _lxc_profile_has_device "$ACFS_PROFILE_NAME" workspace; then
+            acfs_lxc profile device remove "$ACFS_PROFILE_NAME" workspace 2>/dev/null || true
+            acfs_lxc profile device add "$ACFS_PROFILE_NAME" workspace disk \
+                source="$ACFS_WORKSPACE_HOST" \
+                path="$ACFS_WORKSPACE_CONTAINER" || true
+        fi
+        acfs_lxc profile set "$ACFS_PROFILE_NAME" security.privileged true 2>/dev/null || true
+        acfs_lxc launch "$ACFS_CONTAINER_IMAGE" "$ACFS_CONTAINER_NAME" \
+            --profile default \
+            --profile "$ACFS_PROFILE_NAME"
+    fi
 
     # Wait for container to be ready
     set_terminal_title "ACFS Sandbox: Initializing..."

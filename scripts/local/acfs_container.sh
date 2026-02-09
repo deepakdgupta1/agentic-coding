@@ -148,9 +148,9 @@ cmd_audit() {
 
     local pool="${ACFS_LXD_STORAGE_POOL:-default}"
     if command -v lxc &>/dev/null; then
-        if acfs_sudo lxc storage show "$pool" >/dev/null 2>&1; then
+        if _acfs_sudo_lxc storage show "$pool" >/dev/null 2>&1; then
             local status
-            status="$(acfs_sudo lxc storage show "$pool" 2>/dev/null | awk -F': ' '/^status:/{print $2; exit}' || true)"
+            status="$(_acfs_sudo_lxc storage show "$pool" 2>/dev/null | awk -F': ' '/^status:/{print $2; exit}' || true)"
             if [[ "$status" == "Unavailable" ]]; then
                 log_warn "LXD storage pool '$pool' unavailable. Would repair or recreate."
                 issues=$((issues + 1))
@@ -160,7 +160,7 @@ cmd_audit() {
             issues=$((issues + 1))
         fi
 
-        if ! acfs_sudo lxc profile device show default root >/dev/null 2>&1; then
+        if ! _acfs_sudo_lxc profile device show default 2>/dev/null | grep -q '^root:'; then
             log_warn "Default profile root device missing. Would add root disk device."
             issues=$((issues + 1))
         fi
@@ -178,12 +178,12 @@ cmd_audit() {
     fi
 
     if command -v lxc &>/dev/null; then
-        if acfs_sudo lxc profile show "$ACFS_PROFILE_NAME" >/dev/null 2>&1; then
-            if ! acfs_sudo lxc profile device show "$ACFS_PROFILE_NAME" workspace >/dev/null 2>&1; then
+        if _acfs_sudo_lxc profile show "$ACFS_PROFILE_NAME" >/dev/null 2>&1; then
+            if ! _lxc_profile_has_device "$ACFS_PROFILE_NAME" workspace; then
                 log_warn "Profile workspace device missing. Would add it."
                 issues=$((issues + 1))
             fi
-            if ! acfs_sudo lxc profile device show "$ACFS_PROFILE_NAME" dashboard-proxy >/dev/null 2>&1; then
+            if ! _lxc_profile_has_device "$ACFS_PROFILE_NAME" dashboard-proxy; then
                 log_warn "Profile dashboard proxy missing. Would add it."
                 issues=$((issues + 1))
             fi

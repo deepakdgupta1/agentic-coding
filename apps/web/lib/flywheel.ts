@@ -632,10 +632,6 @@ compaction_level, dependencies, labels, owner
 
 40 commands including: create, list, ready, blocked, dep, label, epic,
 defer/undefer, search, stats, doctor, changelog, orphans, audit, history, graph`,
-    connectsTo: ["bv", "mail", "ntm", "ru"],
-      "Local-first issue tracking for AI agents. SQLite primary storage with JSONL export for git. Dependencies, labels, priorities (P0-P4), blocking relationships. Non-invasive: never runs git commands automatically. The bd alias provides backward compatibility.",
-    deepDescription:
-      "beads_rust (br) is the ~20K line Rust port of the beads issue tracker. SQLite for fast local queries, JSONL for git-friendly collaboration. Full dependency graph, labels, priorities, comments. Agent-first design: all commands support --json. Explicit sync (flush-only/import-only). Works offline. Doctor diagnostics and schema output (--format toon/json).",
     connectsTo: ["bv", "mail", "ntm", "ru", "ubs"],
     connectionDescriptions: {
       bv: "BV visualizes and analyzes beads from br",
@@ -652,19 +648,6 @@ defer/undefer, search, stats, doctor, changelog, orphans, audit, history, graph`
       "br ready: shows unblocked, non-deferred work",
       "br stats: lead time, activity, status breakdown",
       "40 commands, all support --json for agents",
-    ],
-    cliCommands: [
-      "br create 'Fix bug' -p 1 --type bug",
-      "br ready --json",
-      "br dep add <child> <parent>",
-      "br sync --flush-only",
-      "br stats",
-      "SQLite + JSONL hybrid: fast queries, git-friendly export",
-      "Non-invasive: never runs git commands automatically",
-      "Full dependency graph: blocks/blocked-by, cycles detection",
-      "Labels, priorities (P0-P4), comments, assignees",
-      "Agent-first: all commands support --json/--robot output",
-      "Rich terminal output with auto TTY detection, doctor diagnostics",
     ],
     cliCommands: [
       "br create 'Fix bug' --priority 1 --type bug",
@@ -1391,13 +1374,6 @@ Key capabilities:
 - SIMD-accelerated vector operations, F16 quantization (50% storage reduction)
 - All data stays local - no network calls during search
 - 13 commands: import, index, search, stats, tweet, list, export, config, doctor, shell, benchmark`,
-- Rust + Tantivy for sub-millisecond lexical search (<10ms typical)
-- Hybrid BM25 + semantic search with RRF fusion
-- Zero-dependency hash embedder (default) or optional MiniLM embeddings (--semantic)
-- SIMD-accelerated vector search with F16 quantization
-- Fully local, privacy-preserving processing (no network calls)
-- DM context search: view full conversation threads with matches highlighted
-- Parses all X archive formats: tweets, likes, DMs, Grok chats, followers`,
     connectsTo: ["cass", "cm"],
     connectionDescriptions: {
       cass: "Similar search architecture - hybrid retrieval patterns",
@@ -1412,20 +1388,6 @@ Key capabilities:
       "DM context view with full conversation threads",
       "Parses tweets, likes, DMs, Grok chats",
       "Interactive REPL shell for exploration",
-    ],
-    cliCommands: [
-      "xf index ~/x-archive",
-      "xf search 'query' --format json",
-      "xf search 'term' --mode semantic",
-      "xf stats",
-      "xf doctor",
-      "xf shell",
-      "Sub-millisecond lexical search (<10ms typical)",
-      "Hybrid BM25 + semantic search with RRF fusion",
-      "Hash embedder (default) or MiniLM (--semantic)",
-      "SIMD-accelerated vector search, F16 quantization",
-      "DM context search with full conversation threads",
-      "Parses tweets, likes, DMs, Grok chats, followers",
     ],
     cliCommands: [
       "xf index ~/x-archive               # Index archive",

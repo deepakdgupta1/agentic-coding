@@ -71,7 +71,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       },
     ],
     techStack: ["Python 3.11+", "FastMCP", "FastAPI", "SQLite"],
-    techStack: ["Python 3.14+", "FastMCP", "SQLAlchemy async", "SQLite + FTS5", "LiteLLM"],
     keyFeatures: [
       "Threaded GFM messages with importance levels",
       "Advisory file reservations with pre-commit guard",
@@ -160,13 +159,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       "40 commands, all support --json for agents",
       "br ready/blocked for dependency-aware work queues",
       "Local-first issue tracking for AI agents. SQLite for fast local queries, JSONL export for git-friendly collaboration. Full dependency graph with blocking/blocked-by relationships, priorities P0-P4.",
-    whyItsUseful:
-      "Your issues travel with your repo - no external service required. Non-invasive design: never runs git commands automatically. Agents can create, update, and close issues with simple CLI commands. The bd alias provides backward compatibility.",
-    implementationHighlights: [
-      "~20K lines of Rust (vs 276K in original Go)",
-      "SQLite primary storage + JSONL export (hybrid architecture)",
-      "Non-invasive: explicit sync, never runs git automatically",
-      "Full dependency graph with cycles detection",
     ],
     synergies: [
       {
@@ -192,12 +184,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       "br ready: unblocked, non-deferred work",
       "br dep: full dependency graph management",
       "br stats: lead time and activity metrics",
-    techStack: ["Rust", "SQLite", "Serde", "JSONL"],
-    keyFeatures: [
-      "SQLite + JSONL hybrid: fast queries, git-friendly export",
-      "Dependency graph with cycles detection",
-      "Labels, priorities (P0-P4), comments, assignees",
-      "Agent-first: --json/--robot output, doctor diagnostics",
     ],
     useCases: [
       "Tracking tasks that travel with the code",
@@ -534,7 +520,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       },
     ],
     techStack: ["Go 1.22+", "Bubble Tea", "tmux 3.0+"],
-    techStack: ["Go 1.25+", "Bubble Tea", "tmux 3.0+", "Catppuccin themes"],
     keyFeatures: [
       "80+ commands: spawn, send, dashboard, checkpoint, health, and more",
       "Agent type classification with named panes (cc, cod, gmi)",
@@ -973,14 +958,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       "SIMD-accelerated vector ops with F16 quantization",
       "Parses window.YTD.* JavaScript format from X exports",
       "Ultra-fast search over X/Twitter data archives with sub-millisecond latency. Uses hybrid BM25 + semantic search with Reciprocal Rank Fusion. Indexes tweets, likes, DMs, and Grok conversations.",
-    whyItsUseful:
-      "Your X archive is a goldmine of bookmarks, threads, and ideas, but Twitter's search is terrible. XF makes your archive instantly searchable (<10ms) with both keyword and semantic matching. DM context search shows full conversation threads.",
-    implementationHighlights: [
-      "Rust + Tantivy for sub-millisecond lexical search",
-      "Hybrid BM25 + semantic search with RRF fusion",
-      "Hash embedder (default) or optional MiniLM (--semantic)",
-      "SIMD-accelerated vector search with F16 quantization",
-      "Privacy-first, fully local processing (no network calls)",
     ],
     synergies: [
       {
@@ -1003,17 +980,6 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
       "Finding that thread you bookmarked months ago",
       "Searching DMs with full conversation context",
       "Exporting tweets to JSON for analysis pipelines",
-    techStack: ["Rust", "Tantivy", "SQLite", "SIMD", "F16 quantization"],
-    keyFeatures: [
-      "Sub-millisecond lexical search (<10ms typical)",
-      "Hybrid BM25 + semantic with RRF fusion",
-      "DM context search with full threads",
-      "Indexes tweets, likes, DMs, Grok chats",
-    ],
-    useCases: [
-      "Finding that thread you bookmarked months ago",
-      "Searching DM conversations with full context",
-      "Researching past discussions on a topic",
     ],
   },
   {
@@ -1496,9 +1462,6 @@ export const tldrPageData = {
       "15 core tools and 7 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
     stats: [
       { label: "Ecosystem Tools", value: "22" },
-      "16 core tools and 13 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
-    stats: [
-      { label: "Ecosystem Tools", value: "29" },
       { label: "GitHub Stars", value: "3,600+" },
       { label: "Languages", value: "5" },
     ],

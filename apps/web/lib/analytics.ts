@@ -198,6 +198,7 @@ export type WizardStep =
   | 'os_selection'
   | 'rent_vps'
   | 'create_vps'
+  | 'install_target'
   | 'install_terminal'
   | 'generate_ssh_key'
   | 'ssh_connect'

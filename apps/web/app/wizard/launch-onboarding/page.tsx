@@ -185,7 +185,7 @@ export default function LaunchOnboardingPage() {
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button href="/learn/welcome" asChild size="lg" disableMotion>
+          <Button asChild size="lg" disableMotion>
             <Link href="/learn/welcome">
               Start learning <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

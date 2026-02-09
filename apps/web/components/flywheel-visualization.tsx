@@ -322,7 +322,6 @@ function DesktopToolNode({
 }: DesktopToolNodeProps) {
   const Icon = iconMap[tool.icon] || Zap;
   const iconSize = isPrimary ? "h-6 w-6" : "h-5 w-5";
-  const fontSize = isPrimary ? "text-[11px]" : "text-[9px]";
   const color = getColorFromGradient(tool.color);
 
   return (
@@ -422,12 +421,8 @@ function DesktopToolNode({
         {tool.stars && tool.stars >= 100 && (
           <div className="absolute -right-1 -top-1 flex items-center gap-0.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-xs font-bold text-amber-400">
             <Star className="h-2.5 w-2.5 fill-current" />
-        <span className={cn(
-          "relative z-10 font-bold uppercase tracking-wider text-white drop-shadow-sm",
-          fontSize
-        )}>
-          {tool.shortName}
-        </span>
+          </div>
+        )}
 
         {/* Star badge with glow */}
         {tool.stars && tool.stars >= 50 && (
@@ -969,12 +964,6 @@ function MobileBottomSheet({ tool, onClose }: MobileBottomSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-label={`${tool.name} details`}
-        className="fixed inset-x-0 bottom-0 z-50 lg:hidden animate-slide-up"
-      >
-        <div className="flex max-h-[70vh] flex-col rounded-t-3xl border-t border-border/50 bg-card/95 backdrop-blur-xl">
-          {/* Handle */}
-          <div className="flex shrink-0 justify-center pt-3 pb-2">
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
         ref={sheetRef}
         className="fixed inset-x-0 bottom-0 z-50 lg:hidden touch-none"
         style={{

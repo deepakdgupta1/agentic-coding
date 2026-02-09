@@ -9,12 +9,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
+  Terminal,
   Zap,
 } from "lucide-react";
-import {
-  CodeBlock as SharedCodeBlock,
-  type CodeBlockProps as SharedCodeBlockProps,
-} from "@/components/ui/code-block";
 
 // =============================================================================
 // SECTION COMPONENT - Beautiful section dividers with gradient headers
@@ -171,10 +168,6 @@ export function CodeBlock({
       </div>
     </div>
   );
-export function CodeBlock(
-  props: Omit<SharedCodeBlockProps, "variant" | "copyable">,
-) {
-  return <SharedCodeBlock {...props} variant="terminal" copyable />;
 }
 
 // =============================================================================
