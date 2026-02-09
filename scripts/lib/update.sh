@@ -1229,7 +1229,7 @@ update_agents() {
 # Helper for Claude update with proper error handling
 run_cmd_claude_update() {
     local desc="Claude Code (native update)"
-    local cmd_display="claude update"
+    local cmd_display="claude update --channel latest"
 
     log_to_file "Running: $cmd_display"
 
@@ -1251,27 +1251,27 @@ run_cmd_claude_update() {
         fi
 
         if [[ "$QUIET" != "true" ]] && [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
+            if claude update --channel latest 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
                 exit_code=0
             else
                 exit_code=${PIPESTATUS[0]}
             fi
         elif [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update >> "$UPDATE_LOG_FILE" 2>&1; then
+            if claude update --channel latest >> "$UPDATE_LOG_FILE" 2>&1; then
                 exit_code=0
             else
                 exit_code=$?
             fi
         else
             if [[ "$QUIET" != "true" ]]; then
-                claude update || exit_code=$?
+                claude update --channel latest || exit_code=$?
             else
-                claude update >/dev/null 2>&1 || exit_code=$?
+                claude update --channel latest >/dev/null 2>&1 || exit_code=$?
             fi
         fi
     else
         local output=""
-        output=$(claude update 2>&1) || exit_code=$?
+        output=$(claude update --channel latest 2>&1) || exit_code=$?
         [[ -n "$output" ]] && log_to_file "Output: $output"
     fi
 
@@ -2148,7 +2148,7 @@ WHAT EACH CATEGORY UPDATES:
   apt:      System packages via apt update && apt upgrade && apt autoremove
   shell:    Oh-My-Zsh, Powerlevel10k, zsh plugins (git pull)
             Atuin, Zoxide (reinstall from upstream)
-  agents:   Claude Code (claude update)
+  agents:   Claude Code (claude update --channel latest)
             Codex CLI (bun install -g --trust @openai/codex@latest)
             Gemini CLI (bun install -g --trust @google/gemini-cli@latest)
   cloud:    Wrangler, Vercel (bun install -g --trust <pkg>@latest)
@@ -2184,7 +2184,7 @@ TROUBLESHOOTING:
       sudo systemctl start unattended-upgrades
 
   - If an agent update fails: try running the update command directly:
-    claude update
+    claude update --channel latest
     bun install -g --trust @openai/codex@latest
     bun install -g --trust @google/gemini-cli@latest
 
