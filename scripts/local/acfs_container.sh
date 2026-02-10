@@ -31,6 +31,17 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=scripts/lib/sandbox.sh
 source "$REPO_ROOT/scripts/lib/sandbox.sh"
 
+# Fallback logging functions if not defined
+if ! declare -f log_info &>/dev/null; then
+    log_info() { echo "  $*"; }
+fi
+if ! declare -f log_error &>/dev/null; then
+    log_error() { echo "✖ $*" >&2; }
+fi
+if ! declare -f log_detail &>/dev/null; then
+    log_detail() { echo "    → $*"; }
+fi
+
 # ============================================================
 # Commands
 # ============================================================
@@ -106,25 +117,37 @@ transfer_repo_with_retries() {
 }
 
 acfs_local_install_healthy() {
-    local missing=0
+    # Check if ACFS is installed for EITHER ubuntu or root user
+    # In LXD containers, root's home might be /root OR /home/root
+    # Requires BOTH a tool binary (claude) AND the acfs framework (dashboard.sh)
+    # to avoid false-positives from partial installs.
 
-    if ! acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
-        missing=1
-    fi
-    if ! acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" >/dev/null 2>&1; then
-        missing=1
-    fi
-    if ! acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
-        missing=1
-    fi
-    if ! acfs_sandbox_exec "test -x ~/.local/bin/onboard" >/dev/null 2>&1; then
-        missing=1
+    local has_tool=false
+    local has_framework=false
+
+    # Check for claude binary (installed on all modes)
+    if acfs_sandbox_exec_root "test -x /home/root/.local/bin/claude" >/dev/null 2>&1 \
+       || acfs_sandbox_exec_root "test -x /root/.local/bin/claude" >/dev/null 2>&1 \
+       || acfs_sandbox_exec "test -x ~/.local/bin/claude" >/dev/null 2>&1; then
+        has_tool=true
     fi
 
-    if [[ $missing -eq 1 ]]; then
-        return 1
+    # Fallback: check for acfs binary
+    if [[ "$has_tool" != "true" ]]; then
+        if acfs_sandbox_exec_root "test -x /home/root/.local/bin/acfs" >/dev/null 2>&1 \
+           || acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
+            has_tool=true
+        fi
     fi
-    return 0
+
+    # Check for ACFS framework (dashboard.sh as sentinel)
+    if acfs_sandbox_exec_root "test -f /home/root/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1 \
+       || acfs_sandbox_exec_root "test -f /root/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1 \
+       || acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
+        has_framework=true
+    fi
+
+    [[ "$has_tool" == "true" && "$has_framework" == "true" ]]
 }
 
 cmd_audit() {

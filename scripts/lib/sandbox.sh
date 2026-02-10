@@ -434,9 +434,9 @@ _acfs_sandbox_profile_dashboard_port() {
     listen="$(acfs_lxc profile device get "$ACFS_PROFILE_NAME" dashboard-proxy listen 2>/dev/null || true)"
     if [[ -z "$listen" ]]; then
         listen="$(acfs_lxc profile device show "$ACFS_PROFILE_NAME" 2>/dev/null | awk '
-            /^dashboard-proxy:/{in=1; next}
-            in && /^[^ ]/{exit}
-            in && /listen:/{sub(/.*listen: /, ""); print; exit}
+            /^dashboard-proxy:/{blk=1; next}
+            blk && /^[^ ]/{exit}
+            blk && /listen:/{sub(/.*listen: /, ""); print; exit}
         ')"
     fi
     if [[ -n "$listen" ]]; then
@@ -483,7 +483,7 @@ _acfs_sandbox_ensure_dashboard_port() {
             break
         fi
         port=$((port + 1))
-        ((i++))
+        i=$((i + 1))
     done
 
     if [[ $i -gt $max_tries ]]; then
@@ -873,7 +873,7 @@ acfs_sandbox_create() {
             break
         fi
         sleep 1
-        ((retries--))
+        retries=$((retries - 1))
     done
 
     if [[ $retries -eq 0 ]]; then
