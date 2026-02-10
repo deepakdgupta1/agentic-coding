@@ -733,7 +733,7 @@ acfs_summary_emit() {
     # Require jq (installed by ensure_base_deps before phases run)
     command -v jq &>/dev/null || return 1
 
-    local summary_dir="${ACFS_HOME:-/home/${TARGET_USER:?}/.acfs}/logs"
+    local summary_dir="${ACFS_HOME:-${TARGET_HOME:?}/.acfs}/logs"
     mkdir -p "$summary_dir" 2>/dev/null || return 1
 
     ACFS_SUMMARY_FILE="${summary_dir}/install_summary_$(date +%Y%m%d_%H%M%S).json"
@@ -6079,10 +6079,12 @@ main() {
     # ============================================================
     # State Management and Resume Logic (mjt.5.8)
     # ============================================================
-    # Initialize state file location (uses TARGET_USER's home)
-    ACFS_HOME="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}"
-    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
-    export ACFS_HOME ACFS_STATE_FILE
+    # CRITICAL: run_ubuntu_upgrade_phase() overrides ACFS_STATE_FILE to
+    # /var/lib/acfs/state.json for upgrade tracking. Reset it to the
+    # correct per-user path now that the upgrade phase is done.
+    # (ACFS_HOME was already set correctly by init_target_paths.)
+    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    export ACFS_STATE_FILE
 
     # Validate and handle existing state file
     if type -t state_ensure_valid &>/dev/null; then
