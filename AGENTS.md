@@ -1,97 +1,210 @@
 # AGENTS.md — Agentic Coding Flywheel Setup (ACFS)
 
+> Guidelines for AI coding agents working in this multi-component Bash/TypeScript codebase.
+
+---
+
 ## RULE 0 - THE FUNDAMENTAL OVERRIDE PREROGATIVE
 
 If I tell you to do something, even if it goes against what follows below, YOU MUST LISTEN TO ME. I AM IN CHARGE, NOT YOU.
 
 ---
 
-## RULE 1 – ABSOLUTE (DO NOT EVER VIOLATE THIS)
+## RULE NUMBER 1: NO FILE DELETION
 
-You may NOT delete any file or directory unless I explicitly give the exact command **in this session**.
+**YOU ARE NEVER ALLOWED TO DELETE A FILE WITHOUT EXPRESS PERMISSION.** Even a new file that you yourself created, such as a test code file. You have a horrible track record of deleting critically important files or otherwise throwing away tons of expensive work. As a result, you have permanently lost any and all rights to determine that a file or folder should be deleted.
 
-- This includes files you just created (tests, tmp files, scripts, etc.).
-- You do not get to decide that something is "safe" to remove.
-- If you think something should be removed, stop and ask. You must receive clear written approval **before** any deletion command is even proposed.
-
-Treat "never delete files without permission" as a hard invariant.
+**YOU MUST ALWAYS ASK AND RECEIVE CLEAR, WRITTEN PERMISSION BEFORE EVER DELETING A FILE OR FOLDER OF ANY KIND.**
 
 ---
 
-## IRREVERSIBLE GIT & FILESYSTEM ACTIONS
+## Irreversible Git & Filesystem Actions — DO NOT EVER BREAK GLASS
 
-Absolutely forbidden unless I give the **exact command and explicit approval** in the same message:
-
-- `git reset --hard`
-- `git clean -fd`
-- `rm -rf`
-- Any command that can delete or overwrite code/data
-
-Rules:
-
-1. If you are not 100% sure what a command will delete, do not propose or run it. Ask first.
-2. Prefer safe tools: `git status`, `git diff`, `git stash`, copying to backups, etc.
-3. After approval, restate the command verbatim, list what it will affect, and wait for confirmation.
-4. When a destructive command is run, record in your response:
-   - The exact user text authorizing it
-   - The command run
-   - When you ran it
-
-If that audit trail is missing, then you must act as if the operation never happened.
+1. **Absolutely forbidden commands:** `git reset --hard`, `git clean -fd`, `rm -rf`, or any command that can delete or overwrite code/data must never be run unless the user explicitly provides the exact command and states, in the same message, that they understand and want the irreversible consequences.
+2. **No guessing:** If there is any uncertainty about what a command might delete or overwrite, stop immediately and ask the user for specific approval. "I think it's safe" is never acceptable.
+3. **Safer alternatives first:** When cleanup or rollbacks are needed, request permission to use non-destructive options (`git status`, `git diff`, `git stash`, copying to backups) before ever considering a destructive command.
+4. **Mandatory explicit plan:** Even after explicit user authorization, restate the command verbatim, list exactly what will be affected, and wait for a confirmation that your understanding is correct. Only then may you execute it—if anything remains ambiguous, refuse and escalate.
+5. **Document the confirmation:** When running any approved destructive command, record (in the session notes / final response) the exact user text that authorized it, the command actually run, and the execution time. If that record is absent, the operation did not happen.
 
 ---
 
-## Node / JS Toolchain
+## Git Branch: ONLY Use `main`, NEVER `master`
 
-- Use **bun** for everything JS/TS.
-- ❌ Never use `npm`, `yarn`, or `pnpm`.
-- Lockfiles: only `bun.lock`. Do not introduce any other lockfile.
-- Target **latest Node.js**. No need to support old Node versions.
-- **Note:** `bun install -g <pkg>` is valid syntax (alias for `bun add -g`). Do not "fix" it.
+**The default branch is `main`. The `master` branch exists only for legacy URL compatibility.**
+
+- **All work happens on `main`** — commits, PRs, feature branches all merge to `main`
+- **Never reference `master` in code or docs** — if you see `master` anywhere, it's a bug that needs fixing
+- **The `master` branch must stay synchronized with `main`** — after pushing to `main`, also push to `master`:
+  ```bash
+  git push origin main:master
+  ```
+
+**If you see `master` referenced anywhere:**
+1. Update it to `main`
+2. Ensure `master` is synchronized: `git push origin main:master`
 
 ---
 
-## Project Architecture
+## Toolchain: Bash & Bun
 
-ACFS is a **multi-component project** consisting of:
+### Installer / Scripts: Bash
 
-### A) Website Wizard (`apps/web/`)
+The installer and scripting layer uses **Bash** (POSIX-compatible where possible).
+
+- **Linting:** `shellcheck` for all `.sh` files
+- **Target OS:** Ubuntu 25.10 (installer auto-upgrades from 22.04+)
+- **Idempotent:** Installer is safe to re-run; phases resume on failure
+- **One-liner:** `curl -fsSL ... | bash -s -- --yes --mode vibe`
+
+### Website: Bun & Next.js
+
+Use **bun** for everything JS/TS. Never use `npm`, `yarn`, or `pnpm`.
+
 - **Framework:** Next.js 16 App Router
 - **Runtime:** Bun
 - **Hosting:** Vercel + Cloudflare for cost optimization
-- **Purpose:** Step-by-step wizard guiding beginners from "I have a laptop" to "fully configured VPS"
-- **No backend required:** All state via URL params + localStorage
+- **Lockfiles:** Only `bun.lock`. Do not introduce any other lockfile.
+- **Target:** Latest Node.js. No need to support old Node versions.
+- **Note:** `bun install -g <pkg>` is valid syntax (alias for `bun add -g`). Do not "fix" it.
 
-### B) Installer (`install.sh` + `scripts/`)
-- **Language:** Bash (POSIX-compatible where possible)
-- **Target:** Ubuntu 25.10 (auto-upgrades from 22.04+ via sequential do-release-upgrade)
-- **Auto-Upgrade:** Older Ubuntu versions are automatically upgraded to 25.10 before ACFS install
-  - Upgrade path: 22.04 → 24.04 → 25.04 → 25.10 (EOL interim releases like 24.10 may be skipped)
-  - Takes 30-60 minutes per version hop; multiple reboots handled via systemd resume service
-  - Skip with `--skip-ubuntu-upgrade` flag
-- **One-liner:** `curl -fsSL ... | bash -s -- --yes --mode vibe`
-- **Idempotent:** Safe to re-run
-- **Checkpointed:** Phases resume on failure
+### Key Dependencies
 
-### C) Onboarding TUI (`packages/onboard/`)
-- **Command:** `onboard`
-- **Purpose:** Interactive tutorial teaching Linux basics + agent workflow
-- **Tech:** Shell script or simple Rust/Go binary (TBD)
-
-### D) Module Manifest (`acfs.manifest.yaml`)
-- **Purpose:** Single source of truth for all tools installed
-- **Contains:** Tool definitions, install commands, verify commands
-- **Generates:** Website content, installer modules, doctor checks
-
-### E) ACFS Configs (`acfs/`)
-- **Shell config:** `acfs/zsh/acfs.zshrc`
-- **Tmux config:** `acfs/tmux/tmux.conf`
-- **Onboard lessons:** `acfs/onboard/lessons/`
-- **Installed to:** `~/.acfs/` on target VPS
+| Component | Purpose |
+|-----------|---------|
+| `next` (16.x) | App Router framework for wizard website |
+| `react` / `react-dom` (19.x) | UI rendering |
+| `tailwindcss` (4.x) | Utility-first CSS |
+| `@tanstack/react-form` | Form state management |
+| `@tanstack/react-query` | Async state management |
+| `framer-motion` | Animations |
+| `@playwright/test` | E2E testing |
+| `eslint` / `eslint-config-next` | Linting |
+| `typescript` (5.x) | Type checking |
 
 ---
 
-## Repo Layout
+## Code Editing Discipline
+
+### No Script-Based Changes
+
+**NEVER** run a script that processes/changes code files in this repo. Brittle regex-based transformations create far more problems than they solve.
+
+- **Always make code changes manually**, even when there are many instances
+- For many simple changes: use parallel subagents
+- For subtle/complex changes: do them methodically yourself
+
+### No File Proliferation
+
+If you want to change something or add a feature, **revise existing code files in place**.
+
+**NEVER** create variations like:
+- `install_v2.sh`
+- `install_improved.sh`
+- `install_enhanced.sh`
+
+New files are reserved for **genuinely new functionality** that makes zero sense to include in any existing file. The bar for creating new files is **incredibly high**.
+
+---
+
+## Backwards Compatibility
+
+We do not care about backwards compatibility—we're in early development with no users. We want to do things the **RIGHT** way with **NO TECH DEBT**.
+
+- Never create "compatibility shims"
+- Never create wrapper functions for deprecated APIs
+- Just fix the code directly
+
+---
+
+## Compiler Checks (CRITICAL)
+
+**After any substantive code changes, you MUST verify no errors were introduced:**
+
+```bash
+# Bash scripts: lint with shellcheck
+shellcheck install.sh scripts/**/*.sh
+
+# Website: type-check and lint
+cd apps/web && bun run type-check && bun run lint
+
+# Website: build verification
+cd apps/web && bun run build
+```
+
+If you see errors, **carefully understand and resolve each issue**. Read sufficient context to fix them the RIGHT way.
+
+---
+
+## Testing
+
+### Testing Policy
+
+Scripts include integration tests. The website uses Playwright for E2E testing. Tests must cover:
+- Happy path
+- Edge cases (empty input, max values, boundary conditions)
+- Error conditions
+
+### Installer Tests
+
+```bash
+# Local lint
+shellcheck install.sh scripts/lib/*.sh
+
+# Full installer integration test (Docker, same as CI)
+./tests/vm/test_install_ubuntu.sh
+```
+
+### Website Tests
+
+```bash
+cd apps/web
+bun install                    # Install dependencies
+bun run dev                    # Dev server
+bun run build                  # Production build
+bun run lint                   # ESLint check
+bun run type-check             # TypeScript check
+bun run test                   # Playwright E2E tests
+```
+
+### Test Structure
+
+| Directory | Focus Areas |
+|-----------|-------------|
+| `tests/vm/` | Full installer integration tests (Docker-based, Ubuntu images) |
+| `tests/e2e/` | End-to-end installer flow tests |
+| `tests/unit/` | Unit tests for library functions |
+| `tests/smoke/` | Quick smoke tests |
+| `scripts/tests/` | Script-level tests (security, manifest drift, etc.) |
+| `apps/web/e2e/` | Playwright production smoke tests |
+
+---
+
+## Third-Party Library Usage
+
+If you aren't 100% sure how to use a third-party library, **SEARCH ONLINE** to find the latest documentation and current best practices.
+
+---
+
+## ACFS — This Project
+
+**This is the project you're working on.** ACFS (Agentic Coding Flywheel Setup) is a multi-component project that takes a beginner from "I have a laptop" to a fully configured VPS with coding agents, dev tools, and coordination infrastructure.
+
+### What It Does
+
+Provides a step-by-step wizard website, a one-liner installer, and an onboarding TUI to configure Ubuntu VPS instances with a complete agentic coding environment: shell setup, languages, dev tools, coding agents, and the Dicklesworthstone coordination stack.
+
+### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Website Wizard | `apps/web/` | Next.js 16 App Router wizard guiding beginners |
+| Installer | `install.sh` + `scripts/` | Bash installer, idempotent, checkpointed |
+| Onboarding TUI | `packages/onboard/` | Interactive tutorial for Linux basics + agent workflow |
+| Module Manifest | `acfs.manifest.yaml` | Single source of truth for all tools installed |
+| ACFS Configs | `acfs/` | Shell, tmux, onboard configs installed to `~/.acfs/` |
+| Manifest Parser | `packages/manifest/` | YAML parser + code generators |
+
+### Repo Layout
 
 ```
 agentic_coding_flywheel_setup/
@@ -122,20 +235,21 @@ agentic_coding_flywheel_setup/
 │
 ├── scripts/
 │   ├── lib/                      # Installer library functions
-│   └── providers/                # VPS provider guides
+│   ├── generated/                # Auto-generated from manifest (NEVER edit)
+│   ├── providers/                # VPS provider guides
+│   ├── tests/                    # Script-level tests
+│   └── e2e/                      # E2E test scripts
 │
 └── tests/
-    └── vm/
-        └── test_install_ubuntu.sh
+    ├── vm/                       # Docker-based installer integration
+    ├── e2e/                      # End-to-end flow tests
+    ├── unit/                     # Unit tests
+    └── smoke/                    # Quick smoke tests
 ```
 
----
-
-## Generated Files — NEVER Edit Manually
+### Generated Files — NEVER Edit Manually
 
 The following files are **auto-generated** from the manifest. Edits to these files will be **overwritten** on the next regeneration.
-
-### Generated Locations
 
 ```
 scripts/generated/          # ALL files in this directory
@@ -144,62 +258,33 @@ scripts/generated/          # ALL files in this directory
 └── manifest_index.sh      # Bash arrays with module metadata
 ```
 
-### How to Modify Generated Code
+**How to modify generated code:**
 
 1. **Identify the generator source**: `packages/manifest/src/generate.ts`
 2. **Modify the generator**, not the output files
 3. **Regenerate**: `cd packages/manifest && bun run generate`
 4. **Verify**: `shellcheck scripts/generated/*.sh`
 
-### Key Generator Components
+### Installer Architecture
 
-| File | Purpose |
-|------|---------|
-| `packages/manifest/src/generate.ts` | Main generator logic |
-| `packages/manifest/src/schema.ts` | Zod schema for manifest validation |
-| `packages/manifest/src/types.ts` | TypeScript interfaces |
-| `acfs.manifest.yaml` | Source manifest (this IS hand-edited) |
+- **Auto-Upgrade:** Older Ubuntu versions are automatically upgraded to 25.10 before ACFS install
+  - Upgrade path: 22.04 -> 24.04 -> 25.04 -> 25.10 (EOL interim releases like 24.10 may be skipped)
+  - Takes 30-60 minutes per version hop; multiple reboots handled via systemd resume service
+  - Skip with `--skip-ubuntu-upgrade` flag
+- **One-liner:** `curl -fsSL ... | bash -s -- --yes --mode vibe`
+- **Idempotent:** Safe to re-run
+- **Checkpointed:** Phases resume on failure
 
-### Why This Matters
-
-If you manually edit a generated file:
-- Your changes **will be lost** on next `bun run generate`
-- Other developers won't know about your fix
-- CI/CD may regenerate and overwrite your work
-
-Always fix the generator, then regenerate.
-
----
-
-## Code Editing Discipline
-
-- Do **not** run scripts that bulk-modify code (codemods, invented one-off scripts, giant `sed`/regex refactors).
-- Large mechanical changes: break into smaller, explicit edits and review diffs.
-- Subtle/complex changes: edit by hand, file-by-file, with careful reasoning.
-
----
-
-## Backwards Compatibility & File Sprawl
-
-We optimize for a clean architecture now, not backwards compatibility.
-
-- No "compat shims" or "v2" file clones.
-- When changing behavior, migrate callers and remove old code.
-- New files are only for genuinely new domains that don't fit existing modules.
-- The bar for adding files is very high.
-
----
-
-## Console Output (for installer scripts)
+### Console Output (for installer scripts)
 
 The installer uses colored output for progress visibility:
 
 ```bash
 echo -e "\033[34m[1/8] Step description\033[0m"     # Blue progress steps
 echo -e "\033[90m    Details...\033[0m"             # Gray indented details
-echo -e "\033[33m⚠️  Warning message\033[0m"        # Yellow warnings
-echo -e "\033[31m✖ Error message\033[0m"            # Red errors
-echo -e "\033[32m✔ Success message\033[0m"          # Green success
+echo -e "\033[33m    Warning message\033[0m"        # Yellow warnings
+echo -e "\033[31m    Error message\033[0m"          # Red errors
+echo -e "\033[32m    Success message\033[0m"        # Green success
 ```
 
 Rules:
@@ -207,15 +292,13 @@ Rules:
 - `--quiet` flag suppresses progress but not errors
 - All output functions should use the logging library (`scripts/lib/logging.sh`)
 
----
-
-## Third-Party Tools Installed by ACFS
+### Third-Party Tools Installed by ACFS
 
 These are installed on target VPS (not development machine).
 
-> **OS Requirement:** Ubuntu 25.10 (installer auto-upgrades from 22.04+; see Installer section above)
+> **OS Requirement:** Ubuntu 25.10 (installer auto-upgrades from 22.04+)
 
-### Shell & Terminal UX
+**Shell & Terminal UX:**
 - **zsh** + **oh-my-zsh** + **powerlevel10k**
 - **lsd** (or eza fallback) — Modern ls
 - **atuin** — Shell history with Ctrl-R
@@ -223,32 +306,32 @@ These are installed on target VPS (not development machine).
 - **zoxide** — Better cd
 - **direnv** — Directory-specific env vars
 
-### Languages & Package Managers
+**Languages & Package Managers:**
 - **bun** — JS/TS runtime + package manager
 - **uv** — Fast Python tooling
 - **rust/cargo** — Rust toolchain
 - **go** — Go toolchain
 
-### Dev Tools
+**Dev Tools:**
 - **tmux** — Terminal multiplexer
 - **ripgrep** (`rg`) — Fast search
 - **ast-grep** (`sg`) — Structural search/replace
 - **lazygit** — Git TUI
 - **bat** — Better cat
 
-### Coding Agents
+**Coding Agents:**
 - **Claude Code** — Anthropic's coding agent
 - **Codex CLI** — OpenAI's coding agent
 - **Gemini CLI** — Google's coding agent
 
-### Cloud & Database
+**Cloud & Database:**
 - **PostgreSQL 18** — Database
 - **HashiCorp Vault** — Secrets management
 - **Wrangler** — Cloudflare CLI
 - **Supabase CLI** — Supabase management
 - **Vercel CLI** — Vercel deployment
 
-### Dicklesworthstone Stack (10 tools + utilities)
+**Dicklesworthstone Stack (10 tools + utilities):**
 1. **ntm** — Named Tmux Manager (agent cockpit)
 2. **mcp_agent_mail** — Agent coordination via mail-like messaging
 3. **ultimate_bug_scanner** (`ubs`) — Bug scanning with guardrails
@@ -264,43 +347,7 @@ These are installed on target VPS (not development machine).
 - **giil** — Download cloud images (iCloud, Dropbox, Google Photos) for visual debugging
 - **csctf** — Convert AI chat share links to Markdown/HTML archives
 
----
-
-## MCP Agent Mail — Multi-Agent Coordination
-
-Agent Mail is available as an MCP server for coordinating work across agents.
-
-What Agent Mail gives:
-- Identities, inbox/outbox, searchable threads.
-- Advisory file reservations (leases) to avoid agents clobbering each other.
-- Persistent artifacts in git (human-auditable).
-
-Core patterns:
-
-1. **Same repo**
-   - Register identity:
-     - `ensure_project` then `register_agent` with the repo's absolute path as `project_key`.
-   - Reserve files before editing:
-     - `file_reservation_paths(project_key, agent_name, ["src/**"], ttl_seconds=3600, exclusive=true)`.
-   - Communicate:
-     - `send_message(..., thread_id="FEAT-123")`.
-     - `fetch_inbox`, then `acknowledge_message`.
-   - Fast reads:
-     - `resource://inbox/{Agent}?project=<abs-path>&limit=20`.
-     - `resource://thread/{id}?project=<abs-path>&include_bodies=true`.
-
-2. **Macros vs granular:**
-   - Prefer macros when speed is more important than fine-grained control:
-     - `macro_start_session`, `macro_prepare_thread`, `macro_file_reservation_cycle`, `macro_contact_handshake`.
-   - Use granular tools when you need explicit behavior.
-
-Common pitfalls:
-- "from_agent not registered" → call `register_agent` with correct `project_key`.
-- `FILE_RESERVATION_CONFLICT` → adjust patterns, wait for expiry, or use non-exclusive reservation.
-
----
-
-## Website Development (apps/web)
+### Website Development (apps/web)
 
 ```bash
 cd apps/web
@@ -319,131 +366,118 @@ Key patterns:
 
 ---
 
-## Installer Testing
+## MCP Agent Mail — Multi-Agent Coordination
 
-```bash
-# Local lint
-shellcheck install.sh scripts/lib/*.sh
+A mail-like layer that lets coding agents coordinate asynchronously via MCP tools and resources. Provides identities, inbox/outbox, searchable threads, and advisory file reservations with human-auditable artifacts in Git.
 
-# Full installer integration test (Docker, same as CI)
-./tests/vm/test_install_ubuntu.sh
-```
+### Why It's Useful
 
----
+- **Prevents conflicts:** Explicit file reservations (leases) for files/globs
+- **Token-efficient:** Messages stored in per-project archive, not in context
+- **Quick reads:** `resource://inbox/...`, `resource://thread/...`
 
-## Landing the Plane (Session Completion)
+### Same Repository Workflow
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   br sync --flush-only
-   git add .beads/
-   git commit -m "Update beads"
-   git push
-   git status  # MUST show "up to date with origin"
+1. **Register identity:**
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+   ensure_project(project_key=<abs-path>)
+   register_agent(project_key, program, model)
+   ```
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+2. **Reserve files before editing:**
+   ```
+   file_reservation_paths(project_key, agent_name, ["src/**"], ttl_seconds=3600, exclusive=true)
+   ```
 
+3. **Communicate with threads:**
+   ```
+   send_message(..., thread_id="FEAT-123")
+   fetch_inbox(project_key, agent_name)
+   acknowledge_message(project_key, agent_name, message_id)
+   ```
 
----
+4. **Quick reads:**
+   ```
+   resource://inbox/{Agent}?project=<abs-path>&limit=20
+   resource://thread/{id}?project=<abs-path>&include_bodies=true
+   ```
 
-## Issue Tracking with br (Beads)
+### Macros vs Granular Tools
 
-All issue tracking goes through **Beads**. No other TODO systems.
+- **Prefer macros for speed:** `macro_start_session`, `macro_prepare_thread`, `macro_file_reservation_cycle`, `macro_contact_handshake`
+- **Use granular tools for control:** `register_agent`, `file_reservation_paths`, `send_message`, `fetch_inbox`, `acknowledge_message`
 
-Key invariants:
+### Common Pitfalls
 
-- `.beads/` is authoritative state and **must always be committed** with code changes.
-- Do not edit `.beads/*.jsonl` directly; only via `br`.
-
-### Basics
-
-Check ready work:
-
-```bash
-br ready --json
-```
-
-Create issues:
-
-```bash
-br create "Issue title" -t bug|feature|task -p 0-4 --json
-br create "Issue title" -p 1 --deps discovered-from:br-123 --json
-```
-
-Update:
-
-```bash
-br update br-42 --status in_progress --json
-br update br-42 --priority 1 --json
-```
-
-Complete:
-
-```bash
-br close br-42 --reason "Completed" --json
-```
-
-Types:
-
-- `bug`, `feature`, `task`, `epic`, `chore`
-
-Priorities:
-
-- `0` critical (security, data loss, broken builds)
-- `1` high
-- `2` medium (default)
-- `3` low
-- `4` backlog
-
-Agent workflow:
-
-1. `br ready` to find unblocked work.
-2. Claim: `br update <id> --status in_progress`.
-3. Implement + test.
-4. If you discover new work, create a new bead with `discovered-from:<parent-id>`.
-5. Close when done.
-6. Commit `.beads/` in the same commit as code changes.
-
-Sync:
-
-- Run `br sync --flush-only` to export to `.beads/issues.jsonl` without git operations.
-- Then run `git add .beads/ && git commit -m "Update beads"` to commit changes.
-
-Never:
-
-- Use markdown TODO lists.
-- Use other trackers.
-- Duplicate tracking.
+- `"from_agent not registered"`: Always `register_agent` in the correct `project_key` first
+- `"FILE_RESERVATION_CONFLICT"`: Adjust patterns, wait for expiry, or use non-exclusive reservation
+- **Auth errors:** If JWT+JWKS enabled, include bearer token with matching `kid`
 
 ---
 
-### Using bv as an AI sidecar
+## Beads (br) — Dependency-Aware Issue Tracking
 
-bv is a graph-aware triage engine for Beads projects (.beads/beads.jsonl). Instead of parsing JSONL or hallucinating graph traversal, use robot flags for deterministic, dependency-aware outputs with precomputed metrics (PageRank, betweenness, critical path, cycles, HITS, eigenvector, k-core).
+Beads provides a lightweight, dependency-aware issue database and CLI (`br` - beads_rust) for selecting "ready work," setting priorities, and tracking status. It complements MCP Agent Mail's messaging and file reservations.
 
-**Scope boundary:** bv handles *what to work on* (triage, priority, planning). For agent-to-agent coordination (messaging, work claiming, file reservations), use MCP Agent Mail, which should be available to you as an an MCP server (if it's not, then flag to the user; they might need to start Agent Mail using the `am` alias or by running `cd "<directory_where_they_installed_agent_mail>/mcp_agent_mail" && bash scripts/run_server_with_token.sh)' if the alias isn't available or isn't working.
+**Important:** `br` is non-invasive—it NEVER runs git commands automatically. You must manually commit changes after `br sync --flush-only`.
 
-**⚠️ CRITICAL: Use ONLY `--robot-*` flags. Bare `bv` launches an interactive TUI that blocks your session.**
+### Conventions
 
-#### The Workflow: Start With Triage
+- **Single source of truth:** Beads for task status/priority/dependencies; Agent Mail for conversation and audit
+- **Shared identifiers:** Use Beads issue ID (e.g., `br-123`) as Mail `thread_id` and prefix subjects with `[br-123]`
+- **Reservations:** When starting a task, call `file_reservation_paths()` with the issue ID in `reason`
 
-**`bv --robot-triage` is your single entry point.** It returns everything you need in one call:
+### Typical Agent Flow
+
+1. **Pick ready work (Beads):**
+   ```bash
+   br ready --json  # Choose highest priority, no blockers
+   ```
+
+2. **Reserve edit surface (Mail):**
+   ```
+   file_reservation_paths(project_key, agent_name, ["src/**"], ttl_seconds=3600, exclusive=true, reason="br-123")
+   ```
+
+3. **Announce start (Mail):**
+   ```
+   send_message(..., thread_id="br-123", subject="[br-123] Start: <title>", ack_required=true)
+   ```
+
+4. **Work and update:** Reply in-thread with progress
+
+5. **Complete and release:**
+   ```bash
+   br close 123 --reason "Completed"
+   br sync --flush-only  # Export to JSONL (no git operations)
+   ```
+   ```
+   release_file_reservations(project_key, agent_name, paths=["src/**"])
+   ```
+   Final Mail reply: `[br-123] Completed` with summary
+
+### Mapping Cheat Sheet
+
+| Concept | Value |
+|---------|-------|
+| Mail `thread_id` | `br-###` |
+| Mail subject | `[br-###] ...` |
+| File reservation `reason` | `br-###` |
+| Commit messages | Include `br-###` for traceability |
+
+---
+
+## bv — Graph-Aware Triage Engine
+
+bv is a graph-aware triage engine for Beads projects (`.beads/beads.jsonl`). It computes PageRank, betweenness, critical path, cycles, HITS, eigenvector, and k-core metrics deterministically.
+
+**Scope boundary:** bv handles *what to work on* (triage, priority, planning). For agent-to-agent coordination (messaging, work claiming, file reservations), use MCP Agent Mail.
+
+**CRITICAL: Use ONLY `--robot-*` flags. Bare `bv` launches an interactive TUI that blocks your session.**
+
+### The Workflow: Start With Triage
+
+**`bv --robot-triage` is your single entry point.** It returns:
 - `quick_ref`: at-a-glance counts + top 3 picks
 - `recommendations`: ranked actionable items with scores, reasons, unblock info
 - `quick_wins`: low-effort high-impact items
@@ -451,10 +485,12 @@ bv is a graph-aware triage engine for Beads projects (.beads/beads.jsonl). Inste
 - `project_health`: status/type/priority distributions, graph metrics
 - `commands`: copy-paste shell commands for next steps
 
+```bash
 bv --robot-triage        # THE MEGA-COMMAND: start here
 bv --robot-next          # Minimal: just the single top pick + claim command
+```
 
-#### Other bv Commands
+### Command Reference
 
 **Planning:**
 | Command | Returns |
@@ -465,418 +501,353 @@ bv --robot-next          # Minimal: just the single top pick + claim command
 **Graph Analysis:**
 | Command | Returns |
 |---------|---------|
-| `--robot-insights` | Full metrics: PageRank, betweenness, HITS (hubs/authorities), eigenvector, critical path, cycles, k-core, articulation points, slack |
-| `--robot-label-health` | Per-label health: `health_level` (healthy\|warning\|critical), `velocity_score`, `staleness`, `blocked_count` |
+| `--robot-insights` | Full metrics: PageRank, betweenness, HITS, eigenvector, critical path, cycles, k-core, articulation points, slack |
+| `--robot-label-health` | Per-label health: `health_level`, `velocity_score`, `staleness`, `blocked_count` |
 | `--robot-label-flow` | Cross-label dependency: `flow_matrix`, `dependencies`, `bottleneck_labels` |
-| `--robot-label-attention [--attention-limit=N]` | Attention-ranked labels by: (pagerank × staleness × block_impact) / velocity |
+| `--robot-label-attention [--attention-limit=N]` | Attention-ranked labels |
 
 **History & Change Tracking:**
 | Command | Returns |
 |---------|---------|
-| `--robot-history` | Bead-to-commit correlations: `stats`, `histories` (per-bead events/commits/milestones), `commit_index` |
-| `--robot-diff --diff-since <ref>` | Changes since ref: new/closed/modified issues, cycles introduced/resolved |
+| `--robot-history` | Bead-to-commit correlations |
+| `--robot-diff --diff-since <ref>` | Changes since ref: new/closed/modified issues, cycles |
 
-**Other Commands:**
+**Other:**
 | Command | Returns |
 |---------|---------|
 | `--robot-burndown <sprint>` | Sprint burndown, scope changes, at-risk items |
 | `--robot-forecast <id\|all>` | ETA predictions with dependency-aware scheduling |
 | `--robot-alerts` | Stale issues, blocking cascades, priority mismatches |
-| `--robot-suggest` | Hygiene: duplicates, missing deps, label suggestions, cycle breaks |
+| `--robot-suggest` | Hygiene: duplicates, missing deps, label suggestions |
 | `--robot-graph [--graph-format=json\|dot\|mermaid]` | Dependency graph export |
-| `--export-graph <file.html>` | Self-contained interactive HTML visualization |
+| `--export-graph <file.html>` | Interactive HTML visualization |
 
-#### Scoping & Filtering
+### Scoping & Filtering
 
+```bash
 bv --robot-plan --label backend              # Scope to label's subgraph
 bv --robot-insights --as-of HEAD~30          # Historical point-in-time
-bv --recipe actionable --robot-plan          # Pre-filter: ready to work (no blockers)
-bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
+bv --recipe actionable --robot-plan          # Pre-filter: ready to work
+bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank
 bv --robot-triage --robot-triage-by-track    # Group by parallel work streams
 bv --robot-triage --robot-triage-by-label    # Group by domain
+```
 
-#### Understanding Robot Output
+### Understanding Robot Output
 
 **All robot JSON includes:**
-- `data_hash` — Fingerprint of source beads.jsonl (verify consistency across calls)
+- `data_hash` — Fingerprint of source beads.jsonl
 - `status` — Per-metric state: `computed|approx|timeout|skipped` + elapsed ms
-- `as_of` / `as_of_commit` — Present when using `--as-of`; contains ref and resolved SHA
+- `as_of` / `as_of_commit` — Present when using `--as-of`
 
 **Two-phase analysis:**
-- **Phase 1 (instant):** degree, topo sort, density — always available immediately
-- **Phase 2 (async, 500ms timeout):** PageRank, betweenness, HITS, eigenvector, cycles — check `status` flags
+- **Phase 1 (instant):** degree, topo sort, density
+- **Phase 2 (async, 500ms timeout):** PageRank, betweenness, HITS, eigenvector, cycles
 
-**For large graphs (>500 nodes):** Some metrics may be approximated or skipped. Always check `status`.
+### jq Quick Reference
 
-#### jq Quick Reference
-
+```bash
 bv --robot-triage | jq '.quick_ref'                        # At-a-glance summary
 bv --robot-triage | jq '.recommendations[0]'               # Top recommendation
 bv --robot-plan | jq '.plan.summary.highest_impact'        # Best unblock target
 bv --robot-insights | jq '.status'                         # Check metric readiness
 bv --robot-insights | jq '.Cycles'                         # Circular deps (must fix!)
-bv --robot-label-health | jq '.results.labels[] | select(.health_level == "critical")'
-
-**Performance:** Phase 1 instant, Phase 2 async (500ms timeout). Prefer `--robot-plan` over `--robot-insights` when speed matters. Results cached by data hash.
-
-Use bv instead of parsing beads.jsonl—it computes PageRank, critical paths, cycles, and parallel tracks deterministically.
+```
 
 ---
 
-### Morph Warp Grep — AI-Powered Code Search
-
-Use `mcp__morph-mcp__warp_grep` for “how does X work?” discovery across the codebase.
-
-When to use:
-
-- You don’t know where something lives.
-- You want data flow across multiple files (API → service → schema → types).
-- You want all touchpoints of a cross-cutting concern (e.g., moderation, billing).
-
-Example:
-
-```
-mcp__morph-mcp__warp_grep(
-  repoPath: "/data/projects/communitai",
-  query: "How is the L3 Guardian appeals system implemented?"
-)
-```
-
-Warp Grep:
-
-- Expands a natural-language query to multiple search patterns.
-- Runs targeted greps, reads code, follows imports, then returns concise snippets with line numbers.
-- Reduces token usage by returning only relevant slices, not entire files.
-
-When **not** to use Warp Grep:
-
-- You already know the function/identifier name; use `rg`.
-- You know the exact file; just open it.
-- You only need a yes/no existence check.
-
-Comparison:
-
-| Scenario | Tool |
-| ---------------------------------- | ---------- |
-| “How is auth session validated?” | warp_grep |
-| “Where is `handleSubmit` defined?” | `rg` |
-| “Replace `var` with `let`” | `ast-grep` |
-
----
-
-### cass — Cross-Agent Search
-
-`cass` indexes prior agent conversations (Claude Code, Codex, Cursor, Gemini, ChatGPT, etc.) so we can reuse solved problems.
-
-Rules:
-
-- Never run bare `cass` (TUI). Always use `--robot` or `--json`.
-
-Examples:
-
-```bash
-cass health
-cass search "authentication error" --robot --limit 5
-cass view /path/to/session.jsonl -n 42 --json
-cass expand /path/to/session.jsonl -n 42 -C 3 --json
-cass capabilities --json
-cass robot-docs guide
-```
-
-Tips:
-
-- Use `--fields minimal` for lean output.
-- Filter by agent with `--agent`.
-- Use `--days N` to limit to recent history.
-
-stdout is data-only, stderr is diagnostics; exit code 0 means success.
-
-Treat cass as a way to avoid re-solving problems other agents already handled.
-
----
-
-## Memory System: cass-memory
-
-The Cass Memory System (cm) is a tool for giving agents an effective memory based on the ability to quickly search across previous coding agent sessions across an array of different coding agent tools (e.g., Claude Code, Codex, Gemini-CLI, Cursor, etc) and projects (and even across multiple machines, optionally) and then reflect on what they find and learn in new sessions to draw out useful lessons and takeaways; these lessons are then stored and can be queried and retrieved later, much like how human memory works.
-
-The `cm onboard` command guides you through analyzing historical sessions and extracting valuable rules.
-
-### Quick Start
-
-```bash
-# 1. Check status and see recommendations
-cm onboard status
-
-# 2. Get sessions to analyze (filtered by gaps in your playbook)
-cm onboard sample --fill-gaps
-
-# 3. Read a session with rich context
-cm onboard read /path/to/session.jsonl --template
-
-# 4. Add extracted rules (one at a time or batch)
-cm playbook add "Your rule content" --category "debugging"
-# Or batch add:
-cm playbook add --file rules.json
-
-# 5. Mark session as processed
-cm onboard mark-done /path/to/session.jsonl
-```
-
-Before starting complex tasks, retrieve relevant context:
-
-```bash
-cm context "<task description>" --json
-```
-
-This returns:
-- **relevantBullets**: Rules that may help with your task
-- **antiPatterns**: Pitfalls to avoid
-- **historySnippets**: Past sessions that solved similar problems
-- **suggestedCassQueries**: Searches for deeper investigation
-
-### Protocol
-
-1. **START**: Run `cm context "<task>" --json` before non-trivial work
-2. **WORK**: Reference rule IDs when following them (e.g., "Following b-8f3a2c...")
-3. **FEEDBACK**: Leave inline comments when rules help/hurt:
-   - `// [cass: helpful b-xyz] - reason`
-   - `// [cass: harmful b-xyz] - reason`
-4. **END**: Just finish your work. Learning happens automatically.
-
-### Key Flags
-
-| Flag | Purpose |
-|------|---------|
-| `--json` | Machine-readable JSON output (required!) |
-| `--limit N` | Cap number of rules returned |
-| `--no-history` | Skip historical snippets for faster response |
-
-stdout = data only, stderr = diagnostics. Exit 0 = success.
-
----
-
-## UBS Quick Reference for AI Agents
-
-UBS stands for "Ultimate Bug Scanner": **The AI Coding Agent's Secret Weapon: Flagging Likely Bugs for Fixing Early On**
+## UBS — Ultimate Bug Scanner
 
 **Golden Rule:** `ubs <changed-files>` before every commit. Exit 0 = safe. Exit >0 = fix & re-run.
 
-**Commands:**
+### Commands
+
 ```bash
-ubs file.ts file2.py                    # Specific files (< 1s) — USE THIS
+ubs file.sh file2.ts                    # Specific files (< 1s) — USE THIS
 ubs $(git diff --name-only --cached)    # Staged files — before commit
-ubs --only=js,python src/               # Language filter (3-5x faster)
+ubs --only=bash,js src/                 # Language filter (3-5x faster)
 ubs --ci --fail-on-warning .            # CI mode — before PR
-ubs --help                              # Full command reference
-ubs sessions --entries 1                # Tail the latest install session log
-ubs .                                   # Whole project (ignores things like .venv and node_modules automatically)
+ubs .                                   # Whole project (ignores node_modules, .venv)
 ```
 
-**Output Format:**
+### Output Format
+
 ```
-⚠️  Category (N errors)
-    file.ts:42:5 – Issue description
-    💡 Suggested fix
+    Category (N errors)
+    file.sh:42:5 - Issue description
+    Suggested fix
 Exit code: 1
 ```
-Parse: `file:line:col` → location | 💡 → how to fix | Exit 0/1 → pass/fail
 
-**Fix Workflow:**
-1. Read finding → category + fix suggestion
-2. Navigate `file:line:col` → view context
+Parse: `file:line:col` -> location | fix suggestion -> how to fix | Exit 0/1 -> pass/fail
+
+### Fix Workflow
+
+1. Read finding -> category + fix suggestion
+2. Navigate `file:line:col` -> view context
 3. Verify real issue (not false positive)
 4. Fix root cause (not symptom)
-5. Re-run `ubs <file>` → exit 0
+5. Re-run `ubs <file>` -> exit 0
 6. Commit
 
-**Speed Critical:** Scope to changed files. `ubs src/file.ts` (< 1s) vs `ubs .` (30s). Never full scan for small edits.
+### Bug Severity
 
-**Bug Severity:**
-- **Critical** (always fix): Null safety, XSS/injection, async/await, memory leaks
-- **Important** (production): Type narrowing, division-by-zero, resource leaks
-- **Contextual** (judgment): TODO/FIXME, console logs
-
-**Anti-Patterns:**
-- ❌ Ignore findings → ✅ Investigate each
-- ❌ Full scan per edit → ✅ Scope to file
-- ❌ Fix symptom (`if (x) { x.y }`) → ✅ Root cause (`x?.y`)
+- **Critical (always fix):** Injection, unquoted variables, unsafe eval, command injection
+- **Important (production):** Unhandled errors, resource leaks, missing error checks
+- **Contextual (judgment):** TODO/FIXME, console logs, debugging output
 
 ---
 
-## DCG Quick Reference for AI Agents
+## RCH — Remote Compilation Helper
 
-DCG (Destructive Command Guard) is a Claude Code hook that **blocks dangerous git and filesystem commands** before execution. Sub-millisecond latency, mechanical enforcement.
+RCH offloads `cargo build`, `cargo test`, `cargo clippy`, and other compilation commands to a fleet of 8 remote Contabo VPS workers instead of building locally. This prevents compilation storms from overwhelming csd when many agents run simultaneously.
 
-**Golden Rule:** DCG works automatically—you don't need to call it. When a dangerous command is blocked, use safer alternatives or ask the user to run it manually.
+**RCH is installed at `~/.local/bin/rch` and is hooked into Claude Code's PreToolUse automatically.** Most of the time you don't need to do anything if you are Claude Code — builds are intercepted and offloaded transparently.
 
-**Commands:**
+To manually offload a build:
+```bash
+rch exec -- cargo build --release
+rch exec -- cargo test
+rch exec -- cargo clippy
+```
+
+Quick commands:
+```bash
+rch doctor                    # Health check
+rch workers probe --all       # Test connectivity to all 8 workers
+rch status                    # Overview of current state
+rch queue                     # See active/waiting builds
+```
+
+If rch or its workers are unavailable, it fails open — builds run locally as normal.
+
+**Note for Codex/GPT-5.2:** Codex does not have the automatic PreToolUse hook, but you can (and should) still manually offload compute-intensive compilation commands using `rch exec -- <command>`. This avoids local resource contention when multiple agents are building simultaneously.
+
+---
+
+## ast-grep vs ripgrep
+
+**Use `ast-grep` when structure matters.** It parses code and matches AST nodes, ignoring comments/strings, and can **safely rewrite** code.
+
+- Refactors/codemods: rename APIs, change import forms
+- Policy checks: enforce patterns across a repo
+- Editor/automation: LSP mode, `--json` output
+
+**Use `ripgrep` when text is enough.** Fastest way to grep literals/regex.
+
+- Recon: find strings, TODOs, log lines, config values
+- Pre-filter: narrow candidate files before ast-grep
+
+### Rule of Thumb
+
+- Need correctness or **applying changes** -> `ast-grep`
+- Need raw speed or **hunting text** -> `rg`
+- Often combine: `rg` to shortlist files, then `ast-grep` to match/modify
+
+### Examples
+
+```bash
+# Find structured code (ignores comments)
+ast-grep run -l TypeScript -p 'function $NAME($$$ARGS) { $$$BODY }'
+
+# Quick textual hunt
+rg -n 'console.log' -t ts
+
+# Combine speed + precision
+rg -l -t ts 'useState' | xargs ast-grep run -l TypeScript -p 'useState($INIT)' --json
+```
+
+---
+
+## Morph Warp Grep — AI-Powered Code Search
+
+**Use `mcp__morph-mcp__warp_grep` for exploratory "how does X work?" questions.** An AI agent expands your query, greps the codebase, reads relevant files, and returns precise line ranges with full context.
+
+**Use `ripgrep` for targeted searches.** When you know exactly what you're looking for.
+
+**Use `ast-grep` for structural patterns.** When you need AST precision for matching/rewriting.
+
+### When to Use What
+
+| Scenario | Tool | Why |
+|----------|------|-----|
+| "How does the installer handle Ubuntu upgrades?" | `warp_grep` | Exploratory; don't know where to start |
+| "Where is the checksum verification implemented?" | `warp_grep` | Need to understand architecture |
+| "Find all uses of `logging.sh`" | `ripgrep` | Targeted literal search |
+| "Find files with `echo -e`" | `ripgrep` | Simple pattern |
+| "Replace `var` with `let` in TypeScript" | `ast-grep` | Structural refactor |
+
+### warp_grep Usage
+
+```
+mcp__morph-mcp__warp_grep(
+  repoPath: "/dp/agentic_coding_flywheel_setup",
+  query: "How does the installer handle Ubuntu version upgrades?"
+)
+```
+
+Returns structured results with file paths, line ranges, and extracted code snippets.
+
+### Anti-Patterns
+
+- **Don't** use `warp_grep` to find a specific function name -> use `ripgrep`
+- **Don't** use `ripgrep` to understand "how does X work" -> wastes time with manual reads
+- **Don't** use `ripgrep` for codemods -> risks collateral edits
+
+<!-- bv-agent-instructions-v1 -->
+
+---
+
+## Beads Workflow Integration
+
+This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking. Issues are stored in `.beads/` and tracked in git.
+
+**Important:** `br` is non-invasive—it NEVER executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
+### Essential Commands
+
+```bash
+# View issues (launches TUI - avoid in automated sessions)
+bv
+
+# CLI commands for agents (use these instead)
+br ready              # Show issues ready to work (no blockers)
+br list --status=open # All open issues
+br show <id>          # Full issue details with dependencies
+br create --title="..." --type=task --priority=2
+br update <id> --status=in_progress
+br close <id> --reason "Completed"
+br close <id1> <id2>  # Close multiple issues at once
+br sync --flush-only  # Export to JSONL (NO git operations)
+```
+
+### Workflow Pattern
+
+1. **Start**: Run `br ready` to find actionable work
+2. **Claim**: Use `br update <id> --status=in_progress`
+3. **Work**: Implement the task
+4. **Complete**: Use `br close <id>`
+5. **Sync**: Run `br sync --flush-only` then manually commit
+
+### Key Concepts
+
+- **Dependencies**: Issues can block other issues. `br ready` shows only unblocked work.
+- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
+- **Types**: task, bug, feature, epic, chore
+- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
+
+### Session Protocol
+
+**Before ending any session, run this checklist:**
+
+```bash
+git status              # Check what changed
+git add <files>         # Stage code changes
+br sync --flush-only    # Export beads to JSONL
+git add .beads/         # Stage beads changes
+git commit -m "..."     # Commit everything together
+git push                # Push to remote
+```
+
+### Best Practices
+
+- Check `br ready` at session start to find available work
+- Update status as you work (in_progress -> closed)
+- Create new issues with `br create` when you discover tasks
+- Use descriptive titles and set appropriate priority/type
+- Always `br sync --flush-only && git add .beads/` before ending session
+
+<!-- end-bv-agent-instructions -->
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **Sync beads** - `br sync --flush-only` to export to JSONL
+5. **Hand off** - Provide context for next session
+
+---
+
+## Auxiliary Tools
+
+### DCG — Destructive Command Guard
+
+DCG is a Claude Code hook that **blocks dangerous git and filesystem commands** before execution. Sub-millisecond latency, mechanical enforcement.
+
+**Golden Rule:** DCG works automatically. When a dangerous command is blocked, use safer alternatives or ask the user to run it manually.
+
 ```bash
 dcg test "<cmd>" [--explain]          # Test if a command would be blocked
 dcg packs [--enabled] [--verbose]     # List packs
-dcg pack <pack-id> [--patterns]       # Pack details + match patterns
 dcg allow-once <code>                 # One-time bypass code
-dcg allow <rule-id> --reason "..."    # Add allowlist entry (project/user)
 dcg doctor [--fix] [--format json]    # Health check + auto-fix
 dcg install [--force]                 # Register Claude Code hook
-dcg uninstall [--purge]               # Remove hook (and optionally binary/config)
 ```
 
-**Auto-Blocked Commands:**
-```bash
-git reset --hard               # Destroys uncommitted changes
-git checkout -- <files>        # Discards file changes permanently
-git restore <files>            # Same as checkout -- (not --staged)
-git push --force / -f          # Overwrites remote history
-git clean -f                   # Deletes untracked files
-git branch -D                  # Force-deletes without merge check
-git stash drop / clear         # Permanently deletes stashes
-rm -rf <non-temp>              # Recursive deletion
-```
+### RU — Repo Updater
 
-**Always Allowed:**
-```bash
-git checkout -b <branch>       # Creates branch, doesn't touch files
-git restore --staged           # Only unstages, safe
-git clean -n                   # Dry-run, preview only
-rm -rf /tmp/...                # Temp directories are ephemeral
-git push --force-with-lease    # Safe force push variant
-```
+Multi-repo sync tool with AI-driven commit automation.
 
-**When Blocked:**
-- You'll see a clear reason explaining why
-- Ask the user to run the command manually if truly needed
-- Consider safer alternatives (git stash, --force-with-lease)
-
-**Configuration:**
-- Config file: `~/.config/dcg/config.toml`
-- View available packs: `dcg packs` (shows all), `dcg packs --enabled` (shows active)
-- Pack examples: `git`, `filesystem`, `database.postgresql`, `containers.docker`, `kubernetes`
-```toml
-# ~/.config/dcg/config.toml
-[packs]
-enabled = ["git", "filesystem", "database.postgresql", "containers.docker"]
-```
-- Allowlist management: `dcg allow <rule-id> --reason "..." --project <path>` (or `--user`)
-
-**Common Scenarios:**
-- **Blocked command** → Read the reason, prefer the safer alternative, or use `dcg allow-once <code>`.
-- **Hook missing after updates** → `dcg install --force`.
-- **Need to disable** → `dcg uninstall` (or `dcg uninstall --purge` for full removal).
-
-**Troubleshooting:**
-
-| Issue | Solution |
-|-------|----------|
-| DCG blocks legitimate command | Ask user to run manually, or use allow-once code if provided |
-| Hook not registered | Run `dcg install` |
-| DCG not blocking anything | Run `dcg doctor` to verify hook is active |
-| False positive | Check if command matches safe patterns; report to GitHub if bug |
-| Config not being read | Verify `~/.config/dcg/config.toml` format is valid TOML |
-
-**Agent Integration Tips:**
-- DCG is automatic—no need to call `dcg test` before commands
-- When blocked, explain to user why the command is dangerous
-- Suggest safer alternatives (e.g., `--force-with-lease` instead of `--force`)
-- Never try to bypass DCG—ask user to run dangerous commands manually
-- DCG has sub-millisecond latency, designed to not slow down your workflow
-
----
-
-## RU Quick Reference for AI Agents
-
-RU (Repo Updater) is a multi-repo sync tool with **AI-driven commit automation**.
-
-**Common Commands:**
 ```bash
 ru sync                        # Clone missing + pull updates for all repos
 ru sync --parallel 4           # Parallel sync (4 workers)
 ru status                      # Check repo status without changes
-ru status --fetch              # Fetch + show ahead/behind
-ru list --paths                # List all repo paths
-```
-
-**Agent Sweep (commit automation):**
-```bash
 ru agent-sweep --dry-run       # Preview dirty repos to process
 ru agent-sweep --parallel 4    # AI-driven commits in parallel
-ru agent-sweep --with-release  # Include version tag + release
 ```
 
-**Exit Codes:**
-- `0` = Success
-- `1` = Partial failure (some repos failed)
-- `2` = Conflicts exist (manual resolution needed)
-- `5` = Interrupted (use `--resume`)
+### giil — Cloud Image Downloader
 
-**Best Practices:**
-- Use `ru status` before `ru sync` to preview changes
-- Use `ru agent-sweep --dry-run` before full automation
-- Scope with `--repos=pattern` for targeted operations
+Downloads cloud-hosted images to the terminal for visual debugging.
 
----
-
-## giil Quick Reference for AI Agents
-
-giil (Get Image from Internet Link) downloads **cloud-hosted images** to the terminal for visual debugging.
-
-**Usage:**
 ```bash
 giil "https://share.icloud.com/..."       # Download iCloud photo
 giil "https://www.dropbox.com/s/..."      # Download Dropbox image
 giil "https://photos.google.com/..."      # Download Google Photos image
-giil "..." --output ~/screenshots         # Custom output directory
-giil "..." --json                         # JSON metadata output
-giil "..." --all                          # Download all photos from album
 ```
 
-**Supported Platforms:**
-- iCloud (share.icloud.com)
-- Dropbox (dropbox.com/s/, dl.dropbox.com)
-- Google Photos (photos.google.com)
-- Google Drive (drive.google.com)
+Supports: iCloud, Dropbox, Google Photos, Google Drive.
 
-**Exit Codes:**
-- `0` = Success
-- `10` = Network error
-- `11` = Auth required (not publicly shared)
-- `12` = Not found (expired link)
-- `13` = Unsupported type (video, doc)
+### csctf — Chat Share to File
 
-**Visual Debugging Workflow:**
-1. User screenshots bug on phone
-2. Shares iCloud/Dropbox link with agent
-3. `giil "<url>"` downloads to working directory
-4. Agent analyzes the image
+Converts AI chat share links to Markdown/HTML archives.
 
----
-
-## csctf Quick Reference for AI Agents
-
-csctf (Chat Shared Conversation to File) converts **AI chat share links** to Markdown/HTML.
-
-**Usage:**
 ```bash
 csctf "https://chatgpt.com/share/..."      # ChatGPT conversation
-csctf "https://gemini.google.com/share/..." # Gemini conversation
-csctf "https://claude.ai/share/..."         # Claude conversation
+csctf "https://claude.ai/share/..."        # Claude conversation
 csctf "..." --md-only                       # Markdown only (no HTML)
-csctf "..." --json                          # JSON metadata output
-csctf "..." --publish-to-gh-pages --yes     # Publish to GitHub Pages
 ```
 
-**Output:**
-- `<slug>.md` — Clean Markdown with code blocks
-- `<slug>.html` — Static HTML with syntax highlighting
+### cass — Cross-Agent Search
 
-**Use Cases:**
-- Archive important AI conversations for reference
-- Build searchable knowledge base
-- Share solutions with team members
-- Document debugging sessions for future learning
+Indexes prior agent conversations so solved problems can be reused.
+
+```bash
+cass search "authentication error" --robot --limit 5
+cass view /path/to/session.jsonl -n 42 --json
+cass capabilities --json
+```
+
+**Never run bare `cass` (TUI). Always use `--robot` or `--json`.**
+
+### cm — Cass Memory System
+
+Procedural memory for agents based on cross-session analysis.
+
+```bash
+cm onboard status                          # Check status
+cm onboard sample --fill-gaps              # Get sessions to analyze
+cm context "<task description>" --json     # Retrieve relevant context before work
+```
 
 ---
 
-## Note for Codex/GPT-5.2
+Note for Codex/GPT-5.2:
 
 You constantly bother me and stop working with concerned questions that look similar to this:
 
@@ -890,7 +861,7 @@ Next steps (pick one)
 1. Decide how to handle the unrelated modified files above so we can resume cleanly.
 ```
 
-NEVER EVER DO THAT AGAIN. The answer is literally ALWAYS the same: those are changes created by the potentially dozen of other agents working on the project at the same time. This is not only a common occurence, it happens multiple times PER MINUTE. The way to deal with it is simple: you NEVER, under ANY CIRCUMSTANCE, stash, revert, overwrite, or otherwise disturb in ANY way the work of other agents. Just treat those changes identically to changes that you yourself made. Just fool yourself into thinking YOU made the changes and simply don't recall it for some reason.
+NEVER EVER DO THAT AGAIN. The answer is literally ALWAYS the same: those are changes created by the potentially dozen of other agents working on the project at the same time. This is not only a common occurrence, it happens multiple times PER MINUTE. The way to deal with it is simple: you NEVER, under ANY CIRCUMSTANCE, stash, revert, overwrite, or otherwise disturb in ANY way the work of other agents. Just treat those changes identically to changes that you yourself made. Just fool yourself into thinking YOU made the changes and simply don't recall it for some reason.
 
 ---
 
