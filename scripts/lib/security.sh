@@ -68,6 +68,7 @@ acfs_curl() {
 
 # Automatic retries for transient network errors (fast total budget).
 ACFS_CURL_RETRY_DELAYS=(0 5 15)
+# ACFS_CURL_RETRY_DELAYS=(0)
 
 acfs_is_retryable_curl_exit_code() {
     local exit_code="${1:-0}"

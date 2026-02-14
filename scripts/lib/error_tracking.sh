@@ -506,7 +506,8 @@ should_skip_phase() {
 # - 5s wait: Enough for most CDN/routing issues
 # - 15s wait: Handles rate limiting, brief outages
 RETRY_DELAYS=(0 5 15)
-
+# User Request: one-time attempt
+# RETRY_DELAYS=(0)
 # Check if an error is a retryable network error
 # Usage: is_retryable_error <exit_code> [stderr_output]
 # Returns: 0 if retryable (should retry), 1 if not retryable
@@ -550,7 +551,118 @@ is_retryable_error() {
     return 1  # Not retryable
 }
 
-# Execute a command with exponential backoff retry for transient errors
+# ============================================================
+# Error Taxonomy & Remediation
+# ============================================================
+# Classifies errors into known categories and maps each to
+# actionable recovery guidance. Used by observability.sh for
+# the failure summary box.
+
+# Remediation hints per error class (variable placeholders expanded at runtime)
+declare -A ERROR_REMEDIATION=(
+    [transient_network]="Check network connectivity and re-run: ./install.sh --resume"
+    [permission]="Fix ownership: sudo chown -R \$TARGET_USER:\$TARGET_USER \$ACFS_HOME"
+    [dependency_conflict]="Clear apt state: sudo dpkg --configure -a && sudo apt-get install -f"
+    [corrupt_state]="Reset state: ./install.sh --force-reinstall"
+    [unsupported_env]="Check system requirements: bash scripts/preflight.sh"
+    [unknown]="Review logs and retry: ./install.sh --resume"
+)
+
+# Retry policy per error class: "retry:<max>:backoff" or "stop"
+declare -A ERROR_RETRY_POLICY=(
+    [transient_network]="retry:3:backoff"
+    [permission]="stop"
+    [dependency_conflict]="stop"
+    [corrupt_state]="stop"
+    [unsupported_env]="stop"
+    [unknown]="stop"
+)
+
+# Classify an error into a known category
+# Usage: classify_error <exit_code> [stderr_output]
+# Outputs: error class name (one of the ERROR_REMEDIATION keys)
+#
+# Error classes:
+#   transient_network  — DNS, timeout, connection refused
+#   permission         — Permission denied, access errors
+#   dependency_conflict — apt/dpkg conflicts
+#   corrupt_state      — Interrupted dpkg, corrupted state files
+#   unsupported_env    — OS/arch not supported
+#   unknown            — Unclassified errors
+#
+classify_error() {
+    local exit_code="${1:-0}"
+    local stderr="${2:-}"
+
+    # Check curl transient exit codes first
+    case "$exit_code" in
+        6|7|28|35|52|56)
+            echo "transient_network"
+            return 0
+            ;;
+    esac
+
+    # Pattern-match stderr content (case-insensitive)
+    if [[ -n "$stderr" ]]; then
+        local stderr_lower="${stderr,,}"
+
+        # Permission errors
+        if [[ "$stderr_lower" =~ (permission.denied|operation.not.permitted|eacces|cannot.open|read-only.file.system) ]]; then
+            echo "permission"
+            return 0
+        fi
+
+        # APT/dpkg conflicts
+        if [[ "$stderr_lower" =~ (dpkg.was.interrupted|dpkg.*configure|unmet.dependencies|broken.packages|held.broken|could.not.get.lock) ]]; then
+            echo "dependency_conflict"
+            return 0
+        fi
+
+        # Corrupt state
+        if [[ "$stderr_lower" =~ (corrupt|invalid.json|parse.error|unexpected.end|malformed) ]]; then
+            echo "corrupt_state"
+            return 0
+        fi
+
+        # Unsupported environment
+        if [[ "$stderr_lower" =~ (not.supported|unsupported|unknown.architecture|incompatible) ]]; then
+            echo "unsupported_env"
+            return 0
+        fi
+
+        # Network transient patterns
+        if [[ "$stderr_lower" =~ (timeout|timed.out|connection.refused|temporarily.unavailable|network.unreachable|no.route.to.host|reset.by.peer) ]]; then
+            echo "transient_network"
+            return 0
+        fi
+    fi
+
+    echo "unknown"
+}
+
+# Get remediation hint for an error class
+# Usage: get_remediation <error_class>
+# Outputs: Human-readable remediation string
+get_remediation() {
+    local class="${1:-unknown}"
+    local hint="${ERROR_REMEDIATION[$class]:-Review logs and retry}"
+
+    # Expand variable placeholders
+    hint="${hint//\$TARGET_USER/${TARGET_USER:-<user>}}"
+    hint="${hint//\$ACFS_HOME/${ACFS_HOME:-~/.acfs}}"
+    hint="${hint//\$ACFS_EVENT_LOG/${ACFS_EVENT_LOG:-~/.acfs/logs/install/*.jsonl}}"
+    echo "$hint"
+}
+
+# Check if an error class should be retried
+# Usage: should_retry_error_class <error_class>
+# Returns: 0 if retryable, 1 if should stop
+should_retry_error_class() {
+    local class="${1:-unknown}"
+    local policy="${ERROR_RETRY_POLICY[$class]:-stop}"
+    [[ "$policy" == retry* ]]
+}
+
 # Usage: retry_with_backoff "description" command [args...]
 # Returns: 0 on success, last exit code on failure after all retries
 #

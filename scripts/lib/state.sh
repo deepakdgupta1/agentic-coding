@@ -1509,6 +1509,39 @@ state_phase_complete() {
     return $save_result
 }
 
+# Remove a phase from the completed list (for re-running after drift detection)
+# Usage: state_unmark_phase <phase_id>
+state_unmark_phase() {
+    local phase_id="$1"
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    if ! _state_acquire_lock; then
+        return 1
+    fi
+
+    local state
+    if ! state=$(state_load); then
+        _state_release_lock
+        return 1
+    fi
+
+    local new_state
+    if ! new_state=$(echo "$state" | jq --arg phase "$phase_id" '
+        .completed_phases = ((.completed_phases // []) | map(select(. != $phase)))
+    '); then
+        _state_release_lock
+        return 1
+    fi
+
+    local save_result=0
+    state_save "$new_state" || save_result=$?
+    _state_release_lock
+    return $save_result
+}
+
 # Mark a phase as failed
 # Usage: state_phase_fail <phase_id> <step> <error_message>
 state_phase_fail() {
@@ -2293,14 +2326,44 @@ run_phase() {
     # Get human-readable name for logging
     local human_name="${ACFS_PHASE_NAMES[$phase_id]:-$phase_id}"
 
+    # Handle --resume-from: skip phases before the target
+    if [[ -n "${ACFS_RESUME_FROM:-}" ]] && [[ "${_ACFS_RESUME_FROM_REACHED:-}" != "true" ]]; then
+        if [[ "$phase_id" == "$ACFS_RESUME_FROM" ]]; then
+            _ACFS_RESUME_FROM_REACHED=true
+        else
+            _run_phase_log_skip "$display_name" "before --resume-from target ($ACFS_RESUME_FROM)"
+            return 0
+        fi
+    fi
+
+    # Handle --stop-after: skip phases after the target completed
+    if [[ -n "${ACFS_STOP_AFTER:-}" ]] && [[ "${_ACFS_STOP_AFTER_REACHED:-}" == "true" ]]; then
+        _run_phase_log_skip "$display_name" "after --stop-after target ($ACFS_STOP_AFTER)"
+        return 0
+    fi
+
     # Check if phase should be skipped (already completed or user-skipped)
     if state_should_skip_phase "$phase_id"; then
         if state_is_phase_completed "$phase_id"; then
-            _run_phase_log_skip "$display_name" "already completed"
+            # Verify postconditions before trusting the skip.
+            # Catches drift (e.g. binary was deleted after a previous run).
+            if type -t _run_phase_postconditions &>/dev/null; then
+                if ! _run_phase_postconditions "$phase_id"; then
+                    _run_phase_log_skip "$display_name" "postcondition drift — re-running"
+                    state_unmark_phase "$phase_id"
+                    # Fall through to execute the phase
+                else
+                    _run_phase_log_skip "$display_name" "already completed"
+                    return 0
+                fi
+            else
+                _run_phase_log_skip "$display_name" "already completed"
+                return 0
+            fi
         else
             _run_phase_log_skip "$display_name" "user skipped"
+            return 0
         fi
-        return 0
     fi
 
     # Record phase start
@@ -2324,6 +2387,10 @@ run_phase() {
         # Success - mark phase as completed
         state_phase_complete "$phase_id"
         _run_phase_log_success "$display_name" "$duration"
+        # Mark --stop-after target as reached
+        if [[ -n "${ACFS_STOP_AFTER:-}" && "$phase_id" == "$ACFS_STOP_AFTER" ]]; then
+            _ACFS_STOP_AFTER_REACHED=true
+        fi
         return 0
     else
         # Failure - record failure state

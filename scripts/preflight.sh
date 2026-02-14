@@ -253,6 +253,25 @@ check_disk() {
     fi
 }
 
+check_inodes() {
+    # Inode exhaustion can cause cryptic failures when creating many files
+    local inodes_free
+    inodes_free=$(df -i / 2>/dev/null | awk 'NR==2 {print $4}')
+
+    if [[ -z "$inodes_free" ]] || ! [[ "$inodes_free" =~ ^[0-9]+$ ]]; then
+        warn "Cannot determine inode availability" "df -i returned unexpected output"
+        return
+    fi
+
+    if (( inodes_free >= 100000 )); then
+        pass "Inodes: ${inodes_free} free"
+    elif (( inodes_free >= 50000 )); then
+        warn "Low inodes: ${inodes_free} free" "100000+ recommended for ACFS installation"
+    else
+        fail "Very low inodes: ${inodes_free} free" "Need at least 50000 free inodes"
+    fi
+}
+
 # ============================================================
 # CPU Check
 # ============================================================
@@ -600,6 +619,7 @@ main() {
     check_cpu
     check_memory
     check_disk
+    check_inodes
 
     [[ "$QUIET" != "true" && "$MACHINE_OUTPUT" != "true" ]] && echo ""
 

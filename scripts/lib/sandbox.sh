@@ -894,11 +894,30 @@ acfs_sandbox_create() {
         fi
     '
 
-    # Ensure workspace directory exists and is owned by ubuntu
-    acfs_lxc exec "$ACFS_CONTAINER_NAME" -- bash -c '
-        mkdir -p /data/projects
-        chown ubuntu:ubuntu /data/projects
-    '
+    # Ensure workspace directory exists. Some host-backed mounts (sshfs/fuse/virtiofs)
+    # can reject chown from inside the container, so treat ownership update as best-effort.
+    acfs_lxc exec "$ACFS_CONTAINER_NAME" -- mkdir -p /data/projects
+    if ! acfs_lxc exec "$ACFS_CONTAINER_NAME" -- bash -c 'chown ubuntu:ubuntu /data/projects 2>/dev/null'; then
+        local ubuntu_can_write=false
+        if acfs_lxc exec "$ACFS_CONTAINER_NAME" -- bash -c 'su -s /bin/sh -c "test -w /data/projects" ubuntu >/dev/null 2>&1'; then
+            ubuntu_can_write=true
+        fi
+
+        if [[ "$ubuntu_can_write" == "true" ]]; then
+            if _acfs_sandbox_container_workspace_mounted; then
+                log_warn "Workspace mount does not allow chown on /data/projects. Continuing (ubuntu has write access)."
+            else
+                log_warn "Could not change ownership on /data/projects. Continuing (ubuntu has write access)."
+            fi
+        else
+            if _acfs_sandbox_container_workspace_mounted; then
+                log_error "Workspace mounted at /data/projects is not writable by ubuntu. Fix host workspace permissions for '$ACFS_WORKSPACE_HOST'."
+            else
+                log_error "Failed to set /data/projects ownership and ubuntu cannot write to it."
+            fi
+            return 1
+        fi
+    fi
 
     if ! _acfs_sandbox_container_has_egress; then
         log_warn "Container egress not detected. Attempting network fix."

@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC1091
+# ACFS relies on Bash 4+ features (associative arrays, declare -g, etc.).
+# macOS ships Bash 3.2 by default, so re-exec with Homebrew Bash when present.
+if [[ -n "${BASH_VERSINFO:-}" ]] && (( BASH_VERSINFO[0] < 4 )); then
+    for acfs_modern_bash in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [[ -x "$acfs_modern_bash" ]]; then
+            exec "$acfs_modern_bash" "$0" "$@"
+        fi
+    done
+
+    cat >&2 <<'EOF'
+ERROR: ACFS requires Bash 4+.
+Detected: Bash 3.x (macOS system bash).
+
+Install modern bash:
+  brew install bash
+
+Then re-run:
+  /opt/homebrew/bin/bash ./install.sh --macos
+EOF
+    exit 1
+fi
 # ============================================================
 # ACFS - Agentic Coding Flywheel Setup
 # Main installer script
@@ -36,6 +57,11 @@
 #   --skip <module>       Skip a specific module (repeatable)
 #   --no-deps             Disable automatic dependency closure (expert/debug)
 #   --checksums-ref <ref> Fetch checksums.yaml from this ref (default: main for pinned tags/SHAs)
+
+# Silence the "Installation checklist" output by default to reduce console noise
+: "${ACFS_CHECKLIST_PROGRESS:=false}"
+export ACFS_CHECKLIST_PROGRESS
+
 # ============================================================
 
 set -euo pipefail
@@ -1043,6 +1069,24 @@ parse_args() {
                 export ACFS_FORCE_REINSTALL=true
                 shift
                 ;;
+            --resume-from)
+                shift
+                export ACFS_RESUME_FROM="${1:-}"
+                if [[ -z "$ACFS_RESUME_FROM" ]]; then
+                    echo "ERROR: --resume-from requires a stage ID (e.g. languages)" >&2
+                    exit 1
+                fi
+                shift
+                ;;
+            --stop-after)
+                shift
+                export ACFS_STOP_AFTER="${1:-}"
+                if [[ -z "$ACFS_STOP_AFTER" ]]; then
+                    echo "ERROR: --stop-after requires a stage ID (e.g. languages)" >&2
+                    exit 1
+                fi
+                shift
+                ;;
             --reset-state)
                 RESET_STATE_ONLY=true
                 shift
@@ -1401,6 +1445,18 @@ detect_environment() {
     if [[ -f "$ACFS_LIB_DIR/error_tracking.sh" ]]; then
         # shellcheck source=scripts/lib/error_tracking.sh
         source "$ACFS_LIB_DIR/error_tracking.sh"
+    fi
+
+    # Source stage contract for phase pre/postcondition validation
+    if [[ -f "$ACFS_LIB_DIR/stage_contract.sh" ]]; then
+        # shellcheck source=scripts/lib/stage_contract.sh
+        source "$ACFS_LIB_DIR/stage_contract.sh"
+    fi
+
+    # Source observability for structured event logging
+    if [[ -f "$ACFS_LIB_DIR/observability.sh" ]]; then
+        # shellcheck source=scripts/lib/observability.sh
+        source "$ACFS_LIB_DIR/observability.sh"
     fi
 
     # Source Ubuntu upgrade library from the same lib dir when available (nb4).
@@ -1783,6 +1839,7 @@ acfs_curl() {
 
 # Automatic retry for transient network errors (fast total budget).
 ACFS_CURL_RETRY_DELAYS=(0 5 15)
+# ACFS_CURL_RETRY_DELAYS=(0)
 
 acfs_is_retryable_curl_exit_code() {
     local exit_code="${1:-0}"
@@ -2343,6 +2400,26 @@ acfs_fetch_url_content() {
     return 1
 }
 
+# Add a cache-busting query parameter to an HTTPS URL.
+# Used only for mismatch recovery when upstream/CDN edges serve stale content.
+acfs_append_cache_bust_param() {
+    local url="$1"
+    local cb="${2:-$(date +%s)}"
+
+    local base="$url"
+    local fragment=""
+    if [[ "$url" == *"#"* ]]; then
+        base="${url%%#*}"
+        fragment="#${url#*#}"
+    fi
+
+    if [[ "$base" == *"?"* ]]; then
+        printf '%s&acfs_cb=%s%s\n' "$base" "$cb" "$fragment"
+    else
+        printf '%s?acfs_cb=%s%s\n' "$base" "$cb" "$fragment"
+    fi
+}
+
 # Fetch checksums.yaml directly via GitHub API (bypasses CDN caching entirely).
 # This is used as a fallback when cached checksums don't match upstream.
 # Uses ACFS_CHECKSUMS_REF to avoid stale checksums when ACFS_REF is pinned.
@@ -2572,22 +2649,63 @@ acfs_run_verified_upstream_script_as_target() {
             log_success "Verified '$tool' with fresh checksums from GitHub API"
             # Note: ACFS_UPSTREAM_SHA256 already updated by acfs_parse_checksums_content above
         else
-            # Still doesn't match even with fresh checksums - this is a real problem
-            log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
-            log_detail "URL: $url"
-            log_detail "Expected (fresh): $fresh_expected_sha256"
-            log_detail "Actual:           $actual_sha256"
-            log_error "Refusing to execute unverified installer script."
-            log_error "This could indicate:"
-            log_error "  1. Upstream changed their installer very recently (wait and retry)"
-            log_error "  2. Potential tampering (investigate before proceeding)"
-            log_error "  3. Network issue corrupting downloads (retry on different network)"
+            # Mismatch can be caused by stale CDN/edge cache for upstream script URL.
+            # Re-fetch once with a cache-busting query param and verify again.
+            log_detail "Fresh checksums still mismatch for '$tool' - re-fetching installer with cache-bust..."
 
-            if [[ "${ACFS_STRICT_MODE:-false}" == "true" ]]; then
-                log_fatal "Strict mode: aborting due to checksum mismatch for '$tool'"
+            local cache_busted_url
+            cache_busted_url="$(acfs_append_cache_bust_param "$url")"
+
+            local cache_busted_with_sentinel
+            cache_busted_with_sentinel="$(
+                acfs_fetch_url_content "$cache_busted_url" || exit $?
+                printf '%s' "$sentinel"
+            )" || {
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Expected (fresh): $fresh_expected_sha256"
+                log_detail "Actual:           $actual_sha256"
+                log_error "Cache-busted re-fetch failed; refusing to execute unverified installer script."
+                return 1
+            }
+
+            if [[ "$cache_busted_with_sentinel" != *"$sentinel" ]]; then
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Expected (fresh): $fresh_expected_sha256"
+                log_detail "Actual:           $actual_sha256"
+                log_error "Cache-busted re-fetch returned malformed content; refusing to execute unverified installer script."
+                return 1
             fi
 
-            return 1
+            local cache_busted_content="${cache_busted_with_sentinel%"$sentinel"}"
+            local cache_busted_actual_sha256
+            cache_busted_actual_sha256="$(printf '%s' "$cache_busted_content" | acfs_calculate_sha256)" || return 1
+
+            if [[ "$cache_busted_actual_sha256" == "$fresh_expected_sha256" ]]; then
+                log_success "Verified '$tool' after cache-busted re-fetch"
+                content="$cache_busted_content"
+                actual_sha256="$cache_busted_actual_sha256"
+            else
+                # Still doesn't match after fresh checksums + cache-busted fetch.
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Cache-busted URL: $cache_busted_url"
+                log_detail "Expected (fresh):     $fresh_expected_sha256"
+                log_detail "Actual (initial):     $actual_sha256"
+                log_detail "Actual (cache-bust):  $cache_busted_actual_sha256"
+                log_error "Refusing to execute unverified installer script."
+                log_error "This could indicate:"
+                log_error "  1. Upstream changed their installer very recently (wait and retry)"
+                log_error "  2. Potential tampering (investigate before proceeding)"
+                log_error "  3. Network issue corrupting downloads (retry on different network)"
+
+                if [[ "${ACFS_STRICT_MODE:-false}" == "true" ]]; then
+                    log_fatal "Strict mode: aborting due to checksum mismatch for '$tool'"
+                fi
+
+                return 1
+            fi
         fi
     fi
 
@@ -2733,8 +2851,26 @@ init_target_paths() {
     if [[ "$(whoami)" == "$TARGET_USER" ]]; then
         TARGET_HOME="${TARGET_HOME:-$HOME}"
     else
-        # Respect an explicit TARGET_HOME env override (default is /home/$TARGET_USER).
-        TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+        # Respect an explicit TARGET_HOME env override.
+        # When not set, resolve from passwd (handles root=/root correctly).
+        if [[ -z "${TARGET_HOME:-}" ]]; then
+            if command -v getent &>/dev/null; then
+                TARGET_HOME="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)"
+            fi
+            # Fallback if getent unavailable or returned empty
+            TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+        fi
+    fi
+
+    # Safety net: verify TARGET_HOME matches the system passwd entry.
+    # Catches containers where $HOME is set incorrectly.
+    if command -v getent &>/dev/null; then
+        local _passwd_home
+        _passwd_home="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)"
+        if [[ -n "$_passwd_home" && "$_passwd_home" != "$TARGET_HOME" ]]; then
+            log_warn "TARGET_HOME=$TARGET_HOME does not match passwd entry ($_passwd_home) for user '$TARGET_USER'. Using passwd entry."
+            TARGET_HOME="$_passwd_home"
+        fi
     fi
 
     if [[ -z "$TARGET_HOME" ]] || [[ "$TARGET_HOME" == "/" ]]; then
@@ -3324,7 +3460,7 @@ setup_filesystem() {
     done
 
     # Ensure workspace directories are owned by target user (avoid over-broad recursive chown).
-    try_step "Setting /data ownership" $SUDO chown -h "$TARGET_USER:$TARGET_USER" /data /data/projects /data/cache || true
+    try_step_optional "Setting /data ownership" $SUDO chown -h "$TARGET_USER:$TARGET_USER" /data /data/projects /data/cache || true
 
     # Install AGENTS.md template to /data/projects for agent guidance
     log_detail "Installing AGENTS.md template"
@@ -6060,6 +6196,13 @@ main() {
     disable_needrestart_apt_hook  # Prevent apt hangs on Ubuntu 22.04+ (issue #70)
     validate_target_user
     init_target_paths
+
+    # Initialize observability (needs ACFS_HOME from init_target_paths)
+    if type -t _observability_init &>/dev/null; then
+        _observability_init
+        _emit_event "install_start" "" "mode=${MODE:-unknown}" "target_user=${TARGET_USER:-unknown}"
+    fi
+
     acfs_log_init   # Start capturing stderr to log file (uses ACFS_HOME/logs)
     ensure_ubuntu
 
@@ -6142,8 +6285,33 @@ main() {
                 show_progress_header "$phase_num" 9 "$phase_name" "$installation_start_time"
             fi
 
+            # Emit stage_start event
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "stage_start" "$phase_id" "display=$phase_display"
+            fi
+
+            # Assert preconditions before running this phase
+            if type -t _run_phase_preconditions &>/dev/null; then
+                if ! _run_phase_preconditions "$phase_id"; then
+                    log_error "Phase $phase_display blocked by failed preconditions"
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "check_failed" "$phase_id" "type=precondition"
+                    fi
+                    print_resume_hint "$phase_id" ""
+                    exit 1
+                fi
+            fi
+
             if type -t run_phase &>/dev/null; then
                 if ! run_phase "$phase_id" "$phase_display" "$phase_func"; then
+                    # Emit stage_end failure event with error context
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "stage_end" "$phase_id" "status=failed" "exit_code=${LAST_ERROR_CODE:-1}"
+                    fi
+                    # Print failure summary
+                    if type -t _print_failure_summary &>/dev/null; then
+                        _print_failure_summary "$phase_id" "$phase_name" "${LAST_ERROR_CODE:-1}" "${LAST_ERROR_OUTPUT:-}"
+                    fi
                     # Use structured error reporting
                     if type -t report_failure &>/dev/null; then
                         report_failure "$phase_num" 9
@@ -6157,9 +6325,27 @@ main() {
             else
                 # Fallback: direct call with basic error handling
                 if ! "$phase_func"; then
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "stage_end" "$phase_id" "status=failed"
+                    fi
                     log_error "Phase $phase_display failed"
                     print_resume_hint "$phase_id" ""
                     exit 1
+                fi
+            fi
+
+            # Emit stage_end success event
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "stage_end" "$phase_id" "status=success"
+            fi
+
+            # Verify postconditions after successful phase completion
+            if type -t _run_phase_postconditions &>/dev/null; then
+                if ! _run_phase_postconditions "$phase_id"; then
+                    log_warn "Phase $phase_display completed but postconditions failed"
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "check_failed" "$phase_id" "type=postcondition"
+                    fi
                 fi
             fi
         }

@@ -117,8 +117,7 @@ transfer_repo_with_retries() {
 }
 
 acfs_local_install_healthy() {
-    # Check if ACFS is installed for EITHER ubuntu or root user
-    # In LXD containers, root's home might be /root OR /home/root
+    # Check if ACFS is installed for the ubuntu user.
     # Requires BOTH a tool binary (claude) AND the acfs framework (dashboard.sh)
     # to avoid false-positives from partial installs.
 
@@ -126,24 +125,19 @@ acfs_local_install_healthy() {
     local has_framework=false
 
     # Check for claude binary (installed on all modes)
-    if acfs_sandbox_exec_root "test -x /home/root/.local/bin/claude" >/dev/null 2>&1 \
-       || acfs_sandbox_exec_root "test -x /root/.local/bin/claude" >/dev/null 2>&1 \
-       || acfs_sandbox_exec "test -x ~/.local/bin/claude" >/dev/null 2>&1; then
+    if acfs_sandbox_exec "test -x ~/.local/bin/claude" >/dev/null 2>&1; then
         has_tool=true
     fi
 
     # Fallback: check for acfs binary
     if [[ "$has_tool" != "true" ]]; then
-        if acfs_sandbox_exec_root "test -x /home/root/.local/bin/acfs" >/dev/null 2>&1 \
-           || acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
+        if acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
             has_tool=true
         fi
     fi
 
     # Check for ACFS framework (dashboard.sh as sentinel)
-    if acfs_sandbox_exec_root "test -f /home/root/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1 \
-       || acfs_sandbox_exec_root "test -f /root/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1 \
-       || acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
+    if acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
         has_framework=true
     fi
 
@@ -329,6 +323,7 @@ cmd_create() {
             export DEBIAN_FRONTEND=noninteractive
             export ACFS_CI=true
             export ACFS_BOOTSTRAP_DIR=/tmp
+            export TARGET_USER=ubuntu
             cd /tmp
             bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
         "; then
@@ -338,6 +333,7 @@ cmd_create() {
                 export DEBIAN_FRONTEND=noninteractive
                 export ACFS_CI=true
                 export ACFS_BOOTSTRAP_DIR=/tmp
+                export TARGET_USER=ubuntu
                 cd /tmp
                 bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
             "; then
