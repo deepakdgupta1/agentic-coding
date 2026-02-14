@@ -658,8 +658,8 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 | **Runtime** | Rust | `rustup update stable` |
 | **Runtime** | uv (Python) | `uv self update` |
 | **Runtime** | Go | `apt upgrade` (if apt-managed) |
-| **Agents** | Claude Code | `claude update` |
-| **Agents** | Codex, Gemini, Amp | `bun install -g @latest` |
+| **Agents** | Claude Code | `claude update --channel latest` |
+| **Agents** | Codex, Gemini | `bun install -g @latest` |
 | **Cloud** | Wrangler, Vercel | `bun install -g @latest` |
 | **Cloud** | Supabase | GitHub release tarball (sha256 checksums) |
 | **Stack** | ntm, slb, ubs, dcg, ru, etc. | Re-run upstream installers |
@@ -1280,7 +1280,7 @@ alias gmi='gemini --yolo'
 **Installation & Updates:**
 Claude Code should be installed and updated using its native mechanisms:
 - **Install:** ACFS uses the official native installer (`claude.ai/install.sh`), checksum-verified via `checksums.yaml` (installs to `~/.local/bin/claude`)
-- **Update:** Use `claude update` (built-in) or run `acfs update --agents-only`
+- **Update:** Use `claude update --channel latest` (built-in) or run `acfs update --agents-only`
 
 This ensures proper authentication handling and avoids issues with alternative package manager builds. For Codex and Gemini, ACFS uses standard bun global package updates.
 

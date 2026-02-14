@@ -70,7 +70,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "NTM-spawned agents auto-register with Agent Mail",
       },
     ],
-    techStack: ["Python 3.11+", "FastMCP", "FastAPI", "SQLite"],
+    techStack: ["Python 3.14+", "FastMCP", "SQLAlchemy async", "SQLite + FTS5", "LiteLLM"],
     keyFeatures: [
       "Threaded GFM messages with importance levels",
       "Advisory file reservations with pre-commit guard",
@@ -150,15 +150,14 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     category: "core",
     stars: 128,
     whatItDoes:
-      "Local-first issue tracking for AI agents. SQLite + JSONL hybrid: fast queries locally, git-friendly export for collaboration. Non-invasive - never auto-commits or touches source code.",
-    whyItsUseful:
-      "Your issues travel with your repo - no external service required. ~20K lines of Rust focused on one thing: tracking issues without getting in your way. br ready shows actionable work; br sync --flush-only exports for git commit.",
-    implementationHighlights: [
-      "SQLite for fast queries, JSONL for git-friendly export",
-      "Non-invasive: never runs git commands automatically",
-      "40 commands, all support --json for agents",
-      "br ready/blocked for dependency-aware work queues",
       "Local-first issue tracking for AI agents. SQLite for fast local queries, JSONL export for git-friendly collaboration. Full dependency graph with blocking/blocked-by relationships, priorities P0-P4.",
+    whyItsUseful:
+      "Agents need to know what to work on next without human hand-holding. beads_rust provides a machine-readable source of truth that travels with the repo. No external SaaS, no API keys, just code.",
+    implementationHighlights: [
+      "~20K lines of Rust (vs 276K in original Go)",
+      "SQLite primary storage + JSONL export (hybrid architecture)",
+      "Non-invasive: explicit sync, never runs git automatically",
+      "Full dependency graph with cycles detection",
     ],
     synergies: [
       {
@@ -178,12 +177,12 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "UBS --beads-jsonl outputs findings as importable beads",
       },
     ],
-    techStack: ["Rust", "SQLite", "JSONL", "Serde"],
+    techStack: ["Rust", "SQLite", "Serde", "JSONL"],
     keyFeatures: [
-      "SQLite + JSONL hybrid architecture",
-      "br ready: unblocked, non-deferred work",
-      "br dep: full dependency graph management",
-      "br stats: lead time and activity metrics",
+      "SQLite + JSONL hybrid: fast queries, git-friendly export",
+      "Dependency graph with cycles detection",
+      "Labels, priorities (P0-P4), comments, assignees",
+      "Agent-first: --json/--robot output, doctor diagnostics",
     ],
     useCases: [
       "Tracking tasks that travel with the code",
@@ -519,7 +518,7 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "Bead management via --robot-bead-* commands for issue tracking",
       },
     ],
-    techStack: ["Go 1.22+", "Bubble Tea", "tmux 3.0+"],
+    techStack: ["Go 1.25+", "Bubble Tea", "tmux 3.0+", "Catppuccin themes"],
     keyFeatures: [
       "80+ commands: spawn, send, dashboard, checkpoint, health, and more",
       "Agent type classification with named panes (cc, cod, gmi)",
@@ -949,15 +948,15 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
     category: "supporting",
     stars: 156,
     whatItDoes:
-      "Ultra-fast search over X/Twitter data archives. Indexes tweets, likes, DMs, and Grok chats with hybrid BM25 + semantic search using Reciprocal Rank Fusion.",
-    whyItsUseful:
-      "Your X archive is a goldmine of bookmarks, threads, and ideas. XF makes your archive instantly searchable with three modes: hybrid (default), lexical (BM25), and semantic (vector similarity).",
-    implementationHighlights: [
-      "Tantivy-powered BM25 with phrase queries and boolean operators",
-      "Hash-based embeddings (zero deps) or optional MiniLM semantic",
-      "SIMD-accelerated vector ops with F16 quantization",
-      "Parses window.YTD.* JavaScript format from X exports",
       "Ultra-fast search over X/Twitter data archives with sub-millisecond latency. Uses hybrid BM25 + semantic search with Reciprocal Rank Fusion. Indexes tweets, likes, DMs, and Grok conversations.",
+    whyItsUseful:
+      "Your X archive is a goldmine of bookmarks, threads, and ideas, but Twitter's search is terrible. XF makes your archive instantly searchable (<10ms) with both keyword and semantic matching. DM context search shows full conversation threads.",
+    implementationHighlights: [
+      "Rust + Tantivy for sub-millisecond lexical search",
+      "Hybrid BM25 + semantic search with RRF fusion",
+      "Hash embedder (default) or optional MiniLM (--semantic)",
+      "SIMD-accelerated vector search with F16 quantization",
+      "Privacy-first, fully local processing (no network calls)",
     ],
     synergies: [
       {
@@ -969,17 +968,17 @@ const _tldrFlywheelTools: TldrFlywheelTool[] = [
         description: "Found tweets can become memories",
       },
     ],
-    techStack: ["Rust", "Tantivy", "SQLite", "FNV-1a hash embeddings"],
+    techStack: ["Rust", "Tantivy", "SQLite", "SIMD", "F16 quantization"],
     keyFeatures: [
-      "Sub-millisecond lexical, <10ms hybrid search",
-      "DM context view with full conversation threads",
-      "JSON/CSV/compact output formats",
-      "Interactive REPL shell (xf shell)",
+      "Sub-millisecond lexical search (<10ms typical)",
+      "Hybrid BM25 + semantic with RRF fusion",
+      "DM context search with full threads",
+      "Indexes tweets, likes, DMs, Grok chats",
     ],
     useCases: [
       "Finding that thread you bookmarked months ago",
-      "Searching DMs with full conversation context",
-      "Exporting tweets to JSON for analysis pipelines",
+      "Searching DM conversations with full context",
+      "Researching past discussions on a topic",
     ],
   },
   {
@@ -1459,9 +1458,9 @@ export const tldrPageData = {
     title: "The Agentic Coding Flywheel",
     subtitle: "TL;DR Edition",
     description:
-      "15 core tools and 7 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
+      "16 core tools and 13 supporting utilities that transform multi-agent AI coding workflows. Each tool makes the others more powerful - the more you use it, the faster it spins. While others argue about agentic coding, we're just over here building as fast as we can.",
     stats: [
-      { label: "Ecosystem Tools", value: "22" },
+      { label: "Ecosystem Tools", value: "29" },
       { label: "GitHub Stars", value: "3,600+" },
       { label: "Languages", value: "5" },
     ],

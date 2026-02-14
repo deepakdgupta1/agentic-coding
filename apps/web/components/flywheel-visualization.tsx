@@ -322,6 +322,7 @@ function DesktopToolNode({
 }: DesktopToolNodeProps) {
   const Icon = iconMap[tool.icon] || Zap;
   const iconSize = isPrimary ? "h-6 w-6" : "h-5 w-5";
+  const fontSize = isPrimary ? "text-xs" : "text-[10px]";
   const color = getColorFromGradient(tool.color);
 
   return (
@@ -353,16 +354,16 @@ function DesktopToolNode({
           isSelected
             ? "border-white/60 bg-white/20 shadow-2xl"
             : isConnected
-            ? "border-white/40 bg-white/15 shadow-xl"
-            : "border-white/15 bg-card/90 hover:border-white/30 hover:bg-white/10 shadow-lg"
+              ? "border-white/40 bg-white/15 shadow-xl"
+              : "border-white/15 bg-card/90 hover:border-white/30 hover:bg-white/10 shadow-lg"
         )}
         style={{
           // Color-coordinated shadow
           boxShadow: isSelected
             ? `0 0 40px ${color}50, 0 20px 40px rgba(0,0,0,0.3)`
             : isConnected
-            ? `0 0 25px ${color}30, 0 10px 30px rgba(0,0,0,0.2)`
-            : `0 8px 24px rgba(0,0,0,0.2)`,
+              ? `0 0 25px ${color}30, 0 10px 30px rgba(0,0,0,0.2)`
+              : `0 8px 24px rgba(0,0,0,0.2)`,
         }}
       >
         {/* Animated gradient ring for selected state */}
@@ -413,29 +414,27 @@ function DesktopToolNode({
         </div>
 
         {/* Label */}
-        <span className="relative z-10 text-xs font-bold uppercase tracking-wider text-white">
+        <span className={cn(
+          "relative z-10 font-bold uppercase tracking-wider text-white drop-shadow-sm",
+          fontSize
+        )}>
           {tool.shortName}
         </span>
 
-        {/* Star count badge */}
-        {tool.stars && tool.stars >= 100 && (
-          <div className="absolute -right-1 -top-1 flex items-center gap-0.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-xs font-bold text-amber-400">
-            <Star className="h-2.5 w-2.5 fill-current" />
-          </div>
-        )}
-
         {/* Star badge with glow */}
-        {tool.stars && tool.stars >= 50 && (
-          <div
-            className="absolute -right-1 -top-1 flex items-center gap-0.5 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[8px] font-bold text-amber-300 backdrop-blur-sm border border-amber-400/30"
-            style={{ boxShadow: "0 2px 8px rgba(251,191,36,0.3)" }}
-          >
-            <Star className="h-2 w-2 fill-current" />
-            {tool.stars >= 1000 ? `${(tool.stars / 1000).toFixed(0)}K` : tool.stars}
-          </div>
-        )}
-      </button>
-    </div>
+        {
+          tool.stars && tool.stars >= 50 && (
+            <div
+              className="absolute -right-1 -top-1 flex items-center gap-0.5 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[8px] font-bold text-amber-300 backdrop-blur-sm border border-amber-400/30"
+              style={{ boxShadow: "0 2px 8px rgba(251,191,36,0.3)" }}
+            >
+              <Star className="h-2 w-2 fill-current" />
+              {tool.stars >= 1000 ? `${(tool.stars / 1000).toFixed(0)}K` : tool.stars}
+            </div>
+          )
+        }
+      </button >
+    </div >
   );
 }
 

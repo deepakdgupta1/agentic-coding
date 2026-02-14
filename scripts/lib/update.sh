@@ -761,9 +761,48 @@ update_acfs_self() {
         return 0
     fi
 
-    # Check if ACFS repo exists and is a git repo
+    # Check if ACFS repo exists and is a git repo.
+    # If installed via tarball (no .git dir), bootstrap a git repo so
+    # the existing pull-based self-update logic works on subsequent runs.
     if [[ ! -d "$ACFS_REPO_ROOT/.git" ]]; then
-        log_item "skip" "ACFS self-update" "not a git repository at $ACFS_REPO_ROOT"
+        log_to_file "No .git directory found at $ACFS_REPO_ROOT — bootstrapping git repo for self-update..."
+
+        # Check if git is available before attempting bootstrap
+        if ! command -v git &>/dev/null; then
+            log_item "skip" "ACFS self-update" "git not found, cannot bootstrap"
+            return 0
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" init 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git init failed at $ACFS_REPO_ROOT"
+            return 0
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" remote add origin \
+                https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup.git 2>/dev/null; then
+            # Remote may already exist from a partial prior run; verify it points to the right URL
+            local existing_url
+            existing_url=$(git -C "$ACFS_REPO_ROOT" remote get-url origin 2>/dev/null) || true
+            if [[ "$existing_url" != *"agentic_coding_flywheel_setup"* ]]; then
+                log_item "warn" "ACFS self-update" "unexpected origin remote: $existing_url"
+                return 0
+            fi
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" fetch origin main --quiet 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git fetch failed during bootstrap (network issue?)"
+            return 0
+        fi
+
+        # Use --mixed reset so local modifications (custom configs, etc.) are
+        # preserved as unstaged changes rather than being destroyed.
+        if ! git -C "$ACFS_REPO_ROOT" reset --mixed origin/main 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git reset failed during bootstrap"
+            return 0
+        fi
+
+        log_item "ok" "ACFS" "git repo bootstrapped from tarball install"
+        log_to_file "ACFS git repo initialized at $ACFS_REPO_ROOT — run 'acfs update' again for full self-update"
         return 0
     fi
 
@@ -826,19 +865,30 @@ update_acfs_self() {
         return 0
     fi
 
-    # Check for local modifications that would block pull
-    if ! git -C "$ACFS_REPO_ROOT" diff --quiet 2>/dev/null; then
-        log_item "warn" "ACFS self-update" "local modifications detected, skipping"
-        log_to_file "Run 'git -C $ACFS_REPO_ROOT status' to see changes"
-        return 0
+    # Stash local modifications so they don't block the pull
+    local stashed=false
+    if ! git -C "$ACFS_REPO_ROOT" diff --quiet 2>/dev/null || ! git -C "$ACFS_REPO_ROOT" diff --cached --quiet 2>/dev/null; then
+        log_to_file "Local modifications detected, stashing before update..."
+        if git -C "$ACFS_REPO_ROOT" stash --quiet 2>/dev/null; then
+            stashed=true
+        fi
     fi
 
     # Pull updates
     log_to_file "Pulling updates..."
     if ! git -C "$ACFS_REPO_ROOT" pull --ff-only origin main 2>/dev/null; then
-        log_item "warn" "ACFS self-update" "git pull failed"
-        log_to_file "Try: git -C $ACFS_REPO_ROOT pull --ff-only origin main"
-        return 0
+        # ff-only failed (diverged history?), try reset --mixed
+        log_to_file "ff-only pull failed, using reset --mixed"
+        git -C "$ACFS_REPO_ROOT" reset --mixed origin/main 2>/dev/null || {
+            log_item "warn" "ACFS self-update" "git update failed"
+            [[ "$stashed" == "true" ]] && git -C "$ACFS_REPO_ROOT" stash pop --quiet 2>/dev/null || true
+            return 0
+        }
+    fi
+
+    # Restore local modifications
+    if [[ "$stashed" == "true" ]]; then
+        git -C "$ACFS_REPO_ROOT" stash pop --quiet 2>/dev/null || true
     fi
 
     log_item "ok" "ACFS" "updated ($commit_count commits)"
@@ -921,20 +971,21 @@ wait_for_apt_lock() {
     local interval=5
     local waited=0
 
-    while [[ $waited -lt $max_wait ]]; do
-        # Check if any apt-related process is running
-        local apt_procs=""
-        apt_procs=$(pgrep -a 'apt|dpkg|unattended-upgr' 2>/dev/null | head -3 || true)
+    if ! command -v fuser &>/dev/null; then
+        log_to_file "fuser not available (psmisc not installed), skipping apt lock detection"
+        return 0
+    fi
 
-        # Check for lock files
+    while [[ $waited -lt $max_wait ]]; do
+        # Only check actual lock files — background processes (e.g. unattended-upgrades
+        # daemon) don't hold locks unless actively installing
         local lock_held=false
-        if [[ -f /var/lib/dpkg/lock-frontend ]] && fuser /var/lib/dpkg/lock-frontend &>/dev/null; then
-            lock_held=true
-        elif [[ -f /var/lib/apt/lists/lock ]] && fuser /var/lib/apt/lists/lock &>/dev/null; then
-            lock_held=true
-        elif [[ -n "$apt_procs" ]]; then
-            lock_held=true
-        fi
+        for lockfile in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/lib/dpkg/lock; do
+            if [[ -f "$lockfile" ]] && fuser "$lockfile" &>/dev/null; then
+                lock_held=true
+                break
+            fi
+        done
 
         if [[ "$lock_held" == "false" ]]; then
             return 0
@@ -943,9 +994,9 @@ wait_for_apt_lock() {
         if [[ $waited -eq 0 ]]; then
             log_item "wait" "apt lock" "waiting for other package operations to complete..."
             log_to_file "APT lock detected, waiting up to ${max_wait}s for release"
-            if [[ -n "$apt_procs" ]]; then
-                log_to_file "Running processes: $apt_procs"
-            fi
+            local lock_info=""
+            lock_info=$(fuser -v /var/lib/dpkg/lock-frontend 2>&1 || true)
+            [[ -n "$lock_info" ]] && log_to_file "Lock holder: $lock_info"
         fi
 
         sleep "$interval"
@@ -1000,44 +1051,37 @@ fix_apt_issues() {
 
 # Check if apt is locked by another process, with automatic waiting and fixing
 check_apt_lock() {
-    # First attempt: check if lock is immediately available
-    local apt_procs=""
-    apt_procs=$(pgrep -a 'apt|dpkg|unattended-upgr' 2>/dev/null | head -1 || true)
-
-    if [[ -z "$apt_procs" ]]; then
-        # Also check lock files directly
-        if [[ -f /var/lib/dpkg/lock-frontend ]] && ! fuser /var/lib/dpkg/lock-frontend &>/dev/null; then
-            return 0  # Lock is free
-        elif [[ ! -f /var/lib/dpkg/lock-frontend ]]; then
-            return 0  # Lock file doesn't exist
+    # Only check if actual dpkg/apt lock files are held by a process.
+    # Background daemons (e.g. unattended-upgrades) don't hold locks unless
+    # actively installing, so pgrep-based checks cause false positives.
+    local locks_held=false
+    for lockfile in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/lib/dpkg/lock; do
+        if [[ -f "$lockfile" ]] && fuser "$lockfile" &>/dev/null; then
+            locks_held=true
+            break
         fi
+    done
+
+    if [[ "$locks_held" == "false" ]]; then
+        return 0  # No locks held, safe to proceed
     fi
 
-    # Lock is held - wait for it to be released
+    # Lock IS held — wait for release
     if wait_for_apt_lock 120; then
         log_item "ok" "apt lock" "lock released, proceeding"
         return 0
     fi
 
-    # Still locked after waiting - try to diagnose
-    log_item "warn" "apt lock" "still locked after 2 minutes"
+    # Still locked after waiting — show diagnostic
+    log_item "skip" "apt" "dpkg lock held after 2m wait"
     log_to_file "APT lock still held after waiting"
 
-    # Show what's holding the lock
     local lock_holder=""
     lock_holder=$(sudo fuser -v /var/lib/dpkg/lock-frontend 2>&1 || true)
     if [[ -n "$lock_holder" ]]; then
         log_to_file "Lock holder: $lock_holder"
         if [[ "$QUIET" != "true" ]]; then
             echo -e "       ${DIM}Lock held by: $lock_holder${NC}"
-        fi
-    fi
-
-    # Check for unattended-upgrades specifically
-    if pgrep -x "unattended-upgr" &>/dev/null; then
-        log_item "info" "apt" "unattended-upgrades is running (this is normal on fresh systems)"
-        if [[ "$QUIET" != "true" ]]; then
-            echo -e "       ${DIM}Tip: You can wait, or stop it with: sudo systemctl stop unattended-upgrades${NC}"
         fi
     fi
 
@@ -1154,6 +1198,7 @@ update_agents() {
         if ! run_cmd_claude_update; then
             log_to_file "Claude update failed, attempting reinstall via official installer"
             if update_require_security; then
+                # INTENTIONAL: verified installer is the correct fallback for failed updates
                 run_cmd "Claude Code (reinstall)" update_run_verified_installer claude latest
             else
                 log_item "fail" "Claude Code" "update failed and reinstall unavailable (missing security.sh)"
@@ -1167,6 +1212,7 @@ update_agents() {
     elif [[ "$FORCE_MODE" == "true" ]]; then
         capture_version_before "claude"
         if update_require_security; then
+            # INTENTIONAL: verified installer is the correct path for fresh installs
             run_cmd "Claude Code (install)" update_run_verified_installer claude latest
             if capture_version_after "claude"; then
                 [[ "$QUIET" != "true" ]] && printf "       ${DIM}%s → %s${NC}\n" "${VERSION_BEFORE[claude]}" "${VERSION_AFTER[claude]}"
@@ -1227,9 +1273,12 @@ update_agents() {
 }
 
 # Helper for Claude update with proper error handling
+# FIX(bd-gsjqf.2): Replaced bare "claude update --channel latest" (flag does not exist)
+# with update_run_verified_installer which uses the official install.sh script.
+# See: https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/issues/125
 run_cmd_claude_update() {
-    local desc="Claude Code (native update)"
-    local cmd_display="claude update"
+    local desc="Claude Code (verified installer)"
+    local cmd_display="update_run_verified_installer claude latest"
 
     log_to_file "Running: $cmd_display"
 
@@ -1251,27 +1300,27 @@ run_cmd_claude_update() {
         fi
 
         if [[ "$QUIET" != "true" ]] && [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
+            if update_run_verified_installer claude latest 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
                 exit_code=0
             else
                 exit_code=${PIPESTATUS[0]}
             fi
         elif [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update >> "$UPDATE_LOG_FILE" 2>&1; then
+            if update_run_verified_installer claude latest >> "$UPDATE_LOG_FILE" 2>&1; then
                 exit_code=0
             else
                 exit_code=$?
             fi
         else
             if [[ "$QUIET" != "true" ]]; then
-                claude update || exit_code=$?
+                update_run_verified_installer claude latest || exit_code=$?
             else
-                claude update >/dev/null 2>&1 || exit_code=$?
+                update_run_verified_installer claude latest >/dev/null 2>&1 || exit_code=$?
             fi
         fi
     else
         local output=""
-        output=$(claude update 2>&1) || exit_code=$?
+        output=$(update_run_verified_installer claude latest 2>&1) || exit_code=$?
         [[ -n "$output" ]] && log_to_file "Output: $output"
     fi
 
@@ -1804,13 +1853,13 @@ update_omz() {
     # Set DISABLE_UPDATE_PROMPT to avoid interactive prompts
     local upgrade_script="$omz_dir/tools/upgrade.sh"
     if [[ -x "$upgrade_script" ]]; then
-        run_cmd "Oh-My-Zsh upgrade" env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" "$upgrade_script"
+        run_cmd "Oh-My-Zsh upgrade" timeout 120 env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" "$upgrade_script"
     elif [[ -f "$upgrade_script" ]]; then
-        run_cmd "Oh-My-Zsh upgrade" env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" bash "$upgrade_script"
+        run_cmd "Oh-My-Zsh upgrade" timeout 120 env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" bash "$upgrade_script"
     else
         # Fallback to git pull
         if [[ -d "$omz_dir/.git" ]]; then
-            run_cmd "Oh-My-Zsh (git pull)" git -C "$omz_dir" pull --ff-only
+            run_cmd "Oh-My-Zsh (git pull)" timeout 60 git -C "$omz_dir" pull --ff-only
         else
             log_item "skip" "Oh-My-Zsh" "no upgrade mechanism found"
             return 0
@@ -1842,7 +1891,7 @@ update_p10k() {
     # Use --ff-only to avoid merge conflicts
     local output=""
     local exit_code=0
-    output=$(git -C "$p10k_dir" pull --ff-only 2>&1) || exit_code=$?
+    output=$(timeout 60 git -C "$p10k_dir" pull --ff-only 2>&1) || exit_code=$?
 
     if [[ $exit_code -eq 0 ]]; then
         if capture_version_after "p10k"; then
@@ -1894,7 +1943,7 @@ update_zsh_plugins() {
 
         local output=""
         local exit_code=0
-        output=$(git -C "$plugin_dir" pull --ff-only 2>&1) || exit_code=$?
+        output=$(timeout 60 git -C "$plugin_dir" pull --ff-only 2>&1) || exit_code=$?
 
         if [[ $exit_code -eq 0 ]]; then
             if ! echo "$output" | grep -q "Already up to date"; then
@@ -2148,7 +2197,7 @@ WHAT EACH CATEGORY UPDATES:
   apt:      System packages via apt update && apt upgrade && apt autoremove
   shell:    Oh-My-Zsh, Powerlevel10k, zsh plugins (git pull)
             Atuin, Zoxide (reinstall from upstream)
-  agents:   Claude Code (claude update)
+  agents:   Claude Code (verified installer: curl claude.ai/install.sh | bash -- latest)
             Codex CLI (bun install -g --trust @openai/codex@latest)
             Gemini CLI (bun install -g --trust @google/gemini-cli@latest)
   cloud:    Wrangler, Vercel (bun install -g --trust <pkg>@latest)
@@ -2184,7 +2233,7 @@ TROUBLESHOOTING:
       sudo systemctl start unattended-upgrades
 
   - If an agent update fails: try running the update command directly:
-    claude update
+    curl -fsSL https://claude.ai/install.sh | bash -s -- latest
     bun install -g --trust @openai/codex@latest
     bun install -g --trust @google/gemini-cli@latest
 

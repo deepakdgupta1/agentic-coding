@@ -40,6 +40,7 @@ function OSCard({ icon, title, description, selected, detected, onClick }: OSCar
           ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
           : "border-border/50 bg-card/50 hover:border-primary/30 hover:bg-card/80 hover:shadow-md"
       )}
+      style={{ touchAction: "manipulation" }}
       onClick={onClick}
       role="radio"
       tabIndex={0}
@@ -176,7 +177,7 @@ export default function OSSelectionPage() {
       </div>
 
       {/* OS Options */}
-      <div data-os-selection className="grid gap-6 sm:grid-cols-3" role="radiogroup" aria-label="Select your operating system">
+      <div data-os-selection className="grid gap-6 sm:grid-cols-3" role="radiogroup" aria-label="Select your operating system" style={{ touchAction: "pan-y" }}>
         <OSCard
           icon={<Apple className="h-10 w-10" />}
           title="Mac"

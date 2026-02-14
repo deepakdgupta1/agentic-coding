@@ -155,7 +155,7 @@ alias install='sudo apt install'
 alias search='apt search'
 
 # Update agent CLIs
-alias uca='~/.local/bin/claude update && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest && bun install -g --trust @anthropic/amp-cli@latest'
+alias uca='(curl -fsSL https://claude.ai/install.sh | bash -s -- latest) && (bun install -g --trust @openai/codex@latest || bun install -g --trust @openai/codex) && bun install -g --trust @google/gemini-cli@latest'
 
 # --- Custom functions ---
 mkcd() { mkdir -p "$1" && cd "$1" || return; }
@@ -408,6 +408,17 @@ acfs() {
         return 1
       fi
       ;;
+    notifications|notify)
+      if [[ -f "$acfs_home/scripts/lib/notifications.sh" ]]; then
+        bash "$acfs_home/scripts/lib/notifications.sh" "$@"
+      elif [[ -x "$acfs_bin" ]]; then
+        "$acfs_bin" notifications "$@"
+      else
+        echo "Error: notifications.sh not found"
+        echo "Re-run the ACFS installer to get the latest scripts"
+        return 1
+      fi
+      ;;
     export-config|export)
       if [[ -f "$acfs_home/scripts/lib/export-config.sh" ]]; then
         bash "$acfs_home/scripts/lib/export-config.sh" "$@"
@@ -445,6 +456,7 @@ acfs() {
       echo "  support-bundle  Collect diagnostic data for troubleshooting"
       echo "  changelog       Show recent changes (--all, --since 7d, --json)"
       echo "  export-config   Export config for backup/migration (--json, --minimal)"
+      echo "  notifications   Manage push notifications via ntfy.sh"
       echo "  update          Update ACFS tools to latest versions"
       echo "  version         Show ACFS version"
       echo "  help            Show this help message"

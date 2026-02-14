@@ -142,6 +142,38 @@ const MANIFEST_INDEX_HEADER = `#!/usr/bin/env bash
 # Data-only manifest index. Safe to source.
 `;
 
+const INTERNAL_CHECKSUMS_HEADER = `#!/usr/bin/env bash
+# shellcheck disable=SC2034
+# ============================================================
+# AUTO-GENERATED internal script checksums - DO NOT EDIT
+# Regenerate: bun run generate (from packages/manifest)
+# ============================================================
+# SHA256 checksums for critical internal scripts (bd-3tpl).
+# Used by check-manifest-drift.sh to detect unauthorized changes.
+`;
+
+/**
+ * Critical internal scripts that should be checksummed.
+ * Paths are relative to PROJECT_ROOT.
+ */
+const INTERNAL_SCRIPTS_TO_CHECKSUM = [
+  'scripts/lib/security.sh',
+  'scripts/lib/agents.sh',
+  'scripts/lib/update.sh',
+  'scripts/lib/doctor.sh',
+  'scripts/lib/install_helpers.sh',
+  'scripts/lib/logging.sh',
+  'scripts/lib/state.sh',
+  'scripts/lib/session.sh',
+  'scripts/lib/os_detect.sh',
+  'scripts/lib/errors.sh',
+  'scripts/lib/user.sh',
+  'scripts/lib/tools.sh',
+  'scripts/lib/export-config.sh',
+  'scripts/acfs-global',
+  'scripts/acfs-update',
+] as const;
+
 // ============================================================
 // Security Constants
 // ============================================================
@@ -948,6 +980,34 @@ function generateManifestIndex(manifest: Manifest, manifestSha256: string): stri
 }
 
 /**
+ * Generate internal script checksums file (bd-3tpl).
+ * Computes SHA256 for critical internal scripts and emits a bash associative array.
+ */
+function generateInternalChecksums(): string {
+  const lines: string[] = [INTERNAL_CHECKSUMS_HEADER];
+
+  lines.push('declare -gA ACFS_INTERNAL_CHECKSUMS=(');
+  for (const relPath of INTERNAL_SCRIPTS_TO_CHECKSUM) {
+    const absPath = join(PROJECT_ROOT, relPath);
+    if (existsSync(absPath)) {
+      const content = readFileSync(absPath);
+      const hash = createHash('sha256').update(content).digest('hex');
+      lines.push(`  [${relPath}]="${hash}"`);
+    } else {
+      lines.push(`  # MISSING: ${relPath}`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push(`ACFS_INTERNAL_CHECKSUMS_COUNT=${INTERNAL_SCRIPTS_TO_CHECKSUM.length}`);
+  lines.push(`ACFS_INTERNAL_CHECKSUMS_GENERATED="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)"`);
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * Generate a category install script
  */
 function generateCategoryScript(manifest: Manifest, category: ModuleCategory): string {
@@ -1619,6 +1679,13 @@ async function main(): Promise<void> {
   {
     const filepath = join(OUTPUT_DIR, 'manifest_index.sh');
     const content = generateManifestIndex(manifest, manifestSha256);
+    filesToGenerate.set(filepath, { content, mode: 0o644 });
+  }
+
+  // Internal script checksums (bd-3tpl)
+  {
+    const filepath = join(OUTPUT_DIR, 'internal_checksums.sh');
+    const content = generateInternalChecksums();
     filesToGenerate.set(filepath, { content, mode: 0o644 });
   }
 

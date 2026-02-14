@@ -993,6 +993,10 @@ cleanup() {
         if type -t webhook_notify &>/dev/null; then
             webhook_notify "failure" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
         fi
+        # Send ntfy.sh notification for failure (bd-2igt6)
+        if type -t acfs_notify_install_failure &>/dev/null; then
+            acfs_notify_install_failure 2>/dev/null || true
+        fi
     fi
     # Finalize log file (restore stderr, strip colors, add footer)
     acfs_log_close 2>/dev/null || true
@@ -1403,6 +1407,60 @@ detect_environment() {
         source "$ACFS_LIB_DIR/logging.sh"
     fi
 
+    # Verify internal script integrity before sourcing (bd-3tpl.5)
+    # Fail-closed: abort if any tracked script has been modified.
+    # Gracefully skips if checksums file is missing (pre-migration compat).
+    if [[ -f "$ACFS_GENERATED_DIR/internal_checksums.sh" ]]; then
+        # shellcheck source=scripts/generated/internal_checksums.sh
+        source "$ACFS_GENERATED_DIR/internal_checksums.sh"
+        if declare -p ACFS_INTERNAL_CHECKSUMS &>/dev/null; then
+            local _ics_base
+            if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]]; then
+                _ics_base="$ACFS_BOOTSTRAP_DIR"
+            elif [[ -n "${SCRIPT_DIR:-}" ]]; then
+                _ics_base="$SCRIPT_DIR"
+            else
+                _ics_base="."
+            fi
+            local _ics_fail=0
+            for _ics_path in "${!ACFS_INTERNAL_CHECKSUMS[@]}"; do
+                local _ics_expected="${ACFS_INTERNAL_CHECKSUMS[$_ics_path]}"
+                local _ics_file="$_ics_base/$_ics_path"
+                if [[ -f "$_ics_file" ]]; then
+                    local _ics_actual
+                    _ics_actual=$(sha256sum "$_ics_file" | awk '{print $1}')
+                    if [[ "$_ics_actual" != "$_ics_expected" ]]; then
+                        _ics_fail=$((_ics_fail + 1))
+                        if declare -f log_error &>/dev/null; then
+                            log_error "INTEGRITY: $_ics_path checksum mismatch (expected ${_ics_expected:0:12}… got ${_ics_actual:0:12}…)"
+                        else
+                            echo "ERROR: INTEGRITY: $_ics_path checksum mismatch" >&2
+                        fi
+                    fi
+                else
+                    _ics_fail=$((_ics_fail + 1))
+                    if declare -f log_error &>/dev/null; then
+                        log_error "INTEGRITY: $_ics_path missing (expected checksum ${_ics_expected:0:12}…)"
+                    else
+                        echo "ERROR: INTEGRITY: $_ics_path missing" >&2
+                    fi
+                fi
+            done
+            if [[ "$_ics_fail" -gt 0 ]]; then
+                local _msg="Internal script integrity check failed: $_ics_fail file(s) modified. Run 'bun run generate' to regenerate checksums."
+                if declare -f log_error &>/dev/null; then
+                    log_error "$_msg"
+                else
+                    echo "ERROR: $_msg" >&2
+                fi
+                exit 1
+            fi
+            if declare -f log_success &>/dev/null; then
+                log_success "Internal script integrity verified (${ACFS_INTERNAL_CHECKSUMS_COUNT:-?} scripts)"
+            fi
+        fi
+    fi
+
     if [[ -f "$ACFS_LIB_DIR/security.sh" ]]; then
         # shellcheck source=scripts/lib/security.sh
         source "$ACFS_LIB_DIR/security.sh"
@@ -1491,6 +1549,11 @@ detect_environment() {
     if [[ -f "$ACFS_LIB_DIR/webhook.sh" ]]; then
         # shellcheck source=scripts/lib/webhook.sh
         source "$ACFS_LIB_DIR/webhook.sh"
+    fi
+    # Source ntfy.sh notification library (bd-2igt6)
+    if [[ -f "$ACFS_LIB_DIR/notify.sh" ]]; then
+        # shellcheck source=scripts/lib/notify.sh
+        source "$ACFS_LIB_DIR/notify.sh"
     fi
 
     # Source manifest index (data-only, safe to source)
@@ -4888,6 +4951,8 @@ finalize() {
     try_step "Installing info.sh" install_asset "scripts/lib/info.sh" "$ACFS_HOME/scripts/lib/info.sh" || return 1
     try_step "Installing cheatsheet.sh" install_asset "scripts/lib/cheatsheet.sh" "$ACFS_HOME/scripts/lib/cheatsheet.sh" || return 1
     try_step "Installing webhook.sh" install_asset "scripts/lib/webhook.sh" "$ACFS_HOME/scripts/lib/webhook.sh" || return 1
+    try_step "Installing notify.sh" install_asset "scripts/lib/notify.sh" "$ACFS_HOME/scripts/lib/notify.sh" || return 1
+    try_step "Installing notifications.sh" install_asset "scripts/lib/notifications.sh" "$ACFS_HOME/scripts/lib/notifications.sh" || return 1
     try_step "Installing dashboard.sh" install_asset "scripts/lib/dashboard.sh" "$ACFS_HOME/scripts/lib/dashboard.sh" || return 1
     try_step "Installing agent_resources.sh" install_asset "scripts/lib/agent_resources.sh" "$ACFS_HOME/scripts/lib/agent_resources.sh" || return 1
     try_step "Installing agent resources templates" install_agent_resources_templates || return 1
@@ -6403,6 +6468,10 @@ main() {
         # Send webhook notification if configured (bd-2zqr)
         if type -t webhook_notify &>/dev/null; then
             webhook_notify "success" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
+        # Send ntfy.sh notification if configured (bd-2igt6)
+        if type -t acfs_notify_install_success &>/dev/null; then
+            acfs_notify_install_success 2>/dev/null || true
         fi
 
         SMOKE_TEST_FAILED=false

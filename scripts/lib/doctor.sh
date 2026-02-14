@@ -1121,8 +1121,32 @@ check_stack() {
         version=$(get_version_line "ms")
         check "stack.meta_skill" "meta_skill ($version)" "pass" "installed"
     else
-        check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
-            "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/meta_skill/main/scripts/install.sh | bash"
+        # Detect architecture to give the right install advice
+        local _ms_arch _ms_os _ms_fix
+        _ms_arch="$(uname -m 2>/dev/null || echo unknown)"
+        _ms_os="$(uname -s 2>/dev/null || echo unknown)"
+        _ms_fix="Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/meta_skill/main/scripts/install.sh | bash"
+
+        # Pre-built binaries exist for: x86_64-linux, aarch64-darwin, x86_64-darwin
+        # ARM64 Linux (aarch64-Linux) does NOT have a pre-built binary yet (GH#1)
+        case "${_ms_arch}-${_ms_os}" in
+            aarch64-Linux|arm64-Linux)
+                # ARM64 Linux binary is not yet published; the install script will 404
+                check "stack.meta_skill" "meta_skill (ms)" "warn" \
+                    "ARM64 Linux binary not yet available (see meta_skill GH#1)" \
+                    "Build from source: cargo install --git https://github.com/Dicklesworthstone/meta_skill"
+                ;;
+            x86_64-Linux|x86_64-Darwin|arm64-Darwin|aarch64-Darwin)
+                # These platforms have pre-built binaries
+                check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
+                    "$_ms_fix"
+                ;;
+            *)
+                _ms_fix="meta_skill has no pre-built binary for ${_ms_arch}-${_ms_os}. Build from source: cargo install --git https://github.com/Dicklesworthstone/meta_skill"
+                check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
+                    "$_ms_fix"
+                ;;
+        esac
     fi
 
     # Check rch (Remote Compilation Helper)
@@ -1536,6 +1560,9 @@ run_deep_checks() {
 
     # Network health checks (bead bd-31ps.7.2)
     deep_check_network
+
+    # Notification (ntfy.sh) connectivity check (GitHub issue #131)
+    deep_check_notifications
 
     # Calculate deep check specific counts
     DEEP_PASS_COUNT=$((PASS_COUNT - pre_pass))
@@ -2035,6 +2062,61 @@ check_network_apt_mirror() {
         check "deep.network.apt_mirror" "APT mirror" "warn" "$mirror_host unreachable" "Check /etc/apt/sources.list or network"
     else
         check "deep.network.apt_mirror" "APT mirror" "warn" "HTTP $http_status from $mirror_host" "May need to switch mirrors"
+    fi
+}
+
+# deep_check_notifications - Verify ntfy.sh notification configuration and connectivity
+# Related: GitHub issue #131
+deep_check_notifications() {
+    local config_file="${HOME}/.config/acfs/config.yaml"
+    local enabled="" topic="" server=""
+
+    # Read config (same logic as notify.sh)
+    if [[ -f "$config_file" ]]; then
+        enabled=$(grep -E '^\s*ntfy_enabled\s*:' "$config_file" 2>/dev/null | head -1 | \
+                  sed -E 's/^\s*ntfy_enabled\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                  sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+        topic=$(grep -E '^\s*ntfy_topic\s*:' "$config_file" 2>/dev/null | head -1 | \
+                sed -E 's/^\s*ntfy_topic\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+        server=$(grep -E '^\s*ntfy_server\s*:' "$config_file" 2>/dev/null | head -1 | \
+                 sed -E 's/^\s*ntfy_server\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                 sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+    fi
+
+    # Allow env overrides
+    enabled="${ACFS_NTFY_ENABLED:-$enabled}"
+    topic="${ACFS_NTFY_TOPIC:-$topic}"
+    server="${ACFS_NTFY_SERVER:-$server}"
+    server="${server:-https://ntfy.sh}"
+
+    # Check configuration state
+    if [[ "$enabled" != "true" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "not enabled" "acfs notifications enable"
+        return
+    fi
+
+    if [[ -z "$topic" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "enabled but no topic set" "acfs notifications enable"
+        return
+    fi
+
+    # Topic and enabled are set -- test server connectivity
+    if ! command -v curl &>/dev/null; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "curl not available" "apt install curl"
+        return
+    fi
+
+    # HEAD request against the server health endpoint (lightweight)
+    local http_code
+    http_code=$(curl -sL --max-time 5 --connect-timeout 3 -o /dev/null -w "%{http_code}" "${server}/v1/health" 2>/dev/null) || http_code="000"
+
+    if [[ "$http_code" =~ ^2 ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "pass" "enabled, server reachable (${server})"
+    elif [[ "$http_code" == "000" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "server unreachable (${server})" "Check network or acfs notifications set-server <url>"
+    else
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "server returned HTTP ${http_code}" "Check server URL: ${server}"
     fi
 }
 
