@@ -41,6 +41,11 @@ For MacBook users. This flow:
 3.  Mounts your host workspace folder to the VM.
 4.  Initializes an ACFS sandbox (LXD) inside the VM.
 
+Host orchestration now runs through:
+- `scripts/local/acfs_macos_bootstrap.sh` (invoked by `install.sh --macos`)
+- Host state marker: `~/.acfs/state/macos_bootstrap.env`
+- Host event stream: `~/.acfs/logs/install/<run_id>.jsonl`
+
 ### 3. Ubuntu Desktop Local (LXD)
 For Linux users. This flow:
 1.  Verifies/Configures **LXD** on your host.
@@ -54,6 +59,16 @@ For Linux users. This flow:
 ```bash
 # Start the interactive installer
 curl -fsSL "https://agent-flywheel.com/install" | bash
+```
+
+### macOS Non-Interactive VM Sizing
+
+```bash
+ACFS_MACOS_VM_NAME=acfs-host \
+ACFS_MACOS_VM_CPUS=6 \
+ACFS_MACOS_VM_MEM=12G \
+ACFS_MACOS_VM_DISK=80G \
+./install.sh --macos --yes
 ```
 
 ## Idempotency Audit Mode (Dry-Run)

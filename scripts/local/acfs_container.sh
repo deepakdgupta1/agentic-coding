@@ -116,6 +116,50 @@ transfer_repo_with_retries() {
     return 1
 }
 
+decode_forwarded_install_args() {
+    local -n _out="$1"
+    local payload="${ACFS_LOCAL_INSTALL_ARGS_B64:-}"
+    local decoded=""
+    local item=""
+
+    _out=()
+
+    [[ -n "$payload" ]] || return 1
+
+    if decoded="$(printf '%s' "$payload" | base64 --decode 2>/dev/null)"; then
+        :
+    elif decoded="$(printf '%s' "$payload" | base64 -d 2>/dev/null)"; then
+        :
+    else
+        log_warn "Failed to decode ACFS_LOCAL_INSTALL_ARGS_B64; using default local install args."
+        return 1
+    fi
+
+    # Args are serialized with ASCII Unit Separator (0x1f).
+    while IFS= read -r -d $'\x1f' item; do
+        [[ -n "$item" ]] || continue
+        _out+=("$item")
+    done < <(printf '%s' "$decoded")
+
+    [[ ${#_out[@]} -gt 0 ]]
+}
+
+shell_escape_args() {
+    local out=""
+    local arg=""
+    local q=""
+
+    for arg in "$@"; do
+        printf -v q '%q' "$arg"
+        if [[ -n "$out" ]]; then
+            out+=" "
+        fi
+        out+="$q"
+    done
+
+    printf '%s' "$out"
+}
+
 acfs_local_install_healthy() {
     # Check if ACFS is installed for the ubuntu user.
     # Requires BOTH a tool binary (claude) AND the acfs framework (dashboard.sh)
@@ -298,6 +342,28 @@ cmd_create() {
     fi
 
     if [[ "$needs_install" == "true" ]]; then
+        local -a install_args=(--local --yes --mode vibe --skip-ubuntu-upgrade)
+        if decode_forwarded_install_args install_args; then
+            local has_skip_upgrade=false
+            local has_local=false
+            local has_yes=false
+            local idx=0
+            for ((idx = 0; idx < ${#install_args[@]}; idx++)); do
+                case "${install_args[$idx]}" in
+                    --skip-ubuntu-upgrade) has_skip_upgrade=true ;;
+                    --local|--desktop) has_local=true ;;
+                    --yes|-y) has_yes=true ;;
+                esac
+            done
+
+            [[ "$has_local" == "true" ]] || install_args=(--local "${install_args[@]}")
+            [[ "$has_yes" == "true" ]] || install_args=(--yes "${install_args[@]}")
+            [[ "$has_skip_upgrade" == "true" ]] || install_args+=(--skip-ubuntu-upgrade)
+            log_detail "Using forwarded installer arguments from host bootstrap."
+        fi
+        local install_cmd_escaped
+        install_cmd_escaped="$(shell_escape_args "${install_args[@]}")"
+
         # Copy installer and repo files to container via tar pipe
         # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
         log_detail "Transferring ACFS repo to container..."
@@ -325,7 +391,7 @@ cmd_create() {
             export ACFS_BOOTSTRAP_DIR=/tmp
             export TARGET_USER=ubuntu
             cd /tmp
-            bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
+            bash /tmp/install.sh ${install_cmd_escaped}
         "; then
             log_warn "Installer failed. Checking network and retrying once..."
             ensure_sandbox_egress
@@ -335,7 +401,7 @@ cmd_create() {
                 export ACFS_BOOTSTRAP_DIR=/tmp
                 export TARGET_USER=ubuntu
                 cd /tmp
-                bash /tmp/install.sh --local --yes --mode vibe --skip-ubuntu-upgrade
+                bash /tmp/install.sh ${install_cmd_escaped}
             "; then
                 log_error "Installer failed inside container. Review logs and retry."
                 return 1

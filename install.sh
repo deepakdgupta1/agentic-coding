@@ -1276,6 +1276,86 @@ command_exists() {
     command -v "$1" &>/dev/null
 }
 
+# Build the argument vector used for the in-VM local installer run.
+# This keeps macOS bootstrap behavior aligned with top-level install flags.
+acfs_build_local_inner_install_args() {
+    local -n _out="$1"
+    _out=(--local --yes --mode "${MODE:-vibe}")
+
+    # Preserve install-control flags.
+    [[ "${ACFS_FORCE_RESUME:-false}" == "true" ]] && _out+=(--resume)
+    [[ "${ACFS_FORCE_REINSTALL:-false}" == "true" ]] && _out+=(--force-reinstall)
+    [[ -n "${ACFS_RESUME_FROM:-}" ]] && _out+=(--resume-from "$ACFS_RESUME_FROM")
+    [[ -n "${ACFS_STOP_AFTER:-}" ]] && _out+=(--stop-after "$ACFS_STOP_AFTER")
+
+    # Preserve module/phase selection.
+    local module_id=""
+    for module_id in "${ONLY_MODULES[@]:-}"; do
+        _out+=(--only "$module_id")
+    done
+    for module_id in "${ONLY_PHASES[@]:-}"; do
+        _out+=(--only-phase "$module_id")
+    done
+    for module_id in "${SKIP_MODULES[@]:-}"; do
+        _out+=(--skip "$module_id")
+    done
+    [[ "${NO_DEPS:-false}" == "true" ]] && _out+=(--no-deps)
+
+    # Preserve behavior flags.
+    [[ "${SKIP_POSTGRES:-false}" == "true" ]] && _out+=(--skip-postgres)
+    [[ "${SKIP_VAULT:-false}" == "true" ]] && _out+=(--skip-vault)
+    [[ "${SKIP_CLOUD:-false}" == "true" ]] && _out+=(--skip-cloud)
+    [[ "${SKIP_PREFLIGHT:-false}" == "true" ]] && _out+=(--skip-preflight)
+    [[ "${ACFS_STRICT_MODE:-false}" == "true" ]] && _out+=(--strict)
+    [[ -n "${ACFS_CHECKSUMS_REF:-}" ]] && _out+=(--checksums-ref "$ACFS_CHECKSUMS_REF")
+    [[ -n "${ACFS_WEBHOOK_URL:-}" ]] && _out+=(--webhook "$ACFS_WEBHOOK_URL")
+
+    case "${AUTO_FIX_MODE:-prompt}" in
+        yes) _out+=(--auto-fix-accept-all) ;;
+        no) _out+=(--no-auto-fix) ;;
+        dry-run) _out+=(--auto-fix-dry-run) ;;
+        *) : ;;
+    esac
+
+    # Local sandbox installs should never trigger in-container Ubuntu upgrades.
+    _out+=(--skip-ubuntu-upgrade)
+}
+
+# Join argv as a shell-safe string for `bash -c "..."`
+acfs_shell_escape_args() {
+    local out=""
+    local arg=""
+    local q=""
+
+    for arg in "$@"; do
+        printf -v q "%q" "$arg"
+        if [[ -n "$out" ]]; then
+            out+=" "
+        fi
+        out+="$q"
+    done
+
+    printf "%s" "$out"
+}
+
+# Encode argv into a base64 payload with Unit Separator delimiters.
+# Used to relay args across nested bootstrap layers without lossy splitting.
+acfs_encode_install_args_b64() {
+    local sep=$'\x1f'
+    local payload=""
+    local arg=""
+
+    for arg in "$@"; do
+        payload+="${arg}${sep}"
+    done
+
+    if ! command -v base64 &>/dev/null; then
+        return 1
+    fi
+
+    printf "%s" "$payload" | base64 | tr -d '\n'
+}
+
 # Interactive yes/no confirmation prompt
 # Returns 0 for yes, 1 for no
 confirm() {
@@ -5607,6 +5687,60 @@ is_macos() {
     [[ "$(uname -s)" == "Darwin" ]]
 }
 
+acfs_run_macos_bootstrap_script() {
+    local -a inner_install_args=()
+    local inner_install_args_b64=""
+    local script_path=""
+    local raw_script_url=""
+    local tmp_script=""
+
+    acfs_build_local_inner_install_args inner_install_args
+    if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+        log_warn "base64 not available; cannot launch external macOS bootstrap script."
+        return 1
+    fi
+
+    # Prefer local script from repository checkout.
+    if [[ -n "${SCRIPT_DIR:-}" ]] && [[ -f "$SCRIPT_DIR/scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="$SCRIPT_DIR/scripts/local/acfs_macos_bootstrap.sh"
+    elif [[ -f "./scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="./scripts/local/acfs_macos_bootstrap.sh"
+    elif [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "$ACFS_BOOTSTRAP_DIR/scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="$ACFS_BOOTSTRAP_DIR/scripts/local/acfs_macos_bootstrap.sh"
+    fi
+
+    # Curl|bash fallback: fetch the dedicated macOS bootstrap script.
+    if [[ -z "$script_path" ]] && command -v curl &>/dev/null; then
+        raw_script_url="${ACFS_RAW%/}/scripts/local/acfs_macos_bootstrap.sh"
+        if command -v mktemp &>/dev/null; then
+            tmp_script="$(mktemp "${TMPDIR:-/tmp}/acfs-macos-bootstrap.XXXXXX" 2>/dev/null)" || tmp_script=""
+        fi
+        if [[ -n "$tmp_script" ]] && curl "${ACFS_EARLY_CURL_ARGS[@]}" "$raw_script_url" -o "$tmp_script" 2>/dev/null; then
+            chmod +x "$tmp_script" 2>/dev/null || true
+            script_path="$tmp_script"
+        fi
+    fi
+
+    if [[ -z "$script_path" ]]; then
+        return 1
+    fi
+
+    ACFS_INSTALL_SCRIPT_DIR="${SCRIPT_DIR:-}" \
+    ACFS_LOCAL_INSTALL_ARGS_B64="$inner_install_args_b64" \
+    YES_MODE="${YES_MODE:-false}" \
+    MODE="${MODE:-vibe}" \
+    IDEMPOTENCY_AUDIT="${IDEMPOTENCY_AUDIT:-false}" \
+    ACFS_RAW="${ACFS_RAW:-}" \
+    ACFS_CHECKSUMS_REF="${ACFS_CHECKSUMS_REF:-}" \
+    ACFS_RUN_ID="${ACFS_RUN_ID:-}" \
+    ACFS_MACOS_VM_NAME="${ACFS_MACOS_VM_NAME:-}" \
+    ACFS_MACOS_VM_CPUS="${ACFS_MACOS_VM_CPUS:-}" \
+    ACFS_MACOS_VM_MEM="${ACFS_MACOS_VM_MEM:-}" \
+    ACFS_MACOS_VM_DISK="${ACFS_MACOS_VM_DISK:-}" \
+    ACFS_WORKSPACE_HOST="${ACFS_WORKSPACE_HOST:-}" \
+    bash "$script_path"
+}
+
 acfs_interactive_mode_select() {
     # Skip if args provided (expert mode)
     if [[ $# -gt 0 ]]; then
@@ -5696,6 +5830,13 @@ acfs_interactive_mode_select() {
 }
 
 bootstrap_macos_vm() {
+    # Prefer the dedicated host bootstrap script. Keep inline implementation as
+    # fallback for resilience if script loading fails.
+    if acfs_run_macos_bootstrap_script; then
+        return 0
+    fi
+    log_warn "Dedicated macOS bootstrap script unavailable. Falling back to inline implementation."
+
     multipass_supports_wait_ready() {
         multipass help wait-ready >/dev/null 2>&1
     }
@@ -5809,10 +5950,13 @@ bootstrap_macos_vm() {
         return 1
     }
 
-    local vm_name="acfs-host"
-    local cpus="4"
-    local mem="8G"
-    local disk="40G"
+    local vm_name="${ACFS_MACOS_VM_NAME:-acfs-host}"
+    local cpus="${ACFS_MACOS_VM_CPUS:-4}"
+    local mem="${ACFS_MACOS_VM_MEM:-8G}"
+    local disk="${ACFS_MACOS_VM_DISK:-40G}"
+    local -a inner_install_args=()
+    local inner_install_args_q=""
+    local inner_install_args_b64=""
 
     audit_macos_bootstrap() {
         local issues=0
@@ -5884,6 +6028,12 @@ bootstrap_macos_vm() {
     if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
         audit_macos_bootstrap
         return $?
+    fi
+
+    acfs_build_local_inner_install_args inner_install_args
+    inner_install_args_q="$(acfs_shell_escape_args "${inner_install_args[@]}")"
+    if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+        log_fatal "base64 is required to forward local installer arguments through macOS bootstrap."
     fi
 
     # Check if multipass exists (auto-remediate via Homebrew if available)
@@ -5997,7 +6147,7 @@ bootstrap_macos_vm() {
     # Determine how to run based on current execution mode
     if [[ -z "${SCRIPT_DIR:-}" ]]; then
         log_step "VM" "Running installer inside VM via curl..."
-        if ! multipass_exec_retry "$vm_name" "curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- --local --yes --mode $MODE"; then
+        if ! multipass_exec_retry "$vm_name" "ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
             log_fatal "Installer failed inside VM. Check network connectivity and retry."
         fi
     else
@@ -6035,7 +6185,7 @@ bootstrap_macos_vm() {
         multipass exec "$vm_name" -- rm "/home/ubuntu/$tmp_tar"
         
         log_step "VM" "Starting ACFS installation inside VM..."
-        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ./install.sh --local --yes --mode $MODE"; then
+        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' ./install.sh ${inner_install_args_q}"; then
             log_fatal "Installer failed inside VM. Review logs inside the VM and retry."
         fi
     fi

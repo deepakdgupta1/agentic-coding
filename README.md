@@ -64,6 +64,18 @@ This provisions an isolated environment that:
 - **macOS**: Choose "macOS Local" during setup to launch a Multipass VM.
 - **Ubuntu Desktop**: Choose "Ubuntu Local" and optionally specify a ZFS device for high-performance storage.
 
+**macOS host tuning (optional):**
+- `ACFS_MACOS_VM_NAME` (default: `acfs-host`)
+- `ACFS_MACOS_VM_CPUS` (default: `4`)
+- `ACFS_MACOS_VM_MEM` (default: `8G`)
+- `ACFS_MACOS_VM_DISK` (default: `40G`)
+
+Advanced installer controls passed with `--macos` (for example `--resume`, `--resume-from`, `--stop-after`, `--only`, `--skip`, `--strict`, `--checksums-ref`) are forwarded into the in-VM `install.sh --local ...` execution.
+
+Host bootstrap observability/resume artifacts:
+- State: `~/.acfs/state/macos_bootstrap.env`
+- Events: `~/.acfs/logs/install/<run_id>.jsonl`
+
 **Access your ACFS environment:**
 ```bash
 acfs-local shell       # Enter sandbox shell

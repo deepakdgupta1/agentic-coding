@@ -89,6 +89,9 @@ jobs:
       - name: Run library globals integration test
         run: bash tests/unit/test_lib_globals.sh
 
+      - name: Run macOS bootstrap mock test
+        run: bash tests/vm/test_macos_bootstrap.sh
+
   manifest-drift:
     name: Manifest Drift Check
     runs-on: ubuntu-latest
