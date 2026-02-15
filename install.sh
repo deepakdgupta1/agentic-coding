@@ -1312,6 +1312,7 @@ confirm() {
 #   1 - User declined to fix or auto-fix is disabled
 #   2 - Fix function failed
 #
+# shellcheck disable=SC2329  # Legacy 3-arg variant is kept for compatibility; 2-arg variant below is used by current flow.
 handle_autofix() {
     local fix_name="$1"
     local description="$2"

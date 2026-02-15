@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2317  # test helpers are invoked by this script
+# shellcheck disable=SC2317,SC2329  # test helpers are invoked dynamically by this script
 # ============================================================
 # Unit Tests for newproj_logging.sh
 # Run with: bash scripts/lib/test_newproj_logging.sh

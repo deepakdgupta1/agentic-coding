@@ -303,8 +303,9 @@ state_write_atomic() {
     fi
 
     # Create temp file in same directory (ensures same filesystem for atomic rename).
+    # Keep XXXXXX at the end for BSD/GNU mktemp portability.
     # SECURITY: Never fall back to predictable temp paths (symlink/clobber risk under sudo/root).
-    temp_file="$(mktemp "${target_dir}/.state.XXXXXX.tmp" 2>/dev/null)" || {
+    temp_file="$(mktemp "${target_dir}/.state.XXXXXX" 2>/dev/null)" || {
         if [[ ! -w "$target_dir" ]]; then
             declare -f log_error &>/dev/null && log_error "state_write_atomic: permission denied creating temp file in $target_dir"
             return 2
@@ -404,6 +405,17 @@ _state_acquire_lock() {
     state_file="$(state_get_file)" || return 1
     local lock_file="${state_file}.lock"
 
+    # Local desktop mode (macOS) may not have flock installed.
+    # Proceed without locking rather than failing all state operations.
+    if ! command -v flock &>/dev/null; then
+        if [[ -z "${ACFS_STATE_WARNED_NO_FLOCK:-}" ]]; then
+            declare -f log_warn &>/dev/null && log_warn "flock not found; continuing state operations without file locking"
+            ACFS_STATE_WARNED_NO_FLOCK=1
+        fi
+        ACFS_LOCK_FD=""
+        return 0
+    fi
+
     # Ensure parent directory exists
     if ! mkdir -p "$(dirname "$state_file")" 2>/dev/null; then
         # If we can't create the directory, warn but don't fail
@@ -428,6 +440,11 @@ _state_acquire_lock() {
 
     # Try to acquire lock with a 5-second timeout
     if ! flock -w 5 "${ACFS_LOCK_FD:-200}" 2>/dev/null; then
+        case "${ACFS_LOCK_FD:-}" in
+            200) exec 200>&- ;;
+            199) exec 199>&- ;;
+        esac
+        ACFS_LOCK_FD=""
         return 1
     fi
     return 0
@@ -436,7 +453,18 @@ _state_acquire_lock() {
 # Release the lock
 # Usage: _state_release_lock
 _state_release_lock() {
-    flock -u "${ACFS_LOCK_FD:-200}" 2>/dev/null || true
+    local lock_fd="${ACFS_LOCK_FD:-}"
+    [[ -n "$lock_fd" ]] || return 0
+
+    if command -v flock &>/dev/null; then
+        flock -u "$lock_fd" 2>/dev/null || true
+    fi
+
+    case "$lock_fd" in
+        200) exec 200>&- ;;
+        199) exec 199>&- ;;
+    esac
+    ACFS_LOCK_FD=""
 }
 
 # Mark state as interrupted by a signal (SIGTERM, SIGINT, SIGHUP).

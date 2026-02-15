@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
-  Terminal,
   Zap,
 } from "lucide-react";
 import { CodeBlock as SharedCodeBlock, type CodeBlockProps as SharedCodeBlockProps } from "@/components/ui/code-block";
