@@ -1,0 +1,43 @@
+  {
+    id: "br",
+    name: "beads_rust",
+    shortName: "BR",
+    href: "https://github.com/Dicklesworthstone/beads_rust",
+    icon: "ListTodo",
+    color: "from-amber-500 to-orange-600",
+    category: "core",
+    stars: 128,
+    whatItDoes:
+      "Local-first issue tracking for AI agents. SQLite for fast local queries, JSONL export for git-friendly collaboration. Full dependency graph with blocking/blocked-by relationships, priorities P0-P4.",
+    whyItsUseful:
+      "Your issues travel with your repo - no external service required. Non-invasive design: never runs git commands automatically. Agents can create, update, and close issues with simple CLI commands. The bd alias provides backward compatibility.",
+    implementationHighlights: [
+      "~20K lines of Rust (vs 276K in original Go)",
+      "SQLite primary storage + JSONL export (hybrid architecture)",
+      "Non-invasive: explicit sync, never runs git automatically",
+      "Full dependency graph with cycles detection",
+    ],
+    synergies: [
+      {
+        toolId: "bv",
+        description: "BV visualizes and analyzes issues created by br",
+      },
+      {
+        toolId: "mail",
+        description: "Task updates notify agents via mail",
+      },
+      {
+        toolId: "ntm",
+        description: "NTM spawns agents that pick work from beads",
+      },
+      {
+        toolId: "ubs",
+        description: "UBS --beads-jsonl outputs findings as importable beads",
+      },
+    ],
+    techStack: ["Rust", "SQLite", "Serde", "JSONL"],
+    keyFeatures: [
+      "SQLite + JSONL hybrid: fast queries, git-friendly export",
+      "Dependency graph with cycles detection",
+      "Labels, priorities (P0-P4), comments, assignees",
+      "Agent-first: --json/--robot output, doctor diagnostics",
