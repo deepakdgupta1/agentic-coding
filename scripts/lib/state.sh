@@ -2366,6 +2366,19 @@ run_phase() {
         fi
     fi
 
+    # Assert preconditions only when this phase is about to execute.
+    if type -t _run_phase_preconditions &>/dev/null; then
+        if ! _run_phase_preconditions "$phase_id"; then
+            local error_msg="Phase '$human_name' blocked by failed preconditions"
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "check_failed" "$phase_id" "type=precondition"
+            fi
+            state_phase_fail "$phase_id" "Precondition check" "$error_msg"
+            _run_phase_log_failure "$display_name" "precondition"
+            return 1
+        fi
+    fi
+
     # Record phase start
     state_phase_start "$phase_id" "Starting $human_name"
 
@@ -2373,6 +2386,17 @@ run_phase() {
     _run_phase_log_start "$display_name"
     local start_time
     start_time=$(date +%s)
+    local phase_timeout=""
+
+    if type -t _get_phase_timeout &>/dev/null; then
+        phase_timeout="$(_get_phase_timeout "$phase_id" 2>/dev/null || true)"
+    fi
+    if [[ "$phase_timeout" =~ ^[0-9]+$ ]] && [[ "$phase_timeout" -gt 0 ]]; then
+        export ACFS_PHASE_TIMEOUT_SECONDS="$phase_timeout"
+        export ACFS_PHASE_DEADLINE_EPOCH="$((start_time + phase_timeout))"
+    else
+        unset ACFS_PHASE_TIMEOUT_SECONDS ACFS_PHASE_DEADLINE_EPOCH
+    fi
 
     # Execute and capture exit code correctly
     # (can't use "if ! cmd; then exit_code=$?" because $? would be 0 from the negation)
@@ -2382,6 +2406,7 @@ run_phase() {
     local end_time
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
+    unset ACFS_PHASE_TIMEOUT_SECONDS ACFS_PHASE_DEADLINE_EPOCH
 
     if [[ $exit_code -eq 0 ]]; then
         # Success - mark phase as completed

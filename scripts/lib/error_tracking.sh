@@ -97,6 +97,26 @@ clear_phase() {
 # Step Execution with Error Capture
 # ============================================================
 
+_acfs_event_value_sanitize() {
+    local value="$1"
+    value="${value//$'\n'/ }"
+    value="${value//$'\r'/ }"
+    if [[ ${#value} -gt 500 ]]; then
+        value="${value:0:500}... [truncated]"
+    fi
+    printf '%s' "$value"
+}
+
+_acfs_try_step_remaining_timeout() {
+    if [[ -z "${ACFS_PHASE_DEADLINE_EPOCH:-}" ]] || [[ ! "${ACFS_PHASE_DEADLINE_EPOCH:-}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    local now_epoch
+    now_epoch=$(date +%s)
+    echo $((ACFS_PHASE_DEADLINE_EPOCH - now_epoch))
+    return 0
+}
+
 # Execute a command with error tracking
 # Usage: try_step "description" command [args...]
 # Returns: Command exit code
@@ -136,37 +156,74 @@ try_step() {
     output_file=$(mktemp "${TMPDIR:-/tmp}/acfs_step.XXXXXX" 2>/dev/null) || output_file=""
 
     local exit_code=0
+    local step_timeout_seconds=""
+    local has_timeout_command="false"
+    if command -v timeout &>/dev/null; then
+        has_timeout_command="true"
+    fi
+    step_timeout_seconds="$(_acfs_try_step_remaining_timeout 2>/dev/null || true)"
 
     # Execute command with output capture
     # We use process substitution to capture both stdout and stderr
-    if [[ -n "$output_file" ]]; then
+    if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -le 0 ]]; then
+        exit_code=124
+    elif [[ -n "$output_file" ]]; then
         if [[ "$ERROR_VERBOSE" == "true" ]]; then
             # Verbose mode: show output in real-time AND capture it
-            if (
-                set -o pipefail
-                "$@" 2>&1 | tee "$output_file"
-                # Prefer the command's exit code over tee's (output capture is best-effort).
-                exit "${PIPESTATUS[0]}"
-            ); then
-                exit_code=0
+            if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+                if (
+                    set -o pipefail
+                    timeout --foreground "$step_timeout_seconds" "$@" 2>&1 | tee "$output_file"
+                    # Prefer the command's exit code over tee's (output capture is best-effort).
+                    exit "${PIPESTATUS[0]}"
+                ); then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             else
-                exit_code=$?
+                if (
+                    set -o pipefail
+                    "$@" 2>&1 | tee "$output_file"
+                    # Prefer the command's exit code over tee's (output capture is best-effort).
+                    exit "${PIPESTATUS[0]}"
+                ); then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             fi
         else
             # Normal mode: capture silently, show on error
-            if "$@" > "$output_file" 2>&1; then
-                exit_code=0
+            if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+                if timeout --foreground "$step_timeout_seconds" "$@" > "$output_file" 2>&1; then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             else
-                exit_code=$?
+                if "$@" > "$output_file" 2>&1; then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             fi
         fi
     else
         # If we cannot safely create a temp file, run without capture rather than
         # falling back to predictable /tmp paths (symlink attack risk under sudo/root).
-        if "$@"; then
-            exit_code=0
+        if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+            if timeout --foreground "$step_timeout_seconds" "$@"; then
+                exit_code=0
+            else
+                exit_code=$?
+            fi
         else
-            exit_code=$?
+            if "$@"; then
+                exit_code=0
+            else
+                exit_code=$?
+            fi
         fi
     fi
 
@@ -182,7 +239,18 @@ try_step() {
     fi
 
     # Failure - capture error context
-    LAST_ERROR="$description failed with exit code $exit_code"
+    if [[ $exit_code -eq 124 ]]; then
+        local timeout_hint="${step_timeout_seconds:-${ACFS_PHASE_TIMEOUT_SECONDS:-0}}"
+        if [[ ! "$timeout_hint" =~ ^-?[0-9]+$ ]]; then
+            timeout_hint="${ACFS_PHASE_TIMEOUT_SECONDS:-0}"
+        fi
+        if [[ "$timeout_hint" =~ ^-?[0-9]+$ ]] && [[ "$timeout_hint" -lt 0 ]]; then
+            timeout_hint="${ACFS_PHASE_TIMEOUT_SECONDS:-0}"
+        fi
+        LAST_ERROR="$description timed out after ${timeout_hint}s"
+    else
+        LAST_ERROR="$description failed with exit code $exit_code"
+    fi
     LAST_ERROR_CODE=$exit_code
     LAST_ERROR_TIME=$(date -Iseconds)
 
@@ -213,6 +281,18 @@ try_step() {
     # Update state file with failure info
     if type -t state_phase_fail &>/dev/null; then
         state_phase_fail "$CURRENT_PHASE" "$description" "$LAST_ERROR" || true
+    fi
+
+    # Emit structured command-failure event for observability.
+    if type -t _emit_event &>/dev/null; then
+        local failed_cmd failed_output
+        failed_cmd="$(_acfs_event_value_sanitize "$*")"
+        failed_output="$(_acfs_event_value_sanitize "${LAST_ERROR_OUTPUT:-}")"
+        _emit_event "cmd_failed" "${CURRENT_PHASE:-}" \
+            "step=$description" \
+            "cmd=$failed_cmd" \
+            "exit_code=$exit_code" \
+            "stderr=$failed_output"
     fi
 
     # Log error if logging available
@@ -539,10 +619,17 @@ is_retryable_error() {
         56) return 0 ;;  # Network receive error
     esac
 
-    # Check stderr for common transient messages
+    # Check stderr for message patterns.
     if [[ -n "$stderr" ]]; then
         # Lowercase comparison
         local stderr_lower="${stderr,,}"
+
+        # Dependency conflicts are never transient-network retries, even when
+        # package-manager messages include phrases like "temporarily unavailable".
+        if [[ "$stderr_lower" =~ (dpkg.was.interrupted|dpkg.*configure|unmet.dependencies|broken.packages|held.broken|could.not.get.lock|lock-frontend|lock[^[:alnum:]]+is[^[:alnum:]]+held|resource[[:space:]]+temporarily[[:space:]]+unavailable) ]]; then
+            return 1
+        fi
+
         if [[ "$stderr_lower" =~ (timeout|timed.out|connection.refused|temporarily.unavailable|network.unreachable|no.route.to.host|reset.by.peer) ]]; then
             return 0
         fi
@@ -869,6 +956,17 @@ try_step_with_backoff() {
     # Failure - error context already set by retry_with_backoff
     if type -t state_phase_fail &>/dev/null; then
         state_phase_fail "$CURRENT_PHASE" "$description" "$LAST_ERROR" || true
+    fi
+
+    if type -t _emit_event &>/dev/null; then
+        local failed_cmd failed_output
+        failed_cmd="$(_acfs_event_value_sanitize "$*")"
+        failed_output="$(_acfs_event_value_sanitize "${LAST_ERROR_OUTPUT:-}")"
+        _emit_event "cmd_failed" "${CURRENT_PHASE:-}" \
+            "step=$description" \
+            "cmd=$failed_cmd" \
+            "exit_code=$exit_code" \
+            "stderr=$failed_output"
     fi
 
     return "$exit_code"

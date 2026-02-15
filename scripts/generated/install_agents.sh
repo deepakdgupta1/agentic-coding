@@ -93,7 +93,7 @@ acfs_security_init() {
 }
 
 # Category: agents
-# Modules: 3
+# Modules: 4
 
 # Claude Code
 install_agents_claude() {
@@ -276,12 +276,62 @@ INSTALL_AGENTS_GEMINI
     log_success "agents.gemini installed"
 }
 
+# Sourcegraph Amp CLI
+install_agents_amp() {
+    local module_id="agents.amp"
+    acfs_require_contract "module:${module_id}" || return 1
+    log_step "Installing agents.amp"
+
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: ~/.bun/bin/bun install -g --trust @anthropic/amp-cli@latest || ~/.bun/bin/bun install -g --trust amp-cli@latest || true (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_AGENTS_AMP'
+~/.bun/bin/bun install -g --trust @anthropic/amp-cli@latest || ~/.bun/bin/bun install -g --trust amp-cli@latest || true
+INSTALL_AGENTS_AMP
+        then
+            log_error "agents.amp: install command failed: ~/.bun/bin/bun install -g --trust @anthropic/amp-cli@latest || ~/.bun/bin/bun install -g --trust amp-cli@latest || true"
+            return 1
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: mkdir -p ~/.local/bin (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_AGENTS_AMP'
+mkdir -p ~/.local/bin
+cat > ~/.local/bin/amp << 'WRAPPER'
+#!/bin/bash
+exec ~/.bun/bin/bun ~/.bun/bin/amp "$@"
+WRAPPER
+chmod +x ~/.local/bin/amp
+INSTALL_AGENTS_AMP
+        then
+            log_error "agents.amp: install command failed: mkdir -p ~/.local/bin"
+            return 1
+        fi
+    fi
+
+    # Verify
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: verify (optional): ~/.local/bin/amp --version || ~/.local/bin/amp --help (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_AGENTS_AMP'
+~/.local/bin/amp --version || ~/.local/bin/amp --help
+INSTALL_AGENTS_AMP
+        then
+            log_warn "Optional verify failed: agents.amp"
+        fi
+    fi
+
+    log_success "agents.amp installed"
+}
+
 # Install all agents modules
 install_agents() {
     log_section "Installing agents modules"
     install_agents_claude
     install_agents_codex
     install_agents_gemini
+    install_agents_amp
 }
 
 # Run if executed directly

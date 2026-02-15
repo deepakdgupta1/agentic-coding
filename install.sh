@@ -39,6 +39,8 @@ fi
 #   --skip-cloud      Skip cloud CLIs (wrangler, supabase, vercel)
 #   --resume          Resume from checkpoint (default when state exists)
 #   --force-reinstall Start fresh, ignore existing state
+#   --resume-from <stage> Skip all phases before this stage
+#   --stop-after <stage>  Exit cleanly after this stage completes
 #   --reset-state     Move state file aside and exit (for debugging)
 #   --interactive     Enable interactive prompts for resume decisions
 #   --skip-preflight  Skip pre-flight system validation
@@ -1229,6 +1231,44 @@ parse_args() {
     done
 }
 
+# Validate stage selector flags against known phase IDs to avoid silent no-op runs.
+acfs_validate_stage_selector_flags() {
+    local valid_ids=""
+    local stage_id=""
+
+    if [[ -n "${ACFS_PHASE_IDS[*]:-}" ]]; then
+        valid_ids="${ACFS_PHASE_IDS[*]}"
+    else
+        # Fallback if state.sh was not loaded for any reason.
+        valid_ids="user_setup filesystem shell_setup cli_tools languages agents cloud_db stack finalize"
+    fi
+
+    _acfs_is_known_stage_id() {
+        local needle="$1"
+        local phase=""
+        for phase in $valid_ids; do
+            if [[ "$phase" == "$needle" ]]; then
+                return 0
+            fi
+        done
+        return 1
+    }
+
+    if [[ -n "${ACFS_RESUME_FROM:-}" ]]; then
+        stage_id="$ACFS_RESUME_FROM"
+        if ! _acfs_is_known_stage_id "$stage_id"; then
+            log_fatal "Invalid --resume-from stage '$stage_id'. Valid stages: $valid_ids"
+        fi
+    fi
+
+    if [[ -n "${ACFS_STOP_AFTER:-}" ]]; then
+        stage_id="$ACFS_STOP_AFTER"
+        if ! _acfs_is_known_stage_id "$stage_id"; then
+            log_fatal "Invalid --stop-after stage '$stage_id'. Valid stages: $valid_ids"
+        fi
+    fi
+}
+
 # ============================================================
 # Utility functions
 # ============================================================
@@ -1568,6 +1608,38 @@ detect_environment() {
     export ACFS_MANIFEST_INDEX_LOADED
 }
 
+# Verify generated installer metadata matches the manifest in the current source tree.
+acfs_verify_manifest_consistency() {
+    local manifest_file="${ACFS_MANIFEST_YAML:-}"
+    local index_file="${ACFS_GENERATED_DIR:-}/manifest_index.sh"
+
+    if [[ -z "$manifest_file" ]] || [[ -z "${ACFS_GENERATED_DIR:-}" ]]; then
+        log_fatal "Manifest consistency check requires ACFS_MANIFEST_YAML and ACFS_GENERATED_DIR"
+    fi
+
+    if [[ ! -f "$manifest_file" ]]; then
+        log_fatal "Manifest file not found: $manifest_file"
+    fi
+    if [[ ! -f "$index_file" ]]; then
+        log_fatal "Generated manifest index not found: $index_file"
+    fi
+
+    local manifest_sha expected_sha
+    manifest_sha="$(acfs_calculate_file_sha256 "$manifest_file")" || log_fatal "Failed to hash manifest: $manifest_file"
+    expected_sha="$(grep -E '^ACFS_MANIFEST_SHA256=' "$index_file" | head -n 1 | cut -d'=' -f2 | tr -d '\"' || true)"
+
+    if [[ -z "$expected_sha" ]]; then
+        log_fatal "Generated manifest index missing ACFS_MANIFEST_SHA256: $index_file"
+    fi
+
+    if [[ "$manifest_sha" != "$expected_sha" ]]; then
+        log_error "Generated installers are out of sync with acfs.manifest.yaml."
+        log_error "Expected manifest SHA: $expected_sha"
+        log_error "Actual manifest SHA:   $manifest_sha"
+        log_fatal "Regenerate installers: bun run generate"
+    fi
+}
+
 # ============================================================
 # Source Generated Installers (mjt.5.6)
 # Loads generated category scripts for module functions.
@@ -1856,12 +1928,15 @@ run_preflight_checks() {
                 chmod +x "$preflight_tmp"
                 preflight_script="$preflight_tmp"
             else
-                log_warn "Could not download preflight script - skipping checks"
-                return 0
+                [[ -n "$preflight_tmp" ]] && rm -f -- "$preflight_tmp" 2>/dev/null || true
+                log_error "Could not download preflight script; cannot continue safely."
+                log_info "Re-run with --skip-preflight only if you accept bypassing system validation."
+                return 1
             fi
         else
-            log_warn "curl not available - skipping preflight checks"
-            return 0
+            log_error "curl is not available and preflight script could not be located locally."
+            log_info "Re-run with --skip-preflight only if you accept bypassing system validation."
+            return 1
         fi
     fi
 
@@ -6091,13 +6166,21 @@ main() {
     # This must happen BEFORE any handlers that need module data
     detect_environment
 
+    # Fail fast if generated installers are stale relative to manifest.
+    acfs_verify_manifest_consistency
+
+    # Validate stage selector flags now that phase IDs are available.
+    acfs_validate_stage_selector_flags
+
     # Acquire install-wide flock to prevent concurrent install.sh processes.
     # Uses FD 199 (autofix.sh already uses FD 200 for its own lock).
     # Read-only modes (--list-modules, --print-plan, --dry-run, --print) skip locking.
     if [[ "$LIST_MODULES" != "true" ]] && [[ "$PRINT_PLAN_MODE" != "true" ]] \
        && [[ "$DRY_RUN" != "true" ]] && [[ "$PRINT_MODE" != "true" ]]; then
         local _acfs_lock_dir="${ACFS_HOME:-$HOME/.acfs}"
-        mkdir -p "$_acfs_lock_dir" 2>/dev/null || true
+        if ! mkdir -p "$_acfs_lock_dir" 2>/dev/null; then
+            log_fatal "Cannot create install lock directory: $_acfs_lock_dir"
+        fi
         local _acfs_lock_file="$_acfs_lock_dir/.install.lock"
         # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
         # before `if` can catch the failure. We test in a subshell first,
@@ -6117,7 +6200,7 @@ main() {
                 exit 1
             fi
         else
-            log_warn "Could not acquire install lock (continuing anyway)"
+            log_fatal "Could not open install lock file: $_acfs_lock_file"
         fi
     fi
 
@@ -6311,6 +6394,9 @@ main() {
         case $resume_result in
             0) # Resume - state functions will skip completed phases
                 log_info "Resuming installation from last checkpoint..."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "resume" "" "state_file=${ACFS_STATE_FILE:-unknown}"
+                fi
                 ;;
             1) # Fresh install - confirm before proceeding, then initialize state
                 confirm_or_exit
@@ -6320,6 +6406,9 @@ main() {
                 ;;
             2) # Abort
                 log_info "Installation aborted by user."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "install_end" "" "status=aborted"
+                fi
                 exit 0
                 ;;
         esac
@@ -6328,6 +6417,7 @@ main() {
         confirm_or_exit
     fi
 
+    local total_seconds=0
     if [[ "$DRY_RUN" != "true" ]]; then
         # Execute phases with state tracking (mjt.5.8)
         # Each run_phase call checks if phase is already completed and skips if so
@@ -6353,18 +6443,6 @@ main() {
             # Emit stage_start event
             if type -t _emit_event &>/dev/null; then
                 _emit_event "stage_start" "$phase_id" "display=$phase_display"
-            fi
-
-            # Assert preconditions before running this phase
-            if type -t _run_phase_preconditions &>/dev/null; then
-                if ! _run_phase_preconditions "$phase_id"; then
-                    log_error "Phase $phase_display blocked by failed preconditions"
-                    if type -t _emit_event &>/dev/null; then
-                        _emit_event "check_failed" "$phase_id" "type=precondition"
-                    fi
-                    print_resume_hint "$phase_id" ""
-                    exit 1
-                fi
             fi
 
             if type -t run_phase &>/dev/null; then
@@ -6399,19 +6477,35 @@ main() {
                 fi
             fi
 
-            # Emit stage_end success event
-            if type -t _emit_event &>/dev/null; then
-                _emit_event "stage_end" "$phase_id" "status=success"
-            fi
-
-            # Verify postconditions after successful phase completion
+            # Verify postconditions after successful phase completion.
+            # A postcondition failure is a hard failure: rollback phase completion and stop.
             if type -t _run_phase_postconditions &>/dev/null; then
                 if ! _run_phase_postconditions "$phase_id"; then
-                    log_warn "Phase $phase_display completed but postconditions failed"
+                    log_error "Phase $phase_display failed postconditions"
                     if type -t _emit_event &>/dev/null; then
                         _emit_event "check_failed" "$phase_id" "type=postcondition"
+                        _emit_event "stage_end" "$phase_id" "status=failed" "reason=postcondition"
                     fi
+                    if type -t state_unmark_phase &>/dev/null; then
+                        state_unmark_phase "$phase_id" || true
+                    fi
+                    if type -t state_phase_fail &>/dev/null; then
+                        state_phase_fail "$phase_id" "Postcondition verification" "Phase '$phase_id' failed postconditions" || true
+                    fi
+                    if type -t _print_failure_summary &>/dev/null; then
+                        _print_failure_summary "$phase_id" "$phase_name" 1 "postcondition failed"
+                    fi
+                    if type -t report_failure &>/dev/null; then
+                        report_failure "$phase_num" 9
+                    fi
+                    print_resume_hint "$phase_id" ""
+                    exit 1
                 fi
+            fi
+
+            # Emit stage_end success event only after postconditions pass.
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "stage_end" "$phase_id" "status=success"
             fi
         }
 
@@ -6448,7 +6542,7 @@ main() {
         fi
 
         # Calculate installation time for success report
-        local installation_end_time total_seconds
+        local installation_end_time
         installation_end_time=$(date +%s)
         total_seconds=$((installation_end_time - installation_start_time))
 
@@ -6477,6 +6571,14 @@ main() {
         SMOKE_TEST_FAILED=false
         if ! run_smoke_test; then
             SMOKE_TEST_FAILED=true
+        fi
+    fi
+
+    if type -t _emit_event &>/dev/null && [[ "$DRY_RUN" != "true" ]]; then
+        if [[ "${SMOKE_TEST_FAILED:-false}" == "true" ]]; then
+            _emit_event "install_end" "" "status=failed" "reason=smoke_test" "total_seconds=${total_seconds}"
+        else
+            _emit_event "install_end" "" "status=success" "total_seconds=${total_seconds}"
         fi
     fi
 

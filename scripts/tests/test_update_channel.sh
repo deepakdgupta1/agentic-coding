@@ -287,11 +287,12 @@ fi
 # ============================================================
 section "Test 8: Channel version alignment (live, optional)"
 # ============================================================
-if command -v npm &>/dev/null && command -v claude &>/dev/null; then
-    dist_tags=$(npm view @anthropic-ai/claude-code dist-tags 2>/dev/null || true)
-    installed=$(claude --version 2>/dev/null | grep -oP '[\d]+\.[\d]+\.[\d]+' || true)
-    latest=$(echo "$dist_tags" | grep -oP "latest: '\K[^']+" || true)
-    stable=$(echo "$dist_tags" | grep -oP "stable: '\K[^']+" || true)
+if command -v curl &>/dev/null && command -v jq &>/dev/null && command -v claude &>/dev/null; then
+    dist_tags_json=$(curl -fsSL "https://registry.npmjs.org/@anthropic-ai/claude-code" 2>/dev/null \
+        | jq -c '.["dist-tags"] // {}' 2>/dev/null || true)
+    installed=$(claude --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' || true)
+    latest=$(printf '%s' "$dist_tags_json" | jq -r '.latest // empty' 2>/dev/null || true)
+    stable=$(printf '%s' "$dist_tags_json" | jq -r '.stable // empty' 2>/dev/null || true)
     log "  Installed: ${installed:-unknown}"
     log "  Latest:    ${latest:-unknown}"
     log "  Stable:    ${stable:-unknown}"
@@ -305,7 +306,7 @@ if command -v npm &>/dev/null && command -v claude &>/dev/null; then
         skip "Version $installed matches neither latest ($latest) nor stable ($stable)"
     fi
 else
-    skip "npm or claude not available — skipping live channel check"
+    skip "curl, jq, or claude not available — skipping live channel check"
 fi
 
 # ============================================================
