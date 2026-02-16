@@ -115,6 +115,32 @@ log_error() {
     echo "[$timestamp] ERROR: $*" | tee -a "$ACFS_LOG" >&2 || true
 }
 
+# Verify apt source codename when the upgrade library is available.
+# Returns 0 on success, 1 on mismatch/verification failure.
+verify_sources_codename_if_possible() {
+    local lib_file="${ACFS_LIB_DIR}/ubuntu_upgrade.sh"
+
+    if [[ ! -f "$lib_file" ]]; then
+        log "Skipping apt source codename verification (library missing: $lib_file)"
+        return 0
+    fi
+
+    # shellcheck source=/dev/null
+    source "$lib_file"
+
+    if ! declare -f ubuntu_verify_sources_match_system_codename >/dev/null 2>&1; then
+        log "Skipping apt source codename verification (verifier not available in library)"
+        return 0
+    fi
+
+    if ! ubuntu_verify_sources_match_system_codename; then
+        log_error "Apt source codename verification failed"
+        return 1
+    fi
+
+    return 0
+}
+
 # Clean up the resume infrastructure on success.
 # This uses strict path checks because it runs as root on boot; a bad rm -rf would be catastrophic.
 cleanup_resume_files() {
@@ -326,6 +352,12 @@ if ubuntu_is_at_or_beyond_target_version "$CURRENT_UBUNTU_VERSION"; then
     log "SUCCESS: Already at or beyond target version (current: $CURRENT_UBUNTU_VERSION, target: $UBUNTU_TARGET_VERSION)!"
     log "Cleaning up upgrade infrastructure..."
 
+    if ! verify_sources_codename_if_possible; then
+        cleanup_service
+        update_motd_failure "Apt source codename mismatch"
+        exit 1
+    fi
+
     # Disable service FIRST to prevent any possibility of loop
     cleanup_service
 
@@ -387,6 +419,13 @@ fi
 
 # Set state file location for resume context
 export ACFS_STATE_FILE="${ACFS_STATE_FILE}"
+
+if ! ubuntu_verify_sources_match_system_codename; then
+    state_upgrade_set_error "Apt source codename mismatch after reboot"
+    cleanup_service
+    update_motd_failure "Apt source codename mismatch"
+    exit 1
+fi
 
 # ============================================================
 # Check current stage in state

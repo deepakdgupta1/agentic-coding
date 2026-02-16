@@ -3044,8 +3044,10 @@ confirm_or_exit() {
     fi
 
     if [[ "$HAS_GUM" == "true" ]] && [[ -r /dev/tty ]]; then
-        gum confirm "Proceed with ACFS install? (mode=$MODE)" < /dev/tty > /dev/tty || exit 1
-        return 0
+        if gum confirm "Proceed with ACFS install? (mode=$MODE)" < /dev/tty > /dev/tty; then
+            return 0
+        fi
+        return 2
     fi
 
     local reply=""
@@ -3058,7 +3060,7 @@ confirm_or_exit() {
     fi
     case "$reply" in
         y|Y|yes|YES) return 0 ;;
-        *) exit 1 ;;
+        *) return 2 ;;
     esac
 }
 
@@ -6550,9 +6552,46 @@ main() {
                 fi
                 ;;
             1) # Fresh install - confirm before proceeding, then initialize state
-                confirm_or_exit
+                local proceed_result=0
+                confirm_or_exit || proceed_result=$?
+                case $proceed_result in
+                    0) ;;
+                    2)
+                        log_info "Installation aborted by user."
+                        if type -t _emit_event &>/dev/null; then
+                            _emit_event "install_end" "" "status=aborted"
+                        fi
+                        exit 0
+                        ;;
+                    *)
+                        exit "$proceed_result"
+                        ;;
+                esac
                 if type -t state_init &>/dev/null; then
-                    state_init
+                    if ! state_init; then
+                        log_warn "Initial state setup failed at: ${ACFS_STATE_FILE:-<unset>}"
+                        log_warn "Attempting one-time state recovery and retry..."
+
+                        # Best-effort recovery for stale/corrupt state paths.
+                        # This keeps normal installs moving after interrupted upgrades.
+                        if type -t state_backup_and_remove &>/dev/null; then
+                            state_backup_and_remove || true
+                        fi
+
+                        if ! state_init; then
+                            local state_dir=""
+                            if [[ -n "${ACFS_STATE_FILE:-}" ]]; then
+                                state_dir="$(dirname "${ACFS_STATE_FILE}")"
+                            fi
+                            log_error "Failed to initialize installation state."
+                            if [[ -n "$state_dir" ]]; then
+                                log_error "State directory may be unreadable/unwritable: $state_dir"
+                            fi
+                            exit 1
+                        fi
+
+                        log_detail "State initialization recovered on retry"
+                    fi
                 fi
                 ;;
             2) # Abort
@@ -6565,7 +6604,21 @@ main() {
         esac
     else
         # Fallback: use original confirm_or_exit
-        confirm_or_exit
+        local proceed_result=0
+        confirm_or_exit || proceed_result=$?
+        case $proceed_result in
+            0) ;;
+            2)
+                log_info "Installation aborted by user."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "install_end" "" "status=aborted"
+                fi
+                exit 0
+                ;;
+            *)
+                exit "$proceed_result"
+                ;;
+        esac
     fi
 
     local total_seconds=0

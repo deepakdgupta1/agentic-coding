@@ -188,6 +188,38 @@ acfs_local_install_healthy() {
     [[ "$has_tool" == "true" && "$has_framework" == "true" ]]
 }
 
+acfs_local_upgrade_in_progress() {
+    # During Ubuntu upgrades, install.sh exits after scheduling a reboot.
+    # Avoid false "not installed" warnings while resume is still running.
+    acfs_sandbox_exec_root '
+        state_file="/var/lib/acfs/state.json"
+
+        if [[ -f "$state_file" ]]; then
+            if command -v jq >/dev/null 2>&1; then
+                enabled="$(jq -r ".ubuntu_upgrade.enabled // false" "$state_file" 2>/dev/null || true)"
+                stage="$(jq -r ".ubuntu_upgrade.current_stage // empty" "$state_file" 2>/dev/null || true)"
+                case "${enabled}:${stage}" in
+                    true:pre_upgrade_reboot|true:initializing|true:upgrading|true:awaiting_reboot|true:resumed|true:step_complete)
+                        exit 0
+                        ;;
+                esac
+            elif grep -q "\"ubuntu_upgrade\"" "$state_file" && grep -q "\"enabled\"[[:space:]]*:[[:space:]]*true" "$state_file"; then
+                exit 0
+            fi
+        fi
+
+        if systemctl is-active --quiet acfs-upgrade-resume.service 2>/dev/null; then
+            exit 0
+        fi
+
+        if systemctl is-enabled --quiet acfs-upgrade-resume.service 2>/dev/null && [[ -f /var/lib/acfs/upgrade_resume.sh ]]; then
+            exit 0
+        fi
+
+        exit 1
+    ' >/dev/null 2>&1
+}
+
 cmd_audit() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -410,30 +442,39 @@ cmd_create() {
     fi
 
     # Post-install verification
-    log_info "Verifying installation..."
-    local verification_warnings=0
+    if acfs_local_upgrade_in_progress; then
+        log_warn "Ubuntu upgrade resume is in progress inside the sandbox"
+        log_info "Deferring ACFS verification until upgrade resume completes"
+        log_info "Monitor progress:"
+        log_info "  journalctl -u acfs-upgrade-resume -f"
+        log_info "  tail -f /var/log/acfs/upgrade_resume.log"
+        log_info "Then run: acfs-local shell && acfs doctor"
+    else
+        log_info "Verifying installation..."
+        local verification_warnings=0
 
-    # Check user-local acfs command
-    if ! acfs_sandbox_exec "test -x ~/.local/bin/acfs" 2>/dev/null; then
-        log_warn "User acfs command not found at ~/.local/bin/acfs"
-        verification_warnings=1
-    fi
+        # Check user-local acfs command
+        if ! acfs_sandbox_exec "test -x ~/.local/bin/acfs" 2>/dev/null; then
+            log_warn "User acfs command not found at ~/.local/bin/acfs"
+            verification_warnings=1
+        fi
 
-    # Check global wrapper
-    if ! acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" 2>/dev/null; then
-        log_warn "Global acfs wrapper not found at /usr/local/bin/acfs"
-        verification_warnings=1
-    fi
+        # Check global wrapper
+        if ! acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" 2>/dev/null; then
+            log_warn "Global acfs wrapper not found at /usr/local/bin/acfs"
+            verification_warnings=1
+        fi
 
-    # Check critical library scripts
-    if ! acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" 2>/dev/null; then
-        log_warn "dashboard.sh not found in ~/.acfs/scripts/lib/"
-        verification_warnings=1
-    fi
+        # Check critical library scripts
+        if ! acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" 2>/dev/null; then
+            log_warn "dashboard.sh not found in ~/.acfs/scripts/lib/"
+            verification_warnings=1
+        fi
 
-    if [[ $verification_warnings -eq 1 ]]; then
-        log_warn "Some ACFS components may not have installed correctly"
-        log_info "Run 'acfs-local shell' then 'acfs doctor' to diagnose"
+        if [[ $verification_warnings -eq 1 ]]; then
+            log_warn "Some ACFS components may not have installed correctly"
+            log_info "Run 'acfs-local shell' then 'acfs doctor' to diagnose"
+        fi
     fi
 
     echo ""
