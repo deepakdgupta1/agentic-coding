@@ -22,7 +22,7 @@
 # Space-separated list of checker function names per phase.
 # Each checker returns 0 (pass) or 1 (fail).
 
-declare -A PHASE_PRECONDITIONS=(
+declare -gA PHASE_PRECONDITIONS=(
     [user_setup]="_pre_identity"
     [filesystem]="_pre_identity"
     [shell_setup]="_pre_identity _pre_acfs_home"
@@ -41,7 +41,7 @@ declare -A PHASE_PRECONDITIONS=(
 # Used both after execution and during resume (to verify completed
 # phases haven't drifted before skipping).
 
-declare -A PHASE_POSTCONDITIONS=(
+declare -gA PHASE_POSTCONDITIONS=(
     [user_setup]="_post_user_exists _post_sudo_configured"
     [filesystem]="_post_dir_acfs_home _post_dir_local_bin"
     [shell_setup]="_post_bin_zsh"
@@ -57,7 +57,7 @@ declare -A PHASE_POSTCONDITIONS=(
 # Phase Timeouts (seconds)
 # ============================================================
 
-declare -A PHASE_TIMEOUTS=(
+declare -gA PHASE_TIMEOUTS=(
     [user_setup]=60
     [filesystem]=60
     [shell_setup]=120

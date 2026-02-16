@@ -1290,13 +1290,13 @@ acfs_build_local_inner_install_args() {
 
     # Preserve module/phase selection.
     local module_id=""
-    for module_id in "${ONLY_MODULES[@]:-}"; do
+    for module_id in "${ONLY_MODULES[@]}"; do
         _out+=(--only "$module_id")
     done
-    for module_id in "${ONLY_PHASES[@]:-}"; do
+    for module_id in "${ONLY_PHASES[@]}"; do
         _out+=(--only-phase "$module_id")
     done
-    for module_id in "${SKIP_MODULES[@]:-}"; do
+    for module_id in "${SKIP_MODULES[@]}"; do
         _out+=(--skip "$module_id")
     done
     [[ "${NO_DEPS:-false}" == "true" ]] && _out+=(--no-deps)
@@ -6268,6 +6268,16 @@ main() {
                 echo "║  Your host system will NOT be modified.                      ║"
                 echo "╚══════════════════════════════════════════════════════════════╝"
                 echo ""
+
+                # Forward arguments to container context via base64 payload
+                local inner_install_args_b64=""
+                local inner_install_args=()
+                acfs_build_local_inner_install_args inner_install_args
+                if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+                    log_fatal "base64 is required to forward local installer arguments to container."
+                fi
+                export ACFS_LOCAL_INSTALL_ARGS_B64="$inner_install_args_b64"
+
                 if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
                     exec "$local_script" audit
                 else
