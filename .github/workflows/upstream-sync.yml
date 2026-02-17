@@ -72,6 +72,12 @@ jobs:
         run: |
           git push -f origin "$SYNC_BRANCH"
 
+      - name: Push to Target (Auto-Merge)
+        if: steps.merge.outputs.merge_status == 'success'
+        run: |
+          git push origin "$SYNC_BRANCH:$TARGET_BRANCH"
+          echo "Successfully synced to $TARGET_BRANCH"
+
       - name: Ensure Labels Exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -84,22 +90,16 @@ jobs:
           gh label list --repo ${{ github.repository }}
 
       - name: Create Pull Request
-        if: steps.merge.outputs.merge_status == 'success' || steps.merge.outputs.merge_status == 'conflict'
+        if: steps.merge.outputs.merge_status == 'conflict'
         run: |
           # Check if PR already exists
           existing_pr=$(gh pr list --repo ${{ github.repository }} --head "$SYNC_BRANCH" --base "$TARGET_BRANCH" --json number -q '.[0].number')
           
           if [[ -z "$existing_pr" ]]; then
             echo "Creating new PR..."
-            if [[ "${{ steps.merge.outputs.merge_status }}" == "conflict" ]]; then
-               TITLE="⚠️ Upstream Sync (Conflicts Detected)"
-               BODY="This PR syncs changes from upstream. **Conflicts were detected and committed with markers.** Please review and resolve them."
-               LABELS="upstream-sync,conflict"
-            else
-               TITLE="🔄 Upstream Sync (Clean)"
-               BODY="This PR syncs changes from upstream. No conflicts detected."
-               LABELS="upstream-sync"
-            fi
+            TITLE="⚠️ Upstream Sync (Conflicts Detected)"
+            BODY="This PR syncs changes from upstream. **Conflicts were detected and committed with markers.** Please review and resolve them."
+            LABELS="upstream-sync,conflict"
             
             PR_URL=$(gh pr create \
               --repo ${{ github.repository }} \
@@ -115,11 +115,7 @@ jobs:
              echo "PR_URL=https://github.com/${{ github.repository }}/pull/$existing_pr" >> "$GITHUB_ENV"
              
              # Update comments/labels if status changed
-             if [[ "${{ steps.merge.outputs.merge_status }}" == "conflict" ]]; then
-                gh pr edit "$existing_pr" --repo ${{ github.repository }} --title "⚠️ Upstream Sync (Conflicts Detected)" --add-label "conflict" --body "Updates from upstream. Conflicts detected."
-             else
-                gh pr edit "$existing_pr" --repo ${{ github.repository }} --title "🔄 Upstream Sync (Clean)" --remove-label "conflict" --body "Updates from upstream. Clean merge."
-             fi
+             gh pr edit "$existing_pr" --repo ${{ github.repository }} --title "⚠️ Upstream Sync (Conflicts Detected)" --add-label "conflict" --body "Updates from upstream. Conflicts detected."
           fi
 
       - name: Analyze Conflicts with AI

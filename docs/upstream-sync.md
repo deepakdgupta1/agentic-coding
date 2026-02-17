@@ -3,6 +3,8 @@
 This guide explains how to use and configure the Upstream Sync workflow, which keeps your fork up-to-date with the upstream repository (`Dicklesworthstone/agentic_coding_flywheel_setup`).
 
 ## Overview
+For a high-level strategy on how to manage your fork with this workflow, please read the **[Fork Workflow Strategy](./fork-workflow-strategy.md)** guide first.
+
 A GitHub Action (`.github/workflows/upstream-sync.yml`) automatically syncs changes from upstream to your fork on a daily basis.
 
 ## Components
@@ -14,8 +16,8 @@ A GitHub Action (`.github/workflows/upstream-sync.yml`) automatically syncs chan
 1.  **Daily Trigger**: Runs at 00:00 UTC.
 2.  **Sync**: Merges `upstream/main` into a branch named `upstream-sync`.
 3.  **Conflict Handling**:
-    - **Clean Merge**: Creates a PR with merged changes.
-    - **Conflict**: Commits files *with conflict markers* to the PR so you can see them in the diff.
+    - **Clean Merge**: Automatically pushes the updates to your target branch (`local-desktop-installation-support`). No PR is created.
+    - **Conflict**: Commits files *with conflict markers* to a new branch and creates a PR so you can resolve them.
 4.  **AI Analysis**: If conflicts exist AND `OPENAI_API_KEY` is set in repository secrets, an AI suggestion is posted as a comment on the PR.
 
 ## Configuration: Setting up the API Key
