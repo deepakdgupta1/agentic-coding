@@ -72,6 +72,17 @@ jobs:
         run: |
           git push -f origin "$SYNC_BRANCH"
 
+      - name: Ensure Labels Exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure labels exist to prevent errors during PR creation
+          gh label create upstream-sync --description "Syncs changes from upstream" --color 1d76db || true
+          gh label create conflict --description "Merge conflicts detected" --color b60205 || true
+          
+          # Debug: List labels to verify visibility
+          gh label list
+
       - name: Create Pull Request
         if: steps.merge.outputs.merge_status == 'success' || steps.merge.outputs.merge_status == 'conflict'
         run: |
