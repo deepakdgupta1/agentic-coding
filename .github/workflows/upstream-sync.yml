@@ -18,6 +18,7 @@ jobs:
         TARGET_BRANCH: local-desktop-installation-support
         SYNC_BRANCH: upstream-sync
         UPSTREAM_URL: https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup.git
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout
@@ -110,9 +111,7 @@ jobs:
           fi
 
       - name: Analyze Conflicts with AI
-        if: steps.merge.outputs.merge_status == 'conflict' && secrets.OPENAI_API_KEY != ''
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        if: steps.merge.outputs.merge_status == 'conflict' && env.OPENAI_API_KEY != ''
         run: |
           echo "Analyzing conflicts..."
           # We need to install dependencies for the script if any
