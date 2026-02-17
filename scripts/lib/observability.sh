@@ -25,6 +25,10 @@
 ACFS_RUN_ID="${ACFS_RUN_ID:-$(date +%Y%m%d_%H%M%S)_$$}"
 export ACFS_RUN_ID
 
+# Optional parent run ID (used by nested host->VM/container install handoffs).
+ACFS_PARENT_RUN_ID="${ACFS_PARENT_RUN_ID:-}"
+export ACFS_PARENT_RUN_ID
+
 # Install start timestamp (epoch seconds)
 ACFS_INSTALL_START="${ACFS_INSTALL_START:-$(date +%s)}"
 export ACFS_INSTALL_START
@@ -97,6 +101,10 @@ _emit_event() {
             --argjson elapsed "$elapsed_s" \
             '{run_id:$run_id, event:$event, stage:$stage, ts:$ts, elapsed_s:$elapsed}' 2>/dev/null)
 
+        if [[ -n "${ACFS_PARENT_RUN_ID:-}" ]]; then
+            json=$(echo "$json" | jq -c --arg parent_run_id "$ACFS_PARENT_RUN_ID" '.parent_run_id=$parent_run_id' 2>/dev/null) || true
+        fi
+
         # Append extra key=value pairs
         for kv in "$@"; do
             local k="${kv%%=*}"
@@ -106,6 +114,9 @@ _emit_event() {
     else
         # Fallback: manual JSON construction (no special char escaping)
         json="{\"run_id\":\"$ACFS_RUN_ID\",\"event\":\"$event_type\",\"stage\":\"$stage_id\",\"ts\":\"$now\",\"elapsed_s\":$elapsed_s"
+        if [[ -n "${ACFS_PARENT_RUN_ID:-}" ]]; then
+            json="$json,\"parent_run_id\":\"$ACFS_PARENT_RUN_ID\""
+        fi
         for kv in "$@"; do
             local k="${kv%%=*}"
             local v="${kv#*=}"

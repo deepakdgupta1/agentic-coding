@@ -26,6 +26,7 @@ export ACFS_ORIG_ARGS="$*"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ACFS_LOCAL_INSTALL_TIMEOUT_SECONDS="${ACFS_LOCAL_INSTALL_TIMEOUT_SECONDS:-7200}"
 
 # Source sandbox library
 # shellcheck source=scripts/lib/sandbox.sh
@@ -160,32 +161,186 @@ shell_escape_args() {
     printf '%s' "$out"
 }
 
-acfs_local_install_healthy() {
-    # Check if ACFS is installed for the ubuntu user.
-    # Requires BOTH a tool binary (claude) AND the acfs framework (dashboard.sh)
-    # to avoid false-positives from partial installs.
+print_create_help() {
+    cat <<'EOF'
+Usage: acfs-local create [options] [install.sh flags...]
 
-    local has_tool=false
-    local has_framework=false
+Options:
+  --install-timeout <seconds>  Max runtime for each in-container install attempt
+  --install-arg <arg>          Forward one install.sh argument (repeatable)
+  --help, -h                   Show this help
 
-    # Check for claude binary (installed on all modes)
-    if acfs_sandbox_exec "test -x ~/.local/bin/claude" >/dev/null 2>&1; then
-        has_tool=true
+Notes:
+  - Unrecognized args are forwarded to install.sh.
+  - Use '--' before install args if you want explicit separation.
+EOF
+}
+
+is_positive_integer() {
+    [[ "${1:-}" =~ ^[0-9]+$ ]] && [[ "${1:-0}" -gt 0 ]]
+}
+
+ensure_required_local_install_flags() {
+    local -n _args="$1"
+    local has_skip_upgrade=false
+    local has_local=false
+    local has_yes=false
+    local idx=0
+
+    for ((idx = 0; idx < ${#_args[@]}; idx++)); do
+        case "${_args[$idx]}" in
+            --skip-ubuntu-upgrade) has_skip_upgrade=true ;;
+            --local|--desktop) has_local=true ;;
+            --yes|-y) has_yes=true ;;
+        esac
+    done
+
+    [[ "$has_local" == "true" ]] || _args=(--local "${_args[@]}")
+    [[ "$has_yes" == "true" ]] || _args=(--yes "${_args[@]}")
+    [[ "$has_skip_upgrade" == "true" ]] || _args+=(--skip-ubuntu-upgrade)
+}
+
+resolve_create_install_args() {
+    local -n _install_args="$1"
+    local -n _timeout_seconds="$2"
+    shift 2
+
+    local timeout_seconds="${ACFS_LOCAL_INSTALL_TIMEOUT_SECONDS:-7200}"
+    local -a cli_install_args=()
+
+    if ! is_positive_integer "$timeout_seconds"; then
+        log_warn "Invalid ACFS_LOCAL_INSTALL_TIMEOUT_SECONDS='$timeout_seconds'. Using default 7200."
+        timeout_seconds="7200"
     fi
 
-    # Fallback: check for acfs binary
-    if [[ "$has_tool" != "true" ]]; then
-        if acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
-            has_tool=true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                print_create_help
+                return 2
+                ;;
+            --install-timeout)
+                if [[ -z "${2:-}" || "$2" == -* ]]; then
+                    log_error "--install-timeout requires a positive integer value (seconds)."
+                    return 1
+                fi
+                if ! is_positive_integer "$2"; then
+                    log_error "Invalid --install-timeout value '$2' (expected positive integer seconds)."
+                    return 1
+                fi
+                timeout_seconds="$2"
+                shift 2
+                ;;
+            --install-timeout=*)
+                timeout_seconds="${1#*=}"
+                if ! is_positive_integer "$timeout_seconds"; then
+                    log_error "Invalid --install-timeout value '$timeout_seconds' (expected positive integer seconds)."
+                    return 1
+                fi
+                shift
+                ;;
+            --install-arg)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "--install-arg requires a value."
+                    return 1
+                fi
+                cli_install_args+=("$2")
+                shift 2
+                ;;
+            --)
+                shift
+                while [[ $# -gt 0 ]]; do
+                    cli_install_args+=("$1")
+                    shift
+                done
+                ;;
+            *)
+                cli_install_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ ${#cli_install_args[@]} -gt 0 ]]; then
+        _install_args=("${cli_install_args[@]}")
+        ensure_required_local_install_flags _install_args
+        log_detail "Using installer arguments passed to acfs-local create."
+    else
+        local -a forwarded_install_args=()
+        _install_args=(--local --yes --mode vibe --skip-ubuntu-upgrade)
+        if decode_forwarded_install_args forwarded_install_args; then
+            _install_args=("${forwarded_install_args[@]}")
+            ensure_required_local_install_flags _install_args
+            log_detail "Using forwarded installer arguments from host bootstrap."
         fi
     fi
 
-    # Check for ACFS framework (dashboard.sh as sentinel)
+    _timeout_seconds="$timeout_seconds"
+    return 0
+}
+
+run_container_install_once() {
+    local install_cmd_escaped="$1"
+    local timeout_seconds="$2"
+    local parent_run_id="${3:-}"
+    local parent_run_id_q=""
+    local parent_export_line=""
+    local timeout_prefix=""
+
+    if [[ -n "$parent_run_id" ]]; then
+        printf -v parent_run_id_q '%q' "$parent_run_id"
+        parent_export_line="export ACFS_PARENT_RUN_ID=${parent_run_id_q}"
+    fi
+
+    if is_positive_integer "$timeout_seconds"; then
+        timeout_prefix="timeout --foreground ${timeout_seconds}"
+    fi
+
+    acfs_sandbox_exec_root "
+        export DEBIAN_FRONTEND=noninteractive
+        export ACFS_CI=true
+        export ACFS_BOOTSTRAP_DIR=/tmp
+        export TARGET_USER=ubuntu
+        ${parent_export_line}
+        cd /tmp
+        if command -v timeout >/dev/null 2>&1; then
+            ${timeout_prefix} bash /tmp/install.sh ${install_cmd_escaped}
+        else
+            bash /tmp/install.sh ${install_cmd_escaped}
+        fi
+    "
+}
+
+acfs_local_install_healthy() {
+    # Require full command surface + framework sentinel to avoid false positives
+    # from partially-completed installs.
+    local has_user_acfs=false
+    local has_global_wrapper=false
+    local has_framework=false
+    local has_onboard=false
+    local acfs_exec_ok=false
+
+    if acfs_sandbox_exec "test -x ~/.local/bin/acfs" >/dev/null 2>&1; then
+        has_user_acfs=true
+    fi
+
+    if acfs_sandbox_exec_root "test -x /usr/local/bin/acfs" >/dev/null 2>&1; then
+        has_global_wrapper=true
+    fi
+
     if acfs_sandbox_exec "test -f ~/.acfs/scripts/lib/dashboard.sh" >/dev/null 2>&1; then
         has_framework=true
     fi
 
-    [[ "$has_tool" == "true" && "$has_framework" == "true" ]]
+    if acfs_sandbox_exec "test -x ~/.local/bin/onboard" >/dev/null 2>&1; then
+        has_onboard=true
+    fi
+
+    if acfs_sandbox_exec "acfs --help >/dev/null 2>&1" >/dev/null 2>&1; then
+        acfs_exec_ok=true
+    fi
+
+    [[ "$has_user_acfs" == "true" && "$has_global_wrapper" == "true" && "$has_framework" == "true" && "$has_onboard" == "true" && "$acfs_exec_ok" == "true" ]]
 }
 
 acfs_local_upgrade_in_progress() {
@@ -348,6 +503,18 @@ cmd_audit() {
 }
 
 cmd_create() {
+    local -a install_args=()
+    local install_timeout_seconds=""
+    local create_parse_status=0
+
+    if ! resolve_create_install_args install_args install_timeout_seconds "$@"; then
+        create_parse_status=$?
+        if [[ $create_parse_status -eq 2 ]]; then
+            return 0
+        fi
+        return "$create_parse_status"
+    fi
+
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
     printf "║           ACFS Local Desktop Installation                     ║\n"
@@ -374,27 +541,9 @@ cmd_create() {
     fi
 
     if [[ "$needs_install" == "true" ]]; then
-        local -a install_args=(--local --yes --mode vibe --skip-ubuntu-upgrade)
-        if decode_forwarded_install_args install_args; then
-            local has_skip_upgrade=false
-            local has_local=false
-            local has_yes=false
-            local idx=0
-            for ((idx = 0; idx < ${#install_args[@]}; idx++)); do
-                case "${install_args[$idx]}" in
-                    --skip-ubuntu-upgrade) has_skip_upgrade=true ;;
-                    --local|--desktop) has_local=true ;;
-                    --yes|-y) has_yes=true ;;
-                esac
-            done
-
-            [[ "$has_local" == "true" ]] || install_args=(--local "${install_args[@]}")
-            [[ "$has_yes" == "true" ]] || install_args=(--yes "${install_args[@]}")
-            [[ "$has_skip_upgrade" == "true" ]] || install_args+=(--skip-ubuntu-upgrade)
-            log_detail "Using forwarded installer arguments from host bootstrap."
-        fi
         local install_cmd_escaped
         install_cmd_escaped="$(shell_escape_args "${install_args[@]}")"
+        local parent_run_id="${ACFS_PARENT_RUN_ID:-${ACFS_RUN_ID:-}}"
 
         # Copy installer and repo files to container via tar pipe
         # This bypasses "Forbidden" errors some LXD setups produce when trying to read host files directly.
@@ -417,25 +566,23 @@ cmd_create() {
         # Run installer inside container
         # We set ACFS_BOOTSTRAP_DIR=/tmp so install.sh knows where to find its own scripts/lib
         set_terminal_title "ACFS Local: Running Installer..."
-        if ! acfs_sandbox_exec_root "
-            export DEBIAN_FRONTEND=noninteractive
-            export ACFS_CI=true
-            export ACFS_BOOTSTRAP_DIR=/tmp
-            export TARGET_USER=ubuntu
-            cd /tmp
-            bash /tmp/install.sh ${install_cmd_escaped}
-        "; then
-            log_warn "Installer failed. Checking network and retrying once..."
+        log_detail "Installer timeout per attempt: ${install_timeout_seconds}s"
+        local install_exit=0
+        if ! run_container_install_once "$install_cmd_escaped" "$install_timeout_seconds" "$parent_run_id"; then
+            install_exit=$?
+            if [[ $install_exit -eq 124 ]]; then
+                log_warn "Installer timed out after ${install_timeout_seconds}s. Checking network and retrying once..."
+            else
+                log_warn "Installer failed (exit ${install_exit}). Checking network and retrying once..."
+            fi
             ensure_sandbox_egress
-            if ! acfs_sandbox_exec_root "
-                export DEBIAN_FRONTEND=noninteractive
-                export ACFS_CI=true
-                export ACFS_BOOTSTRAP_DIR=/tmp
-                export TARGET_USER=ubuntu
-                cd /tmp
-                bash /tmp/install.sh ${install_cmd_escaped}
-            "; then
-                log_error "Installer failed inside container. Review logs and retry."
+            if ! run_container_install_once "$install_cmd_escaped" "$install_timeout_seconds" "$parent_run_id"; then
+                install_exit=$?
+                if [[ $install_exit -eq 124 ]]; then
+                    log_error "Installer timed out after ${install_timeout_seconds}s on retry."
+                else
+                    log_error "Installer failed inside container (exit ${install_exit}). Review logs and retry."
+                fi
                 return 1
             fi
         fi
@@ -691,7 +838,7 @@ ACFS Local - Desktop Container Manager
 Usage: acfs-local <command> [options]
 
 Commands:
-  create      Provision container and install ACFS
+  create      Provision container and install ACFS (accepts install.sh args)
   shell       Enter sandbox shell as ubuntu user
   attach      Alias for shell
   status      Show container status and access info
@@ -705,13 +852,19 @@ Commands:
   audit       Dry-run idempotency audit (no changes)
   help        Show this help
 
+Create Options:
+  --install-timeout <seconds>  Max runtime per in-container install attempt
+  --install-arg <arg>          Forward one install.sh argument (repeatable)
+  --help                       Show create-specific help
+
 Environment Variables:
   ACFS_CONTAINER_NAME     Container name (default: acfs-local)
   ACFS_WORKSPACE_HOST     Host workspace path (default: ~/acfs-workspace)
   ACFS_DASHBOARD_PORT     Dashboard port (default: 38080)
 
 Examples:
-  acfs-local create           # Fresh install
+  acfs-local create --mode safe --strict
+  acfs-local create --install-timeout 5400 -- --resume --stop-after stack
   acfs-local shell            # Enter sandbox
   acfs-local doctor           # Health check
   acfs-local destroy --force  # Remove without confirmation
@@ -774,4 +927,6 @@ main() {
     esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

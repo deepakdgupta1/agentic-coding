@@ -199,6 +199,7 @@ run_case_one() {
     local exec_cmd
     exec_cmd="$(grep '^EXEC_CMD:' "$log_file" | sed 's/^EXEC_CMD://' | grep 'curl -fsSL' | head -n1 || true)"
     require_contains "$exec_cmd" "ACFS_LOCAL_INSTALL_ARGS_B64=" "Forward payload is attached to in-VM install command"
+    require_contains "$exec_cmd" "ACFS_PARENT_RUN_ID=" "Host run ID is forwarded to nested installer"
 
     local payload=""
     if [[ "$exec_cmd" =~ ACFS_LOCAL_INSTALL_ARGS_B64=\'([^\']+)\' ]]; then

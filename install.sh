@@ -125,6 +125,7 @@ YES_MODE=false
 DRY_RUN=false
 PRINT_MODE=false
 PIN_REF_MODE=false
+HELP_MODE=false
 MODE="vibe"
 IDEMPOTENCY_AUDIT=false
 SKIP_POSTGRES=false
@@ -887,7 +888,7 @@ generate_resume_hint() {
     [[ "${YES_MODE:-false}" == "true" ]] && cmd="$cmd --yes"
 
     # Add --strict if it was set
-    [[ "${STRICT_MODE:-false}" == "true" ]] && cmd="$cmd --strict"
+    [[ "${ACFS_STRICT_MODE:-false}" == "true" ]] && cmd="$cmd --strict"
 
     echo "$cmd"
 }
@@ -1011,9 +1012,59 @@ trap '_acfs_signal_handler HUP'  HUP
 # ============================================================
 # Parse arguments
 # ============================================================
+print_usage() {
+    cat <<'EOF'
+ACFS - Agentic Coding Flywheel Setup
+
+Usage:
+  bash install.sh [options]
+
+Common options:
+  --yes, -y                    Non-interactive install
+  --mode <vibe|safe>           Install mode (default: vibe)
+  --resume                     Resume from existing checkpoint
+  --force-reinstall            Ignore state and reinstall from scratch
+  --local, --desktop           Run in sandboxed LXD container
+  --macos                      Run in local Multipass VM on macOS
+  --skip-preflight             Skip pre-flight checks
+  --auto-fix                   Enable prompted auto-fix mode (default)
+  --auto-fix-accept-all        Apply auto-fixes without prompting
+  --no-auto-fix                Disable auto-fix actions
+  --auto-fix-dry-run           Show auto-fix actions only
+  --strict                     Treat all checksum mismatches as fatal
+  --checksums-ref <ref>        Fetch checksums.yaml from this ref
+  --only <module>              Run only selected module(s) (repeatable)
+  --only-phase <phase>         Run only selected phase(s) (repeatable)
+  --skip <module>              Skip selected module(s) (repeatable)
+  --list-modules               List modules and exit
+  --print-plan                 Print resolved execution plan and exit
+  --dry-run                    Preview without making changes
+  --print                      Print upstream tools/versions and exit
+  --help, -h                   Show this help and exit
+EOF
+}
+
+acfs_args_request_help() {
+    local arg=""
+    for arg in "$@"; do
+        case "$arg" in
+            --help|-h)
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
 parse_args() {
+    local -a unknown_options=()
+
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --help|-h)
+                HELP_MODE=true
+                shift
+                ;;
             --yes|-y)
                 YES_MODE=true
                 shift
@@ -1224,11 +1275,22 @@ parse_args() {
                 fi
                 ;;
             *)
-                log_warn "Unknown option: $1"
+                unknown_options+=("$1")
                 shift
                 ;;
         esac
     done
+
+    if [[ ${#unknown_options[@]} -gt 0 ]]; then
+        if [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]; then
+            log_fatal "Unknown option(s) in non-interactive mode: ${unknown_options[*]}"
+        fi
+
+        local unknown_option=""
+        for unknown_option in "${unknown_options[@]}"; do
+            log_warn "Unknown option: $unknown_option"
+        done
+    fi
 }
 
 # Validate stage selector flags against known phase IDs to avoid silent no-op runs.
@@ -1893,6 +1955,52 @@ print_execution_plan() {
 
 # Handle a single auto-fix item based on current mode
 # Usage: handle_autofix <fix_name> <description>
+acfs_autofix_requires_noninteractive_sudo() {
+    local fix_name="$1"
+    case "$fix_name" in
+        unattended_upgrades)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+acfs_is_noninteractive_mode() {
+    [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]
+}
+
+acfs_has_passwordless_sudo() {
+    if [[ $EUID -eq 0 ]]; then
+        return 0
+    fi
+    if ! command_exists sudo; then
+        return 1
+    fi
+    sudo -n true 2>/dev/null
+}
+
+acfs_autofix_can_run_now() {
+    local fix_name="$1"
+    local description="$2"
+
+    if ! acfs_autofix_requires_noninteractive_sudo "$fix_name"; then
+        return 0
+    fi
+    if ! acfs_is_noninteractive_mode; then
+        return 0
+    fi
+    if acfs_has_passwordless_sudo; then
+        return 0
+    fi
+
+    log_warn "[AUTO-FIX] Skipping (non-interactive): $description"
+    log_warn "[AUTO-FIX] This fix requires root privileges, but sudo cannot prompt for a password in this session."
+    log_warn "[AUTO-FIX] Re-run interactively or as root to apply this fix (or use --no-auto-fix)."
+    return 1
+}
+
 handle_autofix() {
     local fix_name="$1"
     local description="$2"
@@ -1914,6 +2022,9 @@ handle_autofix() {
         "yes")
             log_info "[AUTO-FIX] Fixing: $description"
             if type "$fix_func" &>/dev/null; then
+                if ! acfs_autofix_can_run_now "$fix_name" "$description"; then
+                    return 0
+                fi
                 "$fix_func" fix
             else
                 log_warn "[AUTO-FIX] Fix function not available: $fix_func"
@@ -1925,6 +2036,9 @@ handle_autofix() {
             if [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]; then
                 log_info "[AUTO-FIX] Fixing (non-interactive): $description"
                 if type "$fix_func" &>/dev/null; then
+                    if ! acfs_autofix_can_run_now "$fix_name" "$description"; then
+                        return 0
+                    fi
                     "$fix_func" fix
                 else
                     log_warn "[AUTO-FIX] Fix function not available: $fix_func"
@@ -6051,6 +6165,12 @@ bootstrap_macos_vm() {
     if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
         log_fatal "base64 is required to forward local installer arguments through macOS bootstrap."
     fi
+    local child_parent_run_id_q=""
+    local child_env_prefix=""
+    if [[ -n "${ACFS_RUN_ID:-}" ]]; then
+        printf -v child_parent_run_id_q '%q' "$ACFS_RUN_ID"
+        child_env_prefix="ACFS_PARENT_RUN_ID=${child_parent_run_id_q} "
+    fi
 
     # Check if multipass exists (auto-remediate via Homebrew if available)
     if ! command -v multipass &>/dev/null; then
@@ -6163,7 +6283,7 @@ bootstrap_macos_vm() {
     # Determine how to run based on current execution mode
     if [[ -z "${SCRIPT_DIR:-}" ]]; then
         log_step "VM" "Running installer inside VM via curl..."
-        if ! multipass_exec_retry "$vm_name" "ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
+        if ! multipass_exec_retry "$vm_name" "${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
             log_fatal "Installer failed inside VM. Check network connectivity and retry."
         fi
     else
@@ -6201,7 +6321,7 @@ bootstrap_macos_vm() {
         multipass exec "$vm_name" -- rm "/home/ubuntu/$tmp_tar"
         
         log_step "VM" "Starting ACFS installation inside VM..."
-        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' ./install.sh ${inner_install_args_q}"; then
+        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' ./install.sh ${inner_install_args_q}"; then
             log_fatal "Installer failed inside VM. Review logs inside the VM and retry."
         fi
     fi
@@ -6225,7 +6345,17 @@ bootstrap_macos_vm() {
 # Main
 # ============================================================
 main() {
+    if acfs_args_request_help "$@"; then
+        print_usage
+        exit 0
+    fi
+
     parse_args "$@"
+
+    if [[ "$HELP_MODE" == "true" ]]; then
+        print_usage
+        exit 0
+    fi
 
     # Interactive mode selection (if no args provided)
     acfs_interactive_mode_select "$@"

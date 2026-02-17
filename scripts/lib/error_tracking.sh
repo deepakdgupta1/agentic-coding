@@ -161,6 +161,12 @@ try_step() {
     if command -v timeout &>/dev/null; then
         has_timeout_command="true"
     fi
+
+    # Check if the command is a shell function
+    if declare -f "$1" >/dev/null; then
+        # timeout command cannot execute shell functions directly
+        has_timeout_command="false"
+    fi
     step_timeout_seconds="$(_acfs_try_step_remaining_timeout 2>/dev/null || true)"
 
     # Execute command with output capture
@@ -646,7 +652,7 @@ is_retryable_error() {
 # the failure summary box.
 
 # Remediation hints per error class (variable placeholders expanded at runtime)
-declare -A ERROR_REMEDIATION=(
+declare -gA ERROR_REMEDIATION=(
     [transient_network]="Check network connectivity and re-run: ./install.sh --resume"
     [permission]="Fix ownership: sudo chown -R \$TARGET_USER:\$TARGET_USER \$ACFS_HOME"
     [dependency_conflict]="Clear apt state: sudo dpkg --configure -a && sudo apt-get install -f"
@@ -656,7 +662,7 @@ declare -A ERROR_REMEDIATION=(
 )
 
 # Retry policy per error class: "retry:<max>:backoff" or "stop"
-declare -A ERROR_RETRY_POLICY=(
+declare -gA ERROR_RETRY_POLICY=(
     [transient_network]="retry:3:backoff"
     [permission]="stop"
     [dependency_conflict]="stop"

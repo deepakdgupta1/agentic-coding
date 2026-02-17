@@ -289,6 +289,12 @@ prompt_ssh_key() {
         return 0
     fi
 
+    # --yes must stay fully non-interactive even when a TTY exists.
+    if [[ "${YES_MODE:-false}" == "true" ]] || [[ "${ACFS_INTERACTIVE:-true}" != "true" ]]; then
+        log_detail "Skipping SSH key prompt (non-interactive mode)"
+        return 0
+    fi
+
     local authorized_keys="/root/.ssh/authorized_keys"
     local has_existing_key=false
     local existing_key_info=""

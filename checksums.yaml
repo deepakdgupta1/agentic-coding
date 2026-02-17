@@ -60,7 +60,7 @@ installers:
 
   uv:
     url: "https://astral.sh/uv/install.sh"
-    sha256: "f0a9da374c8eee3989acba54839184a053f94b9fbe55cf8505bcf0b5fe45e418"
+    sha256: "ffd252b87a59c4dbf792a4580f8c248130ade93d24a1f15d178815871e864dfc"
 
   pt:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/process_triage/master/install.sh"
@@ -133,4 +133,3 @@ installers:
   ohmyzsh:
     url: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
     sha256: "ce0b7c94aa04d8c7a8137e45fe5c4744e3947871f785fd58117c480c1bf49352"
-

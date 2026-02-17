@@ -43,7 +43,101 @@ log_step() { printf "[%s] %s\n" "$1" "$2" >&2; }
 log_warn() { printf "⚠ %b\n" "$*" >&2; }
 log_error() { printf "✖ %b\n" "$*" >&2; }
 log_success() { printf "✓ %b\n" "$*" >&2; }
-log_fatal() { log_error "$*"; exit 1; }
+log_fatal() { INSTALL_END_EMITTED=true; log_error "$*"; exit 1; }
+
+# ============================================================
+# TTY-safe prompt helpers
+# ============================================================
+has_tty() { [[ -t 0 && -t 1 ]] || [[ -r /dev/tty && -w /dev/tty ]]; }
+
+die_if_needs_tty() {
+    if [[ "${YES_MODE:-false}" != "true" ]] && ! has_tty; then
+        log_fatal "No TTY available. Re-run with --yes (YES_MODE=true)."
+    fi
+}
+
+prompt_read() {
+    local __var="$1" prompt="$2" timeout="${3:-30}" reply=""
+    if [[ -r /dev/tty && -w /dev/tty ]]; then
+        printf "%s" "$prompt" > /dev/tty
+        IFS= read -r -t "$timeout" reply < /dev/tty || reply=""
+    elif [[ -t 0 ]]; then
+        IFS= read -r -t "$timeout" -p "$prompt" reply || reply=""
+    else
+        return 1
+    fi
+    printf -v "$__var" '%s' "$reply"
+}
+
+prompt_confirm() {
+    local msg="$1" default_yes="${2:-true}" reply=""
+    die_if_needs_tty
+    local suffix="[Y/n]"
+    [[ "$default_yes" == "false" ]] && suffix="[y/N]"
+    prompt_read reply "  $msg $suffix: " 30 || return 1
+    if [[ -z "$reply" ]]; then
+        [[ "$default_yes" == "true" ]]
+        return
+    fi
+    [[ "$reply" =~ ^[Yy] ]]
+}
+
+# ============================================================
+# Cleanup + signal handling
+# ============================================================
+CLEANUP_ITEMS=()
+INSTALL_END_EMITTED=false
+
+register_cleanup() { CLEANUP_ITEMS+=("$1"); }
+
+run_cleanup() {
+    local p
+    for p in "${CLEANUP_ITEMS[@]}"; do
+        if [[ -n "$p" && ( "$p" == /tmp/* || "$p" == "${TMPDIR:-/tmp}/"* ) ]]; then
+            rm -rf "$p" 2>/dev/null || true
+        fi
+    done
+}
+
+on_exit() {
+    local rc=$?
+    run_cleanup
+    if [[ "$INSTALL_END_EMITTED" != "true" && $rc -ne 0 ]]; then
+        emit_event "install_end" "macos_host" "status=failed" "reason=unexpected_exit" "exit_code=$rc"
+        state_set "error" "unexpected_exit_$rc"
+    fi
+}
+
+on_interrupt() {
+    log_warn "Installation interrupted."
+    INSTALL_END_EMITTED=true
+    emit_event "install_end" "macos_host" "status=failed" "reason=user_interrupted"
+    state_set "error" "user_interrupted"
+    run_cleanup
+    exit 130
+}
+
+trap on_exit EXIT
+trap on_interrupt INT TERM
+
+# ============================================================
+# Input validation
+# ============================================================
+validate_vm_name() {
+    [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$ ]]
+}
+
+validate_cpus() {
+    [[ "$1" =~ ^[0-9]+$ ]] && (( $1 >= 1 && $1 <= 32 ))
+}
+
+validate_size() {
+    [[ "$1" =~ ^[0-9]+[GgMm]$ ]]
+}
+
+normalize_size() {
+    printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
+}
 
 # ============================================================
 # Observability (host-side, same event model)
@@ -93,14 +187,10 @@ state_set() {
     local stage="$1"
     local detail="${2:-}"
     ensure_observability_paths
-    cat > "$ACFS_MACOS_STATE_FILE" <<EOF
-SCHEMA=1
-RUN_ID=$ACFS_RUN_ID
-STAGE=$stage
-VM_NAME=$VM_NAME
-DETAIL=$detail
-UPDATED_AT=$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S)
-EOF
+    local ts
+    ts="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S)"
+    printf 'SCHEMA=1\nRUN_ID=%q\nSTAGE=%q\nVM_NAME=%q\nDETAIL=%q\nUPDATED_AT=%q\n' \
+        "$ACFS_RUN_ID" "$stage" "$VM_NAME" "$detail" "$ts" > "$ACFS_MACOS_STATE_FILE"
 }
 
 state_resume_if_needed() {
@@ -351,12 +441,14 @@ run_audit() {
     if [[ $issues -eq 0 ]]; then
         log_success "Idempotency audit: no issues detected."
         emit_event "stage_end" "macos_audit" "status=success"
+        INSTALL_END_EMITTED=true
         emit_event "install_end" "macos_host" "status=success" "mode=audit"
         return 0
     fi
 
     log_warn "Idempotency audit: $issues issue(s) detected."
     emit_event "stage_end" "macos_audit" "status=failed" "issues=$issues"
+    INSTALL_END_EMITTED=true
     emit_event "install_end" "macos_host" "status=failed" "mode=audit" "issues=$issues"
     return "$issues"
 }
@@ -368,6 +460,8 @@ main() {
     if [[ "$(uname -s)" != "Darwin" ]]; then
         log_fatal "macOS bootstrap script must run on Darwin hosts."
     fi
+
+    die_if_needs_tty
 
     ensure_observability_paths
     state_resume_if_needed
@@ -393,9 +487,7 @@ main() {
                     log_fatal "Failed to install Multipass via Homebrew."
                 fi
             else
-                printf "  Install Multipass via Homebrew now? [Y/n]: "
-                read -r install_choice
-                if [[ "$install_choice" =~ ^[Nn] ]]; then
+                if ! prompt_confirm "Install Multipass via Homebrew now?"; then
                     emit_event "stage_end" "multipass_check" "status=failed" "reason=user_declined_install"
                     state_set "error" "user_declined_multipass_install"
                     emit_event "install_end" "macos_host" "status=failed" "reason=user_declined_multipass_install"
@@ -428,28 +520,62 @@ main() {
     emit_event "stage_end" "daemon_ready" "status=success"
 
     if [[ "$YES_MODE" == "false" ]]; then
-        echo ""
-        echo "─── macOS Local VM Configuration ───"
-        printf "  VM Instance Name [%s]: " "$VM_NAME"
-        read -r input && [[ -n "$input" ]] && VM_NAME="$input"
-        printf "  CPU Cores [%s]: " "$VM_CPUS"
-        read -r input && [[ -n "$input" ]] && VM_CPUS="$input"
-        printf "  Memory (e.g. 8G) [%s]: " "$VM_MEM"
-        read -r input && [[ -n "$input" ]] && VM_MEM="$input"
-        printf "  Disk Size (e.g. 40G) [%s]: " "$VM_DISK"
-        read -r input && [[ -n "$input" ]] && VM_DISK="$input"
-        echo ""
+        local input=""
+        echo "" >&2
+        echo "─── macOS Local VM Configuration ───" >&2
+
+        while true; do
+            prompt_read input "  VM Instance Name [$VM_NAME]: " || true
+            [[ -n "$input" ]] && VM_NAME="$input"
+            if validate_vm_name "$VM_NAME"; then break; fi
+            log_warn "Invalid VM name '$VM_NAME'. Use alphanumeric/hyphens, max 62 chars (e.g. acfs-host)."
+            VM_NAME="acfs-host"
+        done
+
+        while true; do
+            prompt_read input "  CPU Cores [$VM_CPUS]: " || true
+            [[ -n "$input" ]] && VM_CPUS="$input"
+            if validate_cpus "$VM_CPUS"; then break; fi
+            log_warn "Invalid CPU value '$VM_CPUS'. Enter 1–32."
+            VM_CPUS="4"
+        done
+
+        while true; do
+            prompt_read input "  Memory (e.g. 8G) [$VM_MEM]: " || true
+            [[ -n "$input" ]] && VM_MEM="$input"
+            VM_MEM="$(normalize_size "$VM_MEM")"
+            if validate_size "$VM_MEM"; then break; fi
+            log_warn "Invalid memory value '$VM_MEM'. Use format like 8G or 512M."
+            VM_MEM="8G"
+        done
+
+        while true; do
+            prompt_read input "  Disk Size (e.g. 40G) [$VM_DISK]: " || true
+            [[ -n "$input" ]] && VM_DISK="$input"
+            VM_DISK="$(normalize_size "$VM_DISK")"
+            if validate_size "$VM_DISK"; then break; fi
+            log_warn "Invalid disk value '$VM_DISK'. Use format like 40G or 512M."
+            VM_DISK="40G"
+        done
+
+        echo "" >&2
     fi
 
-    if [[ ! "$VM_CPUS" =~ ^[0-9]+$ ]] || [[ "$VM_CPUS" -lt 1 ]]; then
+    if ! validate_vm_name "$VM_NAME"; then
+        log_warn "Invalid VM name '$VM_NAME'. Using default: acfs-host"
+        VM_NAME="acfs-host"
+    fi
+    if ! validate_cpus "$VM_CPUS"; then
         log_warn "Invalid CPU value '$VM_CPUS'. Using default: 4"
         VM_CPUS="4"
     fi
-    if [[ ! "$VM_MEM" =~ ^[0-9]+[GM]$ ]]; then
+    VM_MEM="$(normalize_size "$VM_MEM")"
+    if ! validate_size "$VM_MEM"; then
         log_warn "Invalid memory value '$VM_MEM'. Using default: 8G"
         VM_MEM="8G"
     fi
-    if [[ ! "$VM_DISK" =~ ^[0-9]+[GM]$ ]]; then
+    VM_DISK="$(normalize_size "$VM_DISK")"
+    if ! validate_size "$VM_DISK"; then
         log_warn "Invalid disk value '$VM_DISK'. Using default: 40G"
         VM_DISK="40G"
     fi
@@ -481,9 +607,7 @@ main() {
     if multipass list 2>/dev/null | awk '{print $1}' | grep -qx "$VM_NAME"; then
         log_warn "VM '$VM_NAME' already exists."
         if [[ "$YES_MODE" == "false" ]]; then
-            printf "  Use existing VM? [Y/n]: "
-            read -r use_existing
-            if [[ "$use_existing" =~ ^[Nn] ]]; then
+            if ! prompt_confirm "Use existing VM?"; then
                 emit_event "stage_end" "vm_ready" "status=failed" "reason=user_declined_existing_vm"
                 state_set "error" "user_declined_existing_vm"
                 emit_event "install_end" "macos_host" "status=failed" "reason=user_declined_existing_vm"
@@ -528,15 +652,21 @@ main() {
 
     local -a inner_install_args=()
     local inner_install_args_q=""
+    local child_parent_run_id_q=""
+    local child_env_prefix=""
     build_inner_install_args inner_install_args
     inner_install_args_q="$(shell_escape_args "${inner_install_args[@]}")"
+    if [[ -n "${ACFS_RUN_ID:-}" ]]; then
+        printf -v child_parent_run_id_q '%q' "$ACFS_RUN_ID"
+        child_env_prefix="ACFS_PARENT_RUN_ID=${child_parent_run_id_q} "
+    fi
 
     state_set "install_handoff" "start_in_vm_install"
     emit_event "stage_start" "install_handoff"
     log_step "VM" "Preparing installer inside VM..."
     if [[ -z "${ACFS_INSTALL_SCRIPT_DIR:-}" ]]; then
         log_step "VM" "Running installer inside VM via curl..."
-        if ! multipass_exec_retry "$VM_NAME" "ACFS_LOCAL_INSTALL_ARGS_B64='${ACFS_LOCAL_INSTALL_ARGS_B64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
+        if ! multipass_exec_retry "$VM_NAME" "${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${ACFS_LOCAL_INSTALL_ARGS_B64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
             emit_event "stage_end" "install_handoff" "status=failed" "reason=in_vm_install_failed_curl"
             state_set "error" "in_vm_install_failed_curl"
             emit_event "install_end" "macos_host" "status=failed" "reason=in_vm_install_failed_curl"
@@ -547,6 +677,7 @@ main() {
         local tmp_tar="acfs-repo-$(date +%s).tar"
         local tmp_dir
         tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/acfs-transfer.XXXXXX")"
+        register_cleanup "$tmp_dir"
         local tmp_tar_path="$tmp_dir/$tmp_tar"
 
         (cd "$ACFS_INSTALL_SCRIPT_DIR" && COPYFILE_DISABLE=1 tar -cf "$tmp_tar_path" --exclude=".git" --exclude="node_modules" .)
@@ -568,7 +699,7 @@ main() {
         multipass exec "$VM_NAME" -- rm "/home/ubuntu/$tmp_tar"
 
         log_step "VM" "Starting ACFS installation inside VM..."
-        if ! multipass_exec_retry "$VM_NAME" "cd /home/ubuntu/agentic-coding && ACFS_LOCAL_INSTALL_ARGS_B64='${ACFS_LOCAL_INSTALL_ARGS_B64}' ./install.sh ${inner_install_args_q}"; then
+        if ! multipass_exec_retry "$VM_NAME" "cd /home/ubuntu/agentic-coding && ${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${ACFS_LOCAL_INSTALL_ARGS_B64}' ./install.sh ${inner_install_args_q}"; then
             emit_event "stage_end" "install_handoff" "status=failed" "reason=in_vm_install_failed_local_checkout"
             state_set "error" "in_vm_install_failed_local_checkout"
             emit_event "install_end" "macos_host" "status=failed" "reason=in_vm_install_failed_local_checkout"
@@ -578,6 +709,7 @@ main() {
     emit_event "stage_end" "install_handoff" "status=success"
 
     state_set "complete" "bootstrap_complete"
+    INSTALL_END_EMITTED=true
     emit_event "install_end" "macos_host" "status=success" "vm_name=$VM_NAME"
     log_success "ACFS installed in macOS host VM: $VM_NAME"
     echo ""

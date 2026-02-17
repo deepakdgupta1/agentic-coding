@@ -1076,7 +1076,14 @@ acfs_sandbox_status() {
     log_detail "Status: $state"
 
     if [[ "$state" == "RUNNING" ]]; then
-        ip=$(acfs_lxc info "$ACFS_CONTAINER_NAME" 2>/dev/null | grep -A1 "eth0:" | grep "inet:" | awk '{print $2}' | cut -d/ -f1 | head -1)
+        ip="$(
+            acfs_lxc info "$ACFS_CONTAINER_NAME" 2>/dev/null \
+                | grep -A20 "eth0:" \
+                | grep "inet:" \
+                | awk '{print $2}' \
+                | cut -d/ -f1 \
+                | head -1 || true
+        )"
         local dashboard_port
         dashboard_port="$ACFS_DASHBOARD_PORT"
         local profile_port

@@ -62,12 +62,12 @@ failed=0
 
 pass() {
     echo -e "${GREEN}✓${NC} $1"
-    ((passed++))
+    ((passed++)) || true
 }
 
 fail() {
     echo -e "${RED}✖${NC} $1"
-    ((failed++))
+    ((failed++)) || true
 }
 
 skip() {
@@ -190,6 +190,13 @@ if "$REPO_ROOT/scripts/local/acfs_container.sh" help 2>&1 | grep -q "ACFS Local"
     pass "CLI help output works"
 else
     fail "CLI help output missing"
+fi
+
+# Test create-specific help
+if "$REPO_ROOT/scripts/local/acfs_container.sh" create --help 2>&1 | grep -q -- "--install-timeout"; then
+    pass "create help documents installer timeout passthrough"
+else
+    fail "create help missing --install-timeout"
 fi
 
 # ============================================================
