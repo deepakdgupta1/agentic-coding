@@ -25,7 +25,7 @@ console.log(`Analyzing conflicts for PR: ${PR_URL}`);
 // Get list of changed files in the current commit (which should be the merge commit with conflicts)
 // git show --name-only --format="" HEAD
 const changedFilesOutput = await $`git show --name-only --format="" HEAD`.text();
-const changedFiles = changedFilesOutput.trim().split("\n").filter(f => f);
+const changedFiles = changedFilesOutput.trim().split("\n").filter((f: string) => f);
 
 console.log(`Changed files: ${changedFiles.join(", ")}`);
 
