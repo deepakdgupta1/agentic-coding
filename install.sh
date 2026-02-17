@@ -1434,6 +1434,14 @@ handle_autofix() {
             log_warn "[PRE-FLIGHT] $description"
             if [[ "${YES_MODE:-false}" == "true" ]]; then
                 # In --yes mode, default to accepting auto-fix
+                if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                    log_info "[DRY-RUN] Would auto-fix (--yes mode): $description"
+                    if type -t "$fix_function" &>/dev/null; then
+                        "$fix_function" "dry-run" || true
+                    fi
+                    return 0
+                fi
+
                 log_info "[AUTO-FIX] Fixing (--yes mode): $description"
                 if type -t "$fix_function" &>/dev/null; then
                     if "$fix_function" "fix"; then
@@ -3995,6 +4003,12 @@ install_cli_tools() {
         done
     fi
 
+    # Ubuntu ships fd as "fdfind"; provide the expected fd command for contracts/tools.
+    if ! command_exists fd && command_exists fdfind; then
+        log_detail "Creating fd symlink for fdfind..."
+        $SUDO ln -sf "$(command -v fdfind)" /usr/local/bin/fd 2>/dev/null || true
+    fi
+
     # Robust lazygit install (apt or binary fallback)
     if ! command_exists lazygit; then
         log_detail "Installing lazygit..."
@@ -6391,6 +6405,24 @@ main() {
     if [[ "$LIST_MODULES" == "true" ]]; then
         list_modules
         exit 0
+    fi
+
+    # Early Sudo Check (bd-sudo-fix)
+    # If not running as root, we must have passwordless sudo access for non-interactive installs.
+    if [[ "$EUID" -ne 0 ]]; then
+        # Check if we have passwordless sudo
+        if ! sudo -n true 2>/dev/null; then
+            # If in --yes mode (non-interactive) or --dry-run, this is a blocker
+            if [[ "$YES_MODE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+                log_error "Error: ACFS installation requires passwordless sudo or running as root."
+                log_error "The installer cannot prompt for a password in non-interactive/dry-run mode."
+                log_error "To fix, run as root:"
+                log_error "  sudo $0 $*"
+                log_error "Or configure passwordless sudo for prerequisites."
+                exit 1
+            fi
+            # In interactive mode, we'll likely prompt later, which is fine.
+        fi
     fi
 
     # Handle --print-plan: print execution plan and exit (mjt.5.3/5.4)
