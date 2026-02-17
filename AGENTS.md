@@ -1,14 +1,10 @@
 # AGENTS.md — Agentic Coding Flywheel Setup (ACFS)
 
-<<<<<<< HEAD
-## RULE 0 - THE FUNDAMENTAL OVERRIDE PEROGATIVE
-=======
 > Guidelines for AI coding agents working in this multi-component Bash/TypeScript codebase.
 
 ---
 
 ## RULE 0 - THE FUNDAMENTAL OVERRIDE PREROGATIVE
->>>>>>> upstream/main
 
 If I tell you to do something, even if it goes against what follows below, YOU MUST LISTEN TO ME. I AM IN CHARGE, NOT YOU.
 
@@ -51,19 +47,6 @@ If I tell you to do something, even if it goes against what follows below, YOU M
 
 ## Toolchain: Bash & Bun
 
-<<<<<<< HEAD
-ACFS is a **multi-component project**:
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Website Wizard | `apps/web/` | Next.js 16 App Router guiding beginners |
-| Installer | `install.sh` + `scripts/` | Bash installer for Ubuntu 25.10 |
-| Onboarding TUI | `packages/onboard/` | Interactive tutorial (`onboard` command) |
-| Module Manifest | `acfs.manifest.yaml` | Single source of truth for tools |
-| ACFS Configs | `acfs/` | Shell, tmux, lessons → installed to `~/.acfs/` |
-
-**Target:** Ubuntu 25.10 (auto-upgrades from 22.04+)
-=======
 ### Installer / Scripts: Bash
 
 The installer and scripting layer uses **Bash** (POSIX-compatible where possible).
@@ -127,9 +110,9 @@ New files are reserved for **genuinely new functionality** that makes zero sense
 
 We do not care about backwards compatibility—we're in early development with no users. We want to do things the **RIGHT** way with **NO TECH DEBT**.
 
-- Never create "compatibility shims"
-- Never create wrapper functions for deprecated APIs
-- Just fix the code directly
+- - Never create "compatibility shims"
+- - Never create wrapper functions for deprecated APIs
+- - Just fix the code directly
 
 ---
 
@@ -218,7 +201,7 @@ Provides a step-by-step wizard website, a one-liner installer, and an onboarding
 | Installer | `install.sh` + `scripts/` | Bash installer, idempotent, checkpointed |
 | Onboarding TUI | `packages/onboard/` | Interactive tutorial for Linux basics + agent workflow |
 | Module Manifest | `acfs.manifest.yaml` | Single source of truth for all tools installed |
-| ACFS Configs | `acfs/` | Shell, tmux, onboard configs installed to `~/.acfs/` |
+| ACFS Configs | `acfs/` | Shell, tmux, lessons → installed to `~/.acfs/` |
 | Manifest Parser | `packages/manifest/` | YAML parser + code generators |
 
 ### Repo Layout
@@ -263,7 +246,6 @@ agentic_coding_flywheel_setup/
     ├── unit/                     # Unit tests
     └── smoke/                    # Quick smoke tests
 ```
->>>>>>> upstream/main
 
 ### Generated Files — NEVER Edit Manually
 
@@ -272,31 +254,6 @@ All files in `scripts/generated/` are auto-generated from the manifest:
 - `doctor_checks.sh` — Doctor verification checks
 - `manifest_index.sh` — Bash arrays with module metadata
 
-<<<<<<< HEAD
-**To modify:** Edit `packages/manifest/src/generate.ts`, then run `bun run generate`.
-
----
-
-## Code Editing Discipline
-
-- Do **not** run scripts that bulk-modify code (codemods, giant sed/regex refactors).
-- Large mechanical changes: break into smaller, explicit edits.
-- Subtle/complex changes: edit by hand, file-by-file.
-
----
-
-## Backwards Compatibility & File Sprawl
-
-We optimize for a clean architecture now, not backwards compatibility.
-
-- No "compat shims" or "v2" file clones.
-- When changing behavior, migrate callers and remove old code.
-- New files are only for genuinely new domains.
-
----
-
-## Website Development (apps/web)
-=======
 ```
 scripts/generated/          # ALL files in this directory
 ├── install_*.sh           # Category installer scripts
@@ -394,7 +351,6 @@ These are installed on target VPS (not development machine).
 - **csctf** — Convert AI chat share links to Markdown/HTML archives
 
 ### Website Development (apps/web)
->>>>>>> upstream/main
 
 ```bash
 cd apps/web && bun install && bun run dev
@@ -406,22 +362,53 @@ Key patterns: App Router, shadcn/ui + Tailwind, URL params + localStorage (no ba
 
 ## MCP Agent Mail — Multi-Agent Coordination
 
-<<<<<<< HEAD
-```bash
-shellcheck install.sh scripts/lib/*.sh
-./tests/vm/test_install_ubuntu.sh
-```
-=======
 A mail-like layer that lets coding agents coordinate asynchronously via MCP tools and resources. Provides identities, inbox/outbox, searchable threads, and advisory file reservations with human-auditable artifacts in Git.
 
 ### Why It's Useful
->>>>>>> upstream/main
 
 - **Prevents conflicts:** Explicit file reservations (leases) for files/globs
 - **Token-efficient:** Messages stored in per-project archive, not in context
 - **Quick reads:** `resource://inbox/...`, `resource://thread/...`
 
-<<<<<<< HEAD
+### Same Repository Workflow
+
+1. **Register identity:**
+   ```
+   ensure_project(project_key=<abs-path>)
+   register_agent(project_key, program, model)
+   ```
+
+2. **Reserve files before editing:**
+   ```
+   file_reservation_paths(project_key, agent_name, ["src/**"], ttl_seconds=3600, exclusive=true)
+   ```
+
+3. **Communicate with threads:**
+   ```
+   send_message(..., thread_id="FEAT-123")
+   fetch_inbox(project_key, agent_name)
+   acknowledge_message(project_key, agent_name, message_id)
+   ```
+
+4. **Quick reads:**
+   ```
+   resource://inbox/{Agent}?project=<abs-path>&limit=20
+   resource://thread/{id}?project=<abs-path>&include_bodies=true
+   ```
+
+### Macros vs Granular Tools
+
+- **Prefer macros for speed:** `macro_start_session`, `macro_prepare_thread`, `macro_file_reservation_cycle`, `macro_contact_handshake`
+- **Use granular tools for control:** `register_agent`, `file_reservation_paths`, `send_message`, `fetch_inbox`, `acknowledge_message`
+
+### Common Pitfalls
+
+- `"from_agent not registered"`: Always `register_agent` in the correct `project_key` first
+- `"FILE_RESERVATION_CONFLICT"`: Adjust patterns, wait for expiry, or use non-exclusive reservation
+- **Auth errors:** If JWT+JWKS enabled, include bearer token with matching `kid`
+
+---
+
 ## Defensive Engineering Standard
 
 All long-running workflows (installer, upgrade, migration) MUST follow this standard:
@@ -463,60 +450,6 @@ Errors are classified by `classify_error()` in `error_tracking.sh`:
 ### Fault Injection Tests
 
 Run with `./tests/vm/fault_injection.sh`. Tests cover network loss, apt lock, low disk, permission errors, interrupted runs, and postcondition drift.
-
----
-
-## Landing the Plane (Session Completion)
-=======
-### Same Repository Workflow
->>>>>>> upstream/main
-
-1. **Register identity:**
-   ```
-   ensure_project(project_key=<abs-path>)
-   register_agent(project_key, program, model)
-   ```
-
-<<<<<<< HEAD
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing
-- If push fails, resolve and retry until it succeeds
-
----
-
-## UBS Quick Reference for AI Agents
-
-UBS (Ultimate Bug Scanner): **The AI Coding Agent's Secret Weapon**
-=======
-2. **Reserve files before editing:**
-   ```
-   file_reservation_paths(project_key, agent_name, ["src/**"], ttl_seconds=3600, exclusive=true)
-   ```
-
-3. **Communicate with threads:**
-   ```
-   send_message(..., thread_id="FEAT-123")
-   fetch_inbox(project_key, agent_name)
-   acknowledge_message(project_key, agent_name, message_id)
-   ```
-
-4. **Quick reads:**
-   ```
-   resource://inbox/{Agent}?project=<abs-path>&limit=20
-   resource://thread/{id}?project=<abs-path>&include_bodies=true
-   ```
-
-### Macros vs Granular Tools
-
-- **Prefer macros for speed:** `macro_start_session`, `macro_prepare_thread`, `macro_file_reservation_cycle`, `macro_contact_handshake`
-- **Use granular tools for control:** `register_agent`, `file_reservation_paths`, `send_message`, `fetch_inbox`, `acknowledge_message`
-
-### Common Pitfalls
-
-- `"from_agent not registered"`: Always `register_agent` in the correct `project_key` first
-- `"FILE_RESERVATION_CONFLICT"`: Adjust patterns, wait for expiry, or use non-exclusive reservation
-- **Auth errors:** If JWT+JWKS enabled, include bearer token with matching `kid`
 
 ---
 
@@ -662,7 +595,6 @@ bv --robot-insights | jq '.Cycles'                         # Circular deps (must
 ---
 
 ## UBS — Ultimate Bug Scanner
->>>>>>> upstream/main
 
 **Golden Rule:** `ubs <changed-files>` before every commit. Exit 0 = safe. Exit >0 = fix & re-run.
 
@@ -671,17 +603,6 @@ bv --robot-insights | jq '.Cycles'                         # Circular deps (must
 ```bash
 ubs file.sh file2.ts                    # Specific files (< 1s) — USE THIS
 ubs $(git diff --name-only --cached)    # Staged files — before commit
-<<<<<<< HEAD
-ubs --ci --fail-on-warning .            # CI mode — before PR
-```
-
-**Fix Workflow:** Read finding → Navigate `file:line:col` → Verify real issue → Fix root cause → Re-run → Commit
-
-**Bug Severity:**
-- **Critical** (always fix): Null safety, XSS/injection, async/await, memory leaks
-- **Important**: Type narrowing, division-by-zero, resource leaks
-- **Contextual**: TODO/FIXME, console logs
-=======
 ubs --only=bash,js src/                 # Language filter (3-5x faster)
 ubs --ci --fail-on-warning .            # CI mode — before PR
 ubs .                                   # Whole project (ignores node_modules, .venv)
@@ -712,61 +633,11 @@ Parse: `file:line:col` -> location | fix suggestion -> how to fix | Exit 0/1 -> 
 - **Critical (always fix):** Injection, unquoted variables, unsafe eval, command injection
 - **Important (production):** Unhandled errors, resource leaks, missing error checks
 - **Contextual (judgment):** TODO/FIXME, console logs, debugging output
->>>>>>> upstream/main
 
 ---
 
 ## RCH — Remote Compilation Helper
 
-<<<<<<< HEAD
-DCG (Destructive Command Guard) is a Claude Code hook that **blocks dangerous git and filesystem commands** before execution.
-
-**Golden Rule:** DCG works automatically. When blocked, use safer alternatives or ask the user to run it manually.
-
-**Auto-Blocked Commands:**
-```bash
-git reset --hard               # Destroys uncommitted changes
-git push --force / -f          # Overwrites remote history
-git clean -f                   # Deletes untracked files
-rm -rf <non-temp>              # Recursive deletion
-```
-
-**Always Safe:**
-```bash
-git checkout -b <branch>       # Creates branch, safe
-git restore --staged           # Only unstages
-git push --force-with-lease    # Safe force push variant
-```
-
-**When Blocked:** Ask user to run manually, suggest safer alternatives, never try to bypass.
-
-**Commands:**
-```bash
-dcg test "<cmd>" --explain     # Test if blocked
-dcg install                    # Register hook
-dcg doctor                     # Health check
-dcg allow-once <code>          # One-time bypass
-```
-
----
-
-## Tool Skills Reference
-
-Detailed documentation for specialized tools is available in `.agent/skills/`:
-
-| Skill | Purpose | Trigger |
-|-------|---------|---------|
-| `beads` | Issue tracking with br/bv | Working with tasks, bugs, issues |
-| `mcp-mail` | Multi-agent coordination | Agent-to-agent communication, file reservations |
-| `cass` | Cross-agent session search | Looking for previous solutions |
-| `cm` | Agent memory system | Retrieving lessons, building memory |
-| `warp-grep` | AI-powered code search | "How does X work?" exploration |
-| `ru` | Multi-repo sync | Managing multiple repositories |
-| `giil` | Cloud image download | Visual debugging with shared images |
-| `csctf` | Chat-to-file converter | Archiving AI conversations |
-
-These skills are loaded **on-demand** based on semantic matching.
-=======
 RCH offloads `cargo build`, `cargo test`, `cargo clippy`, and other compilation commands to a fleet of 8 remote Contabo VPS workers instead of building locally. This prevents compilation storms from overwhelming csd when many agents run simultaneously.
 
 **RCH is installed at `~/.local/bin/rch` and is hooked into Claude Code's PreToolUse automatically.** Most of the time you don't need to do anything if you are Claude Code — builds are intercepted and offloaded transparently.
@@ -861,70 +732,7 @@ Returns structured results with file paths, line ranges, and extracted code snip
 - **Don't** use `ripgrep` to understand "how does X work" -> wastes time with manual reads
 - **Don't** use `ripgrep` for codemods -> risks collateral edits
 
-<!-- bv-agent-instructions-v1 -->
-
 ---
-
-## Beads Workflow Integration
-
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking. Issues are stored in `.beads/` and tracked in git.
-
-**Important:** `br` is non-invasive—it NEVER executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
-
-### Essential Commands
-
-```bash
-# View issues (launches TUI - avoid in automated sessions)
-bv
-
-# CLI commands for agents (use these instead)
-br ready              # Show issues ready to work (no blockers)
-br list --status=open # All open issues
-br show <id>          # Full issue details with dependencies
-br create --title="..." --type=task --priority=2
-br update <id> --status=in_progress
-br close <id> --reason "Completed"
-br close <id1> <id2>  # Close multiple issues at once
-br sync --flush-only  # Export to JSONL (NO git operations)
-```
-
-### Workflow Pattern
-
-1. **Start**: Run `br ready` to find actionable work
-2. **Claim**: Use `br update <id> --status=in_progress`
-3. **Work**: Implement the task
-4. **Complete**: Use `br close <id>`
-5. **Sync**: Run `br sync --flush-only` then manually commit
-
-### Key Concepts
-
-- **Dependencies**: Issues can block other issues. `br ready` shows only unblocked work.
-- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
-- **Types**: task, bug, feature, epic, chore
-- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
-
-### Session Protocol
-
-**Before ending any session, run this checklist:**
-
-```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-br sync --flush-only    # Export beads to JSONL
-git add .beads/         # Stage beads changes
-git commit -m "..."     # Commit everything together
-git push                # Push to remote
-```
-
-### Best Practices
-
-- Check `br ready` at session start to find available work
-- Update status as you work (in_progress -> closed)
-- Create new issues with `br create` when you discover tasks
-- Use descriptive titles and set appropriate priority/type
-- Always `br sync --flush-only && git add .beads/` before ending session
-
-<!-- end-bv-agent-instructions -->
 
 ## Landing the Plane (Session Completion)
 
@@ -1011,29 +819,31 @@ cm onboard status                          # Check status
 cm onboard sample --fill-gaps              # Get sessions to analyze
 cm context "<task description>" --json     # Retrieve relevant context before work
 ```
->>>>>>> upstream/main
+
+---
+
+## Tool Skills Reference
+
+Detailed documentation for specialized tools is available in `.agent/skills/`:
+
+| Skill | Purpose | Trigger |
+|-------|---------|---------|
+| `beads` | Issue tracking with br/bv | Working with tasks, bugs, issues |
+| `mcp-mail` | Multi-agent coordination | Agent-to-agent communication, file reservations |
+| `cass` | Cross-agent session search | Looking for previous solutions |
+| `cm` | Agent memory system | Retrieving lessons, building memory |
+| `warp-grep` | AI-powered code search | "How does X work?" exploration |
+| `ru` | Multi-repo sync | Managing multiple repositories |
+| `giil` | Cloud image download | Visual debugging with shared images |
+| `csctf` | Chat-to-file converter | Archiving AI conversations |
+
+These skills are loaded **on-demand** based on semantic matching.
 
 ---
 
 Note for Codex/GPT-5.2:
 
-<<<<<<< HEAD
 When you see unexpected changes in working tree from other agents: NEVER stash, revert, overwrite, or disturb their work. Treat those changes identically to changes you made yourself.
-=======
-You constantly bother me and stop working with concerned questions that look similar to this:
-
-```
-Unexpected changes (need guidance)
-
-- Working tree still shows edits I did not make in Cargo.toml, Cargo.lock, src/main.rs, src/patterns.rs. Please advise whether to keep/commit/revert these before any further work. I did not touch them.
-
-Next steps (pick one)
-
-1. Decide how to handle the unrelated modified files above so we can resume cleanly.
-```
-
-NEVER EVER DO THAT AGAIN. The answer is literally ALWAYS the same: those are changes created by the potentially dozen of other agents working on the project at the same time. This is not only a common occurrence, it happens multiple times PER MINUTE. The way to deal with it is simple: you NEVER, under ANY CIRCUMSTANCE, stash, revert, overwrite, or otherwise disturb in ANY way the work of other agents. Just treat those changes identically to changes that you yourself made. Just fool yourself into thinking YOU made the changes and simply don't recall it for some reason.
->>>>>>> upstream/main
 
 ---
 
