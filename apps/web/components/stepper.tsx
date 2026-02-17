@@ -189,11 +189,15 @@ export function StepperMobile({
       axis: "x",
       filterTaps: true,
       threshold: 10,
+      // Prevent the gesture library from calling preventDefault() on touch
+      // events, which breaks native scrolling and tap handling on Mobile Safari
+      preventScrollAxis: "y",
+      pointer: { touch: true },
     }
   );
 
   return (
-    <div {...bind()} className={cn("touch-pan-x select-none", className)}>
+    <div {...bind()} className={cn("select-none", className)} style={{ touchAction: "pan-x pan-y" }}>
       {/* Progress bar with animated gradient */}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <motion.div

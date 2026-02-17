@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "raw.githubusercontent.com",
-        pathname: "/Dicklesworthstone/agentic_coding_flywheel_setup/**",
+        pathname: "/deepakdgupta1/agentic-coding/**",
       },
     ],
   },

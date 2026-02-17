@@ -206,7 +206,22 @@ install_uv() {
         return 1
     fi
 
-    if ! _lang_run_as_user "source '$LANG_SCRIPT_DIR/security.sh'; verify_checksum '$url' '$expected_sha256' 'uv' | sh"; then
+    # Run uv installer as target user with better error handling
+    # We use a temporary file to avoid pipe exit code ambiguity and ensure
+    # the script is fully downloaded/verified before execution.
+    local install_cmd="source '$LANG_SCRIPT_DIR/security.sh'; "
+    install_cmd+="tmp_script=\$(mktemp); "
+    install_cmd+="if verify_checksum '$url' '$expected_sha256' 'uv' > \"\$tmp_script\"; then "
+    install_cmd+="  echo 'Running uv installer...'; "
+    install_cmd+="  sh \"\$tmp_script\" || { echo 'uv installer failed'; rm -f \"\$tmp_script\"; exit 1; }; "
+    install_cmd+="  rm -f \"\$tmp_script\"; "
+    install_cmd+="else "
+    install_cmd+="  echo 'uv checksum verification failed'; "
+    install_cmd+="  rm -f \"\$tmp_script\"; "
+    install_cmd+="  exit 1; "
+    install_cmd+="fi"
+
+    if ! _lang_run_as_user "$install_cmd"; then
         log_warn "uv installation failed"
         return 1
     fi

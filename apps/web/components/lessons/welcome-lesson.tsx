@@ -48,7 +48,10 @@ export function WelcomeLesson() {
         </Paragraph>
 
         <div className="mt-8">
-          <Paragraph>Here&apos;s what&apos;s installed on your VPS:</Paragraph>
+          <Paragraph>
+            Here&apos;s what&apos;s installed in your ACFS environment (VPS or local
+            sandbox):
+          </Paragraph>
         </div>
 
         <div className="mt-6">
@@ -73,15 +76,15 @@ export function WelcomeLesson() {
             />
             <FeatureCard
               icon={<Bot className="h-5 w-5" />}
-              title="Three Coding Agents"
-              description="Claude Code (cc), Codex CLI (cod), and Gemini CLI (gmi)"
+              title="Four Coding Agents"
+              description="Claude Code (cc) primary, plus Codex (cod), Gemini (gmi), and Amp (amp)"
               gradient="from-amber-500/20 to-orange-500/20"
             />
           </FeatureGrid>
         </div>
 
         {/* Agent Cards */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <AgentCard
             name="Claude Code"
             shortcut="cc"
@@ -96,6 +99,11 @@ export function WelcomeLesson() {
             name="Gemini CLI"
             shortcut="gmi"
             color="from-blue-500 to-indigo-500"
+          />
+          <AgentCard
+            name="Amp CLI"
+            shortcut="amp"
+            color="from-fuchsia-500 to-pink-500"
           />
         </div>
       </Section>
@@ -117,9 +125,13 @@ export function WelcomeLesson() {
 
         <div className="mt-8 space-y-4">
           <Paragraph>
-            Your laptop is just the{" "}
-            <Highlight>remote control</Highlight>. The real work happens on the
-            VPS.
+            If you&apos;re on a VPS, your laptop is just the{" "}
+            <Highlight>remote control</Highlight>—the real work happens on the
+            server.
+          </Paragraph>
+          <Paragraph>
+            If you&apos;re in local desktop mode, your host machine is the cockpit
+            and the LXD sandbox is the engine room.
           </Paragraph>
           <Paragraph>
             If your SSH connection drops? No problem. Your work continues in
@@ -144,7 +156,7 @@ export function WelcomeLesson() {
             },
             {
               title: "SSH fundamentals",
-              description: "Staying connected to your VPS",
+              description: "Staying connected to your VPS (skip if local)",
             },
             {
               title: "tmux essentials",
@@ -152,7 +164,7 @@ export function WelcomeLesson() {
             },
             {
               title: "Agent commands",
-              description: "Talking to Claude, Codex, and Gemini",
+              description: "Talking to Claude (primary), Codex, Gemini, and Amp",
             },
             {
               title: "NTM mastery",
@@ -170,8 +182,9 @@ export function WelcomeLesson() {
 
       {/* Tip */}
       <TipBox variant="tip">
-        If you ever break something, you can delete this VPS and re-run ACFS.
-        That&apos;s the beauty of VPS development!
+        If you ever break something, you can delete the VPS or destroy the local
+        container and re-run ACFS. That&apos;s the beauty of disposable
+        environments!
       </TipBox>
     </div>
   );
@@ -250,7 +263,7 @@ function ArchitectureDiagram() {
             <div className="h-px w-8 bg-gradient-to-r from-sky-500/50 to-primary/50" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/[0.1]">
               <Wifi className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-mono text-white/50">SSH</span>
+              <span className="text-xs font-mono text-white/50">SSH / LXD</span>
             </div>
             <div className="h-px w-8 bg-gradient-to-r from-primary/50 to-emerald-500/50" />
             <ChevronRight className="h-5 w-5 text-emerald-400" />
@@ -259,14 +272,14 @@ function ArchitectureDiagram() {
             <div className="w-px h-8 bg-gradient-to-b from-sky-500/50 to-primary/50" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/[0.1]">
               <Wifi className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-mono text-white/50">SSH</span>
+              <span className="text-xs font-mono text-white/50">SSH / LXD</span>
             </div>
             <div className="w-px h-8 bg-gradient-to-b from-primary/50 to-emerald-500/50" />
             <ChevronRight className="h-5 w-5 text-emerald-400 rotate-90" />
           </div>
         </motion.div>
 
-        {/* Right side - VPS */}
+        {/* Right side - ACFS Environment */}
         <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -274,13 +287,13 @@ function ArchitectureDiagram() {
           className="space-y-4"
         >
           <DiagramBox
-            label="Your VPS"
-            sublabel="The Engine Room"
+            label="ACFS Environment"
+            sublabel="VPS or Local Sandbox"
             icon={<Cloud className="h-8 w-8" />}
             gradient="from-emerald-500/20 to-teal-500/20"
           />
 
-          {/* VPS Components */}
+          {/* Environment Components */}
           <div className="grid grid-cols-3 gap-3">
             <VPSComponent
               icon={<Server className="h-4 w-4" />}
@@ -320,7 +333,7 @@ function VPSComponent({
     >
       <div className="text-white/60 mb-1 group-hover:text-primary group-hover:scale-110 transition-all duration-300">{icon}</div>
       <span className="text-xs font-medium text-white group-hover:text-primary transition-colors">{label}</span>
-      <span className="text-[10px] text-white/40 group-hover:text-white/60 transition-colors">{sublabel}</span>
+      <span className="text-xs text-white/60 group-hover:text-white/80 transition-colors">{sublabel}</span>
     </motion.div>
   );
 }

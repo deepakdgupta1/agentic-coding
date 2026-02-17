@@ -1,22 +1,46 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC1091
+# ACFS relies on Bash 4+ features (associative arrays, declare -g, etc.).
+# macOS ships Bash 3.2 by default, so re-exec with Homebrew Bash when present.
+if [[ -n "${BASH_VERSINFO:-}" ]] && (( BASH_VERSINFO[0] < 4 )); then
+    for acfs_modern_bash in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [[ -x "$acfs_modern_bash" ]]; then
+            exec "$acfs_modern_bash" "$0" "$@"
+        fi
+    done
+
+    cat >&2 <<'EOF'
+ERROR: ACFS requires Bash 4+.
+Detected: Bash 3.x (macOS system bash).
+
+Install modern bash:
+  brew install bash
+
+Then re-run:
+  /opt/homebrew/bin/bash ./install.sh --macos
+EOF
+    exit 1
+fi
 # ============================================================
 # ACFS - Agentic Coding Flywheel Setup
 # Main installer script
 #
 # Usage:
-#   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
+#   curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 #
 # Options:
 #   --yes         Skip all prompts, use defaults
 #   --mode vibe   Enable passwordless sudo, full agent permissions
 #   --dry-run     Print what would be done without changing system
 #   --print       Print upstream scripts/versions that will be run
+#   --idempotency-audit  Dry-run idempotency audit for local modes
 #   --skip-postgres   Skip PostgreSQL 18 installation
 #   --skip-vault      Skip HashiCorp Vault installation
 #   --skip-cloud      Skip cloud CLIs (wrangler, supabase, vercel)
 #   --resume          Resume from checkpoint (default when state exists)
 #   --force-reinstall Start fresh, ignore existing state
+#   --resume-from <stage> Skip all phases before this stage
+#   --stop-after <stage>  Exit cleanly after this stage completes
 #   --reset-state     Move state file aside and exit (for debugging)
 #   --interactive     Enable interactive prompts for resume decisions
 #   --skip-preflight  Skip pre-flight system validation
@@ -26,6 +50,7 @@
 #   --auto-fix-dry-run     Show what auto-fix would do without executing
 #   --skip-ubuntu-upgrade  Skip automatic Ubuntu version upgrade
 #   --target-ubuntu=VER    Set target Ubuntu version (default: 25.10)
+#   --local / --desktop    Run in sandboxed LXD container (for desktop PCs)
 #   --strict          Treat ALL tools as critical (any checksum mismatch aborts)
 #   --list-modules    List available modules and exit
 #   --print-plan      Print execution plan and exit (no installs)
@@ -34,6 +59,11 @@
 #   --skip <module>       Skip a specific module (repeatable)
 #   --no-deps             Disable automatic dependency closure (expert/debug)
 #   --checksums-ref <ref> Fetch checksums.yaml from this ref (default: main for pinned tags/SHAs)
+
+# Silence the "Installation checklist" output by default to reduce console noise
+: "${ACFS_CHECKLIST_PROGRESS:=false}"
+export ACFS_CHECKLIST_PROGRESS
+
 # ============================================================
 
 set -euo pipefail
@@ -50,8 +80,8 @@ export DEBCONF_NONINTERACTIVE_SEEN=true
 # ============================================================
 ACFS_VERSION="0.5.0"
 # Allow fork installations by overriding these via environment variables
-ACFS_REPO_OWNER="${ACFS_REPO_OWNER:-Dicklesworthstone}"
-ACFS_REPO_NAME="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+ACFS_REPO_OWNER="${ACFS_REPO_OWNER:-deepakdgupta1}"
+ACFS_REPO_NAME="${ACFS_REPO_NAME:-agentic-coding}"
 ACFS_REF="${ACFS_REF:-main}"
 # Preserve the original ref (branch/tag/sha) before resolving to a commit SHA.
 ACFS_REF_INPUT="$ACFS_REF"
@@ -95,10 +125,17 @@ YES_MODE=false
 DRY_RUN=false
 PRINT_MODE=false
 PIN_REF_MODE=false
+HELP_MODE=false
 MODE="vibe"
+IDEMPOTENCY_AUDIT=false
 SKIP_POSTGRES=false
 SKIP_VAULT=false
 SKIP_CLOUD=false
+
+# Local desktop installation mode (LXD sandboxing)
+# When true, ACFS runs inside an LXD container to protect the host
+LOCAL_MODE=false
+MACOS_MODE=false
 
 # Manifest-driven selection options (mjt.5.3)
 LIST_MODULES=false
@@ -129,10 +166,12 @@ SKIP_UBUNTU_UPGRADE=false
 TARGET_UBUNTU_VERSION="25.10"
 
 # Target user configuration
-# Default: install for the "ubuntu" user (typical VPS images).
-# Advanced: override with env vars (see README):
-#   TARGET_USER=myuser TARGET_HOME=/home/myuser ...
-TARGET_USER="${TARGET_USER:-ubuntu}"
+# Default: detect the current user (or SUDO_USER if running under sudo).
+# Override with env var: TARGET_USER=myuser
+# Note: Previously defaulted to "ubuntu" which broke non-ubuntu VPS installs.
+_ACFS_DETECTED_USER="${SUDO_USER:-$(whoami)}"
+TARGET_USER="${TARGET_USER:-$_ACFS_DETECTED_USER}"
+unset _ACFS_DETECTED_USER
 # Leave TARGET_HOME unset by default; init_target_paths will derive it from:
 # - $HOME when running as TARGET_USER
 # - /home/$TARGET_USER otherwise
@@ -651,7 +690,9 @@ acfs_log_init() {
     # If tee logging fails, we fall back to simple file redirection.
     local tee_logging_ok=false
     if command -v tee >/dev/null 2>&1; then
-        # Test if process substitution works before committing to it
+        # Test if process substitution works before committing to it.
+        # On bash 5.3+, bare `exec` under set -e can exit the script
+        # before `if` catches the failure, so we test in a subshell.
         # shellcheck disable=SC2261
         if (exec 3>&1; echo test > >(cat >/dev/null)) 2>/dev/null; then
             # Process substitution works - set up tee logging
@@ -659,8 +700,9 @@ acfs_log_init() {
             exec 3>&2 || true
             # Now redirect stderr to tee (which sends to both log and original stderr)
             # shellcheck disable=SC2261
-            if exec 2> >(tee -a "$ACFS_LOG_FILE" >&3); then
-                tee_logging_ok=true
+            # Use subshell test first to prevent exec from exiting under bash 5.3+
+            if (set +e; exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)) 2>/dev/null; then
+                exec 2> >(tee -a "$ACFS_LOG_FILE" >&3) && tee_logging_ok=true
             fi
         fi
     fi
@@ -720,7 +762,7 @@ acfs_summary_emit() {
     # Require jq (installed by ensure_base_deps before phases run)
     command -v jq &>/dev/null || return 1
 
-    local summary_dir="${ACFS_HOME:-/home/${TARGET_USER:?}/.acfs}/logs"
+    local summary_dir="${ACFS_HOME:-${TARGET_HOME:?}/.acfs}/logs"
     mkdir -p "$summary_dir" 2>/dev/null || return 1
 
     ACFS_SUMMARY_FILE="${summary_dir}/install_summary_$(date +%Y%m%d_%H%M%S).json"
@@ -815,9 +857,9 @@ generate_resume_hint() {
         cmd="curl -sSL"
         if [[ -n "${ACFS_COMMIT_SHA_FULL:-}" ]]; then
             # Pin to exact commit SHA for reproducibility
-            cmd="$cmd https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/${ACFS_COMMIT_SHA_FULL}/install.sh"
+            cmd="$cmd https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/${ACFS_COMMIT_SHA_FULL}/install.sh"
         elif [[ -n "${ACFS_REF_INPUT:-}" && "${ACFS_REF_INPUT}" != "main" ]]; then
-            cmd="$cmd https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/${ACFS_REF_INPUT}/install.sh"
+            cmd="$cmd https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/${ACFS_REF_INPUT}/install.sh"
         else
             cmd="$cmd https://acfs.sh"
         fi
@@ -846,7 +888,7 @@ generate_resume_hint() {
     [[ "${YES_MODE:-false}" == "true" ]] && cmd="$cmd --yes"
 
     # Add --strict if it was set
-    [[ "${STRICT_MODE:-false}" == "true" ]] && cmd="$cmd --strict"
+    [[ "${ACFS_STRICT_MODE:-false}" == "true" ]] && cmd="$cmd --strict"
 
     echo "$cmd"
 }
@@ -950,6 +992,14 @@ cleanup() {
         log_error ""
         # Emit failure summary (best-effort)
         acfs_summary_emit "failure" 0 2>/dev/null || true
+        # Send webhook notification for failure (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "failure" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
+        # Send ntfy.sh notification for failure (bd-2igt6)
+        if type -t acfs_notify_install_failure &>/dev/null; then
+            acfs_notify_install_failure 2>/dev/null || true
+        fi
     fi
     # Finalize log file (restore stderr, strip colors, add footer)
     acfs_log_close 2>/dev/null || true
@@ -962,14 +1012,69 @@ trap '_acfs_signal_handler HUP'  HUP
 # ============================================================
 # Parse arguments
 # ============================================================
+print_usage() {
+    cat <<'EOF'
+ACFS - Agentic Coding Flywheel Setup
+
+Usage:
+  bash install.sh [options]
+
+Common options:
+  --yes, -y                    Non-interactive install
+  --mode <vibe|safe>           Install mode (default: vibe)
+  --resume                     Resume from existing checkpoint
+  --force-reinstall            Ignore state and reinstall from scratch
+  --local, --desktop           Run in sandboxed LXD container
+  --macos                      Run in local Multipass VM on macOS
+  --skip-preflight             Skip pre-flight checks
+  --auto-fix                   Enable prompted auto-fix mode (default)
+  --auto-fix-accept-all        Apply auto-fixes without prompting
+  --no-auto-fix                Disable auto-fix actions
+  --auto-fix-dry-run           Show auto-fix actions only
+  --strict                     Treat all checksum mismatches as fatal
+  --checksums-ref <ref>        Fetch checksums.yaml from this ref
+  --only <module>              Run only selected module(s) (repeatable)
+  --only-phase <phase>         Run only selected phase(s) (repeatable)
+  --skip <module>              Skip selected module(s) (repeatable)
+  --list-modules               List modules and exit
+  --print-plan                 Print resolved execution plan and exit
+  --dry-run                    Preview without making changes
+  --print                      Print upstream tools/versions and exit
+  --help, -h                   Show this help and exit
+EOF
+}
+
+acfs_args_request_help() {
+    local arg=""
+    for arg in "$@"; do
+        case "$arg" in
+            --help|-h)
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
 parse_args() {
+    local -a unknown_options=()
+
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --help|-h)
+                HELP_MODE=true
+                shift
+                ;;
             --yes|-y)
                 YES_MODE=true
                 shift
                 ;;
             --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --idempotency-audit|--audit-idempotency)
+                IDEMPOTENCY_AUDIT=true
                 DRY_RUN=true
                 shift
                 ;;
@@ -1002,12 +1107,41 @@ parse_args() {
                 SKIP_CLOUD=true
                 shift
                 ;;
+            --local|--desktop)
+                # Enable local desktop installation mode with LXD sandboxing
+                LOCAL_MODE=true
+                shift
+                ;;
+            --macos)
+                # Enable local desktop installation mode via Multipass on macOS
+                LOCAL_MODE=true
+                MACOS_MODE=true
+                shift
+                ;;
             --resume)
                 export ACFS_FORCE_RESUME=true
                 shift
                 ;;
             --force-reinstall)
                 export ACFS_FORCE_REINSTALL=true
+                shift
+                ;;
+            --resume-from)
+                shift
+                export ACFS_RESUME_FROM="${1:-}"
+                if [[ -z "$ACFS_RESUME_FROM" ]]; then
+                    echo "ERROR: --resume-from requires a stage ID (e.g. languages)" >&2
+                    exit 1
+                fi
+                shift
+                ;;
+            --stop-after)
+                shift
+                export ACFS_STOP_AFTER="${1:-}"
+                if [[ -z "$ACFS_STOP_AFTER" ]]; then
+                    echo "ERROR: --stop-after requires a stage ID (e.g. languages)" >&2
+                    exit 1
+                fi
                 shift
                 ;;
             --reset-state)
@@ -1126,12 +1260,75 @@ parse_args() {
                 NO_DEPS=true
                 shift
                 ;;
+            --webhook|--webhook=*)
+                # Webhook URL for install completion notification (bd-2zqr)
+                if [[ "$1" == "--webhook" ]]; then
+                    if [[ -z "${2:-}" ]]; then
+                        log_fatal "--webhook requires a URL (e.g., --webhook https://hooks.slack.com/...)"
+                    fi
+                    export ACFS_WEBHOOK_URL="$2"
+                    shift 2
+                else
+                    # Handle --webhook=https://... format
+                    export ACFS_WEBHOOK_URL="${1#*=}"
+                    shift
+                fi
+                ;;
             *)
-                log_warn "Unknown option: $1"
+                unknown_options+=("$1")
                 shift
                 ;;
         esac
     done
+
+    if [[ ${#unknown_options[@]} -gt 0 ]]; then
+        if [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]; then
+            log_fatal "Unknown option(s) in non-interactive mode: ${unknown_options[*]}"
+        fi
+
+        local unknown_option=""
+        for unknown_option in "${unknown_options[@]}"; do
+            log_warn "Unknown option: $unknown_option"
+        done
+    fi
+}
+
+# Validate stage selector flags against known phase IDs to avoid silent no-op runs.
+acfs_validate_stage_selector_flags() {
+    local valid_ids=""
+    local stage_id=""
+
+    if [[ -n "${ACFS_PHASE_IDS[*]:-}" ]]; then
+        valid_ids="${ACFS_PHASE_IDS[*]}"
+    else
+        # Fallback if state.sh was not loaded for any reason.
+        valid_ids="user_setup filesystem shell_setup cli_tools languages agents cloud_db stack finalize"
+    fi
+
+    _acfs_is_known_stage_id() {
+        local needle="$1"
+        local phase=""
+        for phase in $valid_ids; do
+            if [[ "$phase" == "$needle" ]]; then
+                return 0
+            fi
+        done
+        return 1
+    }
+
+    if [[ -n "${ACFS_RESUME_FROM:-}" ]]; then
+        stage_id="$ACFS_RESUME_FROM"
+        if ! _acfs_is_known_stage_id "$stage_id"; then
+            log_fatal "Invalid --resume-from stage '$stage_id'. Valid stages: $valid_ids"
+        fi
+    fi
+
+    if [[ -n "${ACFS_STOP_AFTER:-}" ]]; then
+        stage_id="$ACFS_STOP_AFTER"
+        if ! _acfs_is_known_stage_id "$stage_id"; then
+            log_fatal "Invalid --stop-after stage '$stage_id'. Valid stages: $valid_ids"
+        fi
+    fi
 }
 
 # ============================================================
@@ -1139,6 +1336,86 @@ parse_args() {
 # ============================================================
 command_exists() {
     command -v "$1" &>/dev/null
+}
+
+# Build the argument vector used for the in-VM local installer run.
+# This keeps macOS bootstrap behavior aligned with top-level install flags.
+acfs_build_local_inner_install_args() {
+    local -n _out="$1"
+    _out=(--local --yes --mode "${MODE:-vibe}")
+
+    # Preserve install-control flags.
+    [[ "${ACFS_FORCE_RESUME:-false}" == "true" ]] && _out+=(--resume)
+    [[ "${ACFS_FORCE_REINSTALL:-false}" == "true" ]] && _out+=(--force-reinstall)
+    [[ -n "${ACFS_RESUME_FROM:-}" ]] && _out+=(--resume-from "$ACFS_RESUME_FROM")
+    [[ -n "${ACFS_STOP_AFTER:-}" ]] && _out+=(--stop-after "$ACFS_STOP_AFTER")
+
+    # Preserve module/phase selection.
+    local module_id=""
+    for module_id in "${ONLY_MODULES[@]}"; do
+        _out+=(--only "$module_id")
+    done
+    for module_id in "${ONLY_PHASES[@]}"; do
+        _out+=(--only-phase "$module_id")
+    done
+    for module_id in "${SKIP_MODULES[@]}"; do
+        _out+=(--skip "$module_id")
+    done
+    [[ "${NO_DEPS:-false}" == "true" ]] && _out+=(--no-deps)
+
+    # Preserve behavior flags.
+    [[ "${SKIP_POSTGRES:-false}" == "true" ]] && _out+=(--skip-postgres)
+    [[ "${SKIP_VAULT:-false}" == "true" ]] && _out+=(--skip-vault)
+    [[ "${SKIP_CLOUD:-false}" == "true" ]] && _out+=(--skip-cloud)
+    [[ "${SKIP_PREFLIGHT:-false}" == "true" ]] && _out+=(--skip-preflight)
+    [[ "${ACFS_STRICT_MODE:-false}" == "true" ]] && _out+=(--strict)
+    [[ -n "${ACFS_CHECKSUMS_REF:-}" ]] && _out+=(--checksums-ref "$ACFS_CHECKSUMS_REF")
+    [[ -n "${ACFS_WEBHOOK_URL:-}" ]] && _out+=(--webhook "$ACFS_WEBHOOK_URL")
+
+    case "${AUTO_FIX_MODE:-prompt}" in
+        yes) _out+=(--auto-fix-accept-all) ;;
+        no) _out+=(--no-auto-fix) ;;
+        dry-run) _out+=(--auto-fix-dry-run) ;;
+        *) : ;;
+    esac
+
+    # Local sandbox installs should never trigger in-container Ubuntu upgrades.
+    _out+=(--skip-ubuntu-upgrade)
+}
+
+# Join argv as a shell-safe string for `bash -c "..."`
+acfs_shell_escape_args() {
+    local out=""
+    local arg=""
+    local q=""
+
+    for arg in "$@"; do
+        printf -v q "%q" "$arg"
+        if [[ -n "$out" ]]; then
+            out+=" "
+        fi
+        out+="$q"
+    done
+
+    printf "%s" "$out"
+}
+
+# Encode argv into a base64 payload with Unit Separator delimiters.
+# Used to relay args across nested bootstrap layers without lossy splitting.
+acfs_encode_install_args_b64() {
+    local sep=$'\x1f'
+    local payload=""
+    local arg=""
+
+    for arg in "$@"; do
+        payload+="${arg}${sep}"
+    done
+
+    if ! command -v base64 &>/dev/null; then
+        return 1
+    fi
+
+    printf "%s" "$payload" | base64 | tr -d '\n'
 }
 
 # Interactive yes/no confirmation prompt
@@ -1177,6 +1454,7 @@ confirm() {
 #   1 - User declined to fix or auto-fix is disabled
 #   2 - Fix function failed
 #
+# shellcheck disable=SC2329  # Legacy 3-arg variant is kept for compatibility; 2-arg variant below is used by current flow.
 handle_autofix() {
     local fix_name="$1"
     local description="$2"
@@ -1218,6 +1496,14 @@ handle_autofix() {
             log_warn "[PRE-FLIGHT] $description"
             if [[ "${YES_MODE:-false}" == "true" ]]; then
                 # In --yes mode, default to accepting auto-fix
+                if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                    log_info "[DRY-RUN] Would auto-fix (--yes mode): $description"
+                    if type -t "$fix_function" &>/dev/null; then
+                        "$fix_function" "dry-run" || true
+                    fi
+                    return 0
+                fi
+
                 log_info "[AUTO-FIX] Fixing (--yes mode): $description"
                 if type -t "$fix_function" &>/dev/null; then
                     if "$fix_function" "fix"; then
@@ -1280,7 +1566,9 @@ detect_environment() {
         ACFS_CHECKSUMS_YAML="$SCRIPT_DIR/checksums.yaml"
         ACFS_MANIFEST_YAML="$SCRIPT_DIR/acfs.manifest.yaml"
     else
-        # Fallback: current directory
+        # Fallback: current directory (only valid for testing from repo root)
+        # This should NOT be reached in curl-pipe mode since bootstrap_repo_archive
+        # sets ACFS_BOOTSTRAP_DIR. If we reach here without SCRIPT_DIR, something is wrong.
         ACFS_LIB_DIR="./scripts/lib"
         ACFS_GENERATED_DIR="./scripts/generated"
         ACFS_ASSETS_DIR="./acfs"
@@ -1290,10 +1578,78 @@ detect_environment() {
 
     export ACFS_LIB_DIR ACFS_GENERATED_DIR ACFS_ASSETS_DIR ACFS_CHECKSUMS_YAML ACFS_MANIFEST_YAML
 
+    # Validate that library directory exists - if not, fail early with a clear message
+    if [[ ! -d "$ACFS_LIB_DIR" ]]; then
+        local abs_lib_dir="$ACFS_LIB_DIR"
+        # Try to show absolute path for better debugging
+        if [[ "$ACFS_LIB_DIR" == ./* ]]; then
+            abs_lib_dir="$(pwd)/${ACFS_LIB_DIR#./}"
+        fi
+        echo "ERROR: Library directory not found: $abs_lib_dir" >&2
+        echo "This typically means bootstrap failed or the script is being run from an unexpected location." >&2
+        echo "For curl|bash installation, ensure network connectivity to GitHub." >&2
+        echo "For local installation, run from the repository root directory." >&2
+        exit 1
+    fi
+
     # Source minimal libs in correct order (logging, then helpers)
     if [[ -f "$ACFS_LIB_DIR/logging.sh" ]]; then
         # shellcheck source=scripts/lib/logging.sh
         source "$ACFS_LIB_DIR/logging.sh"
+    fi
+
+    # Verify internal script integrity before sourcing (bd-3tpl.5)
+    # Fail-closed: abort if any tracked script has been modified.
+    # Gracefully skips if checksums file is missing (pre-migration compat).
+    if [[ -f "$ACFS_GENERATED_DIR/internal_checksums.sh" ]]; then
+        # shellcheck source=scripts/generated/internal_checksums.sh
+        source "$ACFS_GENERATED_DIR/internal_checksums.sh"
+        if declare -p ACFS_INTERNAL_CHECKSUMS &>/dev/null; then
+            local _ics_base
+            if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]]; then
+                _ics_base="$ACFS_BOOTSTRAP_DIR"
+            elif [[ -n "${SCRIPT_DIR:-}" ]]; then
+                _ics_base="$SCRIPT_DIR"
+            else
+                _ics_base="."
+            fi
+            local _ics_fail=0
+            for _ics_path in "${!ACFS_INTERNAL_CHECKSUMS[@]}"; do
+                local _ics_expected="${ACFS_INTERNAL_CHECKSUMS[$_ics_path]}"
+                local _ics_file="$_ics_base/$_ics_path"
+                if [[ -f "$_ics_file" ]]; then
+                    local _ics_actual
+                    _ics_actual=$(sha256sum "$_ics_file" | awk '{print $1}')
+                    if [[ "$_ics_actual" != "$_ics_expected" ]]; then
+                        _ics_fail=$((_ics_fail + 1))
+                        if declare -f log_error &>/dev/null; then
+                            log_error "INTEGRITY: $_ics_path checksum mismatch (expected ${_ics_expected:0:12}… got ${_ics_actual:0:12}…)"
+                        else
+                            echo "ERROR: INTEGRITY: $_ics_path checksum mismatch" >&2
+                        fi
+                    fi
+                else
+                    _ics_fail=$((_ics_fail + 1))
+                    if declare -f log_error &>/dev/null; then
+                        log_error "INTEGRITY: $_ics_path missing (expected checksum ${_ics_expected:0:12}…)"
+                    else
+                        echo "ERROR: INTEGRITY: $_ics_path missing" >&2
+                    fi
+                fi
+            done
+            if [[ "$_ics_fail" -gt 0 ]]; then
+                local _msg="Internal script integrity check failed: $_ics_fail file(s) modified. Run 'bun run generate' to regenerate checksums."
+                if declare -f log_error &>/dev/null; then
+                    log_error "$_msg"
+                else
+                    echo "ERROR: $_msg" >&2
+                fi
+                exit 1
+            fi
+            if declare -f log_success &>/dev/null; then
+                log_success "Internal script integrity verified (${ACFS_INTERNAL_CHECKSUMS_COUNT:-?} scripts)"
+            fi
+        fi
     fi
 
     if [[ -f "$ACFS_LIB_DIR/security.sh" ]]; then
@@ -1340,6 +1696,18 @@ detect_environment() {
         source "$ACFS_LIB_DIR/error_tracking.sh"
     fi
 
+    # Source stage contract for phase pre/postcondition validation
+    if [[ -f "$ACFS_LIB_DIR/stage_contract.sh" ]]; then
+        # shellcheck source=scripts/lib/stage_contract.sh
+        source "$ACFS_LIB_DIR/stage_contract.sh"
+    fi
+
+    # Source observability for structured event logging
+    if [[ -f "$ACFS_LIB_DIR/observability.sh" ]]; then
+        # shellcheck source=scripts/lib/observability.sh
+        source "$ACFS_LIB_DIR/observability.sh"
+    fi
+
     # Source Ubuntu upgrade library from the same lib dir when available (nb4).
     if [[ -f "$ACFS_LIB_DIR/ubuntu_upgrade.sh" ]]; then
         # shellcheck source=scripts/lib/ubuntu_upgrade.sh
@@ -1368,6 +1736,17 @@ detect_environment() {
         source "$ACFS_LIB_DIR/autofix_existing.sh"
     fi
 
+    # Source webhook notification library (bd-2zqr)
+    if [[ -f "$ACFS_LIB_DIR/webhook.sh" ]]; then
+        # shellcheck source=scripts/lib/webhook.sh
+        source "$ACFS_LIB_DIR/webhook.sh"
+    fi
+    # Source ntfy.sh notification library (bd-2igt6)
+    if [[ -f "$ACFS_LIB_DIR/notify.sh" ]]; then
+        # shellcheck source=scripts/lib/notify.sh
+        source "$ACFS_LIB_DIR/notify.sh"
+    fi
+
     # Source manifest index (data-only, safe to source)
     if [[ -f "$ACFS_GENERATED_DIR/manifest_index.sh" ]]; then
         # shellcheck source=scripts/generated/manifest_index.sh
@@ -1378,6 +1757,38 @@ detect_environment() {
     fi
 
     export ACFS_MANIFEST_INDEX_LOADED
+}
+
+# Verify generated installer metadata matches the manifest in the current source tree.
+acfs_verify_manifest_consistency() {
+    local manifest_file="${ACFS_MANIFEST_YAML:-}"
+    local index_file="${ACFS_GENERATED_DIR:-}/manifest_index.sh"
+
+    if [[ -z "$manifest_file" ]] || [[ -z "${ACFS_GENERATED_DIR:-}" ]]; then
+        log_fatal "Manifest consistency check requires ACFS_MANIFEST_YAML and ACFS_GENERATED_DIR"
+    fi
+
+    if [[ ! -f "$manifest_file" ]]; then
+        log_fatal "Manifest file not found: $manifest_file"
+    fi
+    if [[ ! -f "$index_file" ]]; then
+        log_fatal "Generated manifest index not found: $index_file"
+    fi
+
+    local manifest_sha expected_sha
+    manifest_sha="$(acfs_calculate_file_sha256 "$manifest_file")" || log_fatal "Failed to hash manifest: $manifest_file"
+    expected_sha="$(grep -E '^ACFS_MANIFEST_SHA256=' "$index_file" | head -n 1 | cut -d'=' -f2 | tr -d '\"' || true)"
+
+    if [[ -z "$expected_sha" ]]; then
+        log_fatal "Generated manifest index missing ACFS_MANIFEST_SHA256: $index_file"
+    fi
+
+    if [[ "$manifest_sha" != "$expected_sha" ]]; then
+        log_error "Generated installers are out of sync with acfs.manifest.yaml."
+        log_error "Expected manifest SHA: $expected_sha"
+        log_error "Actual manifest SHA:   $manifest_sha"
+        log_fatal "Regenerate installers: bun run generate"
+    fi
 }
 
 # ============================================================
@@ -1544,6 +1955,52 @@ print_execution_plan() {
 
 # Handle a single auto-fix item based on current mode
 # Usage: handle_autofix <fix_name> <description>
+acfs_autofix_requires_noninteractive_sudo() {
+    local fix_name="$1"
+    case "$fix_name" in
+        unattended_upgrades)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+acfs_is_noninteractive_mode() {
+    [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]
+}
+
+acfs_has_passwordless_sudo() {
+    if [[ $EUID -eq 0 ]]; then
+        return 0
+    fi
+    if ! command_exists sudo; then
+        return 1
+    fi
+    sudo -n true 2>/dev/null
+}
+
+acfs_autofix_can_run_now() {
+    local fix_name="$1"
+    local description="$2"
+
+    if ! acfs_autofix_requires_noninteractive_sudo "$fix_name"; then
+        return 0
+    fi
+    if ! acfs_is_noninteractive_mode; then
+        return 0
+    fi
+    if acfs_has_passwordless_sudo; then
+        return 0
+    fi
+
+    log_warn "[AUTO-FIX] Skipping (non-interactive): $description"
+    log_warn "[AUTO-FIX] This fix requires root privileges, but sudo cannot prompt for a password in this session."
+    log_warn "[AUTO-FIX] Re-run interactively or as root to apply this fix (or use --no-auto-fix)."
+    return 1
+}
+
 handle_autofix() {
     local fix_name="$1"
     local description="$2"
@@ -1565,6 +2022,9 @@ handle_autofix() {
         "yes")
             log_info "[AUTO-FIX] Fixing: $description"
             if type "$fix_func" &>/dev/null; then
+                if ! acfs_autofix_can_run_now "$fix_name" "$description"; then
+                    return 0
+                fi
                 "$fix_func" fix
             else
                 log_warn "[AUTO-FIX] Fix function not available: $fix_func"
@@ -1576,6 +2036,9 @@ handle_autofix() {
             if [[ "${YES_MODE:-false}" == "true" ]] || [[ ! -t 0 ]]; then
                 log_info "[AUTO-FIX] Fixing (non-interactive): $description"
                 if type "$fix_func" &>/dev/null; then
+                    if ! acfs_autofix_can_run_now "$fix_name" "$description"; then
+                        return 0
+                    fi
                     "$fix_func" fix
                 else
                     log_warn "[AUTO-FIX] Fix function not available: $fix_func"
@@ -1668,12 +2131,15 @@ run_preflight_checks() {
                 chmod +x "$preflight_tmp"
                 preflight_script="$preflight_tmp"
             else
-                log_warn "Could not download preflight script - skipping checks"
-                return 0
+                [[ -n "$preflight_tmp" ]] && rm -f -- "$preflight_tmp" 2>/dev/null || true
+                log_error "Could not download preflight script; cannot continue safely."
+                log_info "Re-run with --skip-preflight only if you accept bypassing system validation."
+                return 1
             fi
         else
-            log_warn "curl not available - skipping preflight checks"
-            return 0
+            log_error "curl is not available and preflight script could not be located locally."
+            log_info "Re-run with --skip-preflight only if you accept bypassing system validation."
+            return 1
         fi
     fi
 
@@ -1714,6 +2180,7 @@ acfs_curl() {
 
 # Automatic retry for transient network errors (fast total budget).
 ACFS_CURL_RETRY_DELAYS=(0 5 15)
+# ACFS_CURL_RETRY_DELAYS=(0)
 
 acfs_is_retryable_curl_exit_code() {
     local exit_code="${1:-0}"
@@ -1748,9 +2215,9 @@ acfs_curl_with_retry() {
 
         if acfs_curl -o "$output_path" "$url"; then
             return 0
+        else
+            exit_code=$?
         fi
-
-        exit_code=$?
         if ! acfs_is_retryable_curl_exit_code "$exit_code"; then
             return "$exit_code"
         fi
@@ -2209,8 +2676,10 @@ run_as_target() {
 # Upstream installer verification (checksums.yaml)
 # ============================================================
 
-declare -A ACFS_UPSTREAM_URLS=()
-declare -A ACFS_UPSTREAM_SHA256=()
+if [[ "${BASH_VERSINFO[0]:-0}" -ge 4 ]]; then
+    eval "declare -A ACFS_UPSTREAM_URLS=()"
+    eval "declare -A ACFS_UPSTREAM_SHA256=()"
+fi
 ACFS_UPSTREAM_LOADED=false
 
 acfs_calculate_sha256() {
@@ -2270,6 +2739,26 @@ acfs_fetch_url_content() {
 
     log_error "Failed to fetch upstream URL after ${max_attempts} attempts: $url"
     return 1
+}
+
+# Add a cache-busting query parameter to an HTTPS URL.
+# Used only for mismatch recovery when upstream/CDN edges serve stale content.
+acfs_append_cache_bust_param() {
+    local url="$1"
+    local cb="${2:-$(date +%s)}"
+
+    local base="$url"
+    local fragment=""
+    if [[ "$url" == *"#"* ]]; then
+        base="${url%%#*}"
+        fragment="#${url#*#}"
+    fi
+
+    if [[ "$base" == *"?"* ]]; then
+        printf '%s&acfs_cb=%s%s\n' "$base" "$cb" "$fragment"
+    else
+        printf '%s?acfs_cb=%s%s\n' "$base" "$cb" "$fragment"
+    fi
 }
 
 # Fetch checksums.yaml directly via GitHub API (bypasses CDN caching entirely).
@@ -2501,22 +2990,63 @@ acfs_run_verified_upstream_script_as_target() {
             log_success "Verified '$tool' with fresh checksums from GitHub API"
             # Note: ACFS_UPSTREAM_SHA256 already updated by acfs_parse_checksums_content above
         else
-            # Still doesn't match even with fresh checksums - this is a real problem
-            log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
-            log_detail "URL: $url"
-            log_detail "Expected (fresh): $fresh_expected_sha256"
-            log_detail "Actual:           $actual_sha256"
-            log_error "Refusing to execute unverified installer script."
-            log_error "This could indicate:"
-            log_error "  1. Upstream changed their installer very recently (wait and retry)"
-            log_error "  2. Potential tampering (investigate before proceeding)"
-            log_error "  3. Network issue corrupting downloads (retry on different network)"
+            # Mismatch can be caused by stale CDN/edge cache for upstream script URL.
+            # Re-fetch once with a cache-busting query param and verify again.
+            log_detail "Fresh checksums still mismatch for '$tool' - re-fetching installer with cache-bust..."
 
-            if [[ "${ACFS_STRICT_MODE:-false}" == "true" ]]; then
-                log_fatal "Strict mode: aborting due to checksum mismatch for '$tool'"
+            local cache_busted_url
+            cache_busted_url="$(acfs_append_cache_bust_param "$url")"
+
+            local cache_busted_with_sentinel
+            cache_busted_with_sentinel="$(
+                acfs_fetch_url_content "$cache_busted_url" || exit $?
+                printf '%s' "$sentinel"
+            )" || {
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Expected (fresh): $fresh_expected_sha256"
+                log_detail "Actual:           $actual_sha256"
+                log_error "Cache-busted re-fetch failed; refusing to execute unverified installer script."
+                return 1
+            }
+
+            if [[ "$cache_busted_with_sentinel" != *"$sentinel" ]]; then
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Expected (fresh): $fresh_expected_sha256"
+                log_detail "Actual:           $actual_sha256"
+                log_error "Cache-busted re-fetch returned malformed content; refusing to execute unverified installer script."
+                return 1
             fi
 
-            return 1
+            local cache_busted_content="${cache_busted_with_sentinel%"$sentinel"}"
+            local cache_busted_actual_sha256
+            cache_busted_actual_sha256="$(printf '%s' "$cache_busted_content" | acfs_calculate_sha256)" || return 1
+
+            if [[ "$cache_busted_actual_sha256" == "$fresh_expected_sha256" ]]; then
+                log_success "Verified '$tool' after cache-busted re-fetch"
+                content="$cache_busted_content"
+                actual_sha256="$cache_busted_actual_sha256"
+            else
+                # Still doesn't match after fresh checksums + cache-busted fetch.
+                log_error "Security error: checksum mismatch for '$tool' (verified with fresh checksums)"
+                log_detail "URL: $url"
+                log_detail "Cache-busted URL: $cache_busted_url"
+                log_detail "Expected (fresh):     $fresh_expected_sha256"
+                log_detail "Actual (initial):     $actual_sha256"
+                log_detail "Actual (cache-bust):  $cache_busted_actual_sha256"
+                log_error "Refusing to execute unverified installer script."
+                log_error "This could indicate:"
+                log_error "  1. Upstream changed their installer very recently (wait and retry)"
+                log_error "  2. Potential tampering (investigate before proceeding)"
+                log_error "  3. Network issue corrupting downloads (retry on different network)"
+
+                if [[ "${ACFS_STRICT_MODE:-false}" == "true" ]]; then
+                    log_fatal "Strict mode: aborting due to checksum mismatch for '$tool'"
+                fi
+
+                return 1
+            fi
         fi
     fi
 
@@ -2616,10 +3146,18 @@ acfs_chown_tree() {
     fi
 
     # GNU coreutils: -h = do not dereference symlinks; -R = recursive.
-    if ! $SUDO chown -hR "$owner_group" "$resolved"; then
-        log_error "acfs_chown_tree: chown failed for $resolved"
-        return 1
-    fi
+    # Transient files (SSH control sockets, etc.) may vanish during the
+    # recursive walk of a live home directory.  Only fail on non-transient errors.
+    local _chown_err=""
+    _chown_err=$($SUDO chown -hR "$owner_group" "$resolved" 2>&1) || {
+        local _real_err
+        _real_err=$(printf '%s\n' "$_chown_err" | grep -v "No such file or directory" || true)
+        if [[ -n "$_real_err" ]]; then
+            log_error "acfs_chown_tree: chown failed for $resolved"
+            return 1
+        fi
+        log_detail "acfs_chown_tree: transient file warnings during chown (safe to ignore)"
+    }
 }
 
 confirm_or_exit() {
@@ -2628,8 +3166,10 @@ confirm_or_exit() {
     fi
 
     if [[ "$HAS_GUM" == "true" ]] && [[ -r /dev/tty ]]; then
-        gum confirm "Proceed with ACFS install? (mode=$MODE)" < /dev/tty > /dev/tty || exit 1
-        return 0
+        if gum confirm "Proceed with ACFS install? (mode=$MODE)" < /dev/tty > /dev/tty; then
+            return 0
+        fi
+        return 2
     fi
 
     local reply=""
@@ -2642,20 +3182,38 @@ confirm_or_exit() {
     fi
     case "$reply" in
         y|Y|yes|YES) return 0 ;;
-        *) exit 1 ;;
+        *) return 2 ;;
     esac
 }
 
 # Set up target-specific paths
 # Must be called after ensure_root
 init_target_paths() {
-    # If running as ubuntu, use ubuntu's home
-    # If running as root, install for ubuntu user
+    # If running as the target user, use their $HOME directly.
+    # If running as root (or another user), derive TARGET_HOME from TARGET_USER.
     if [[ "$(whoami)" == "$TARGET_USER" ]]; then
         TARGET_HOME="${TARGET_HOME:-$HOME}"
     else
-        # Respect an explicit TARGET_HOME env override (default is /home/$TARGET_USER).
-        TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+        # Respect an explicit TARGET_HOME env override.
+        # When not set, resolve from passwd (handles root=/root correctly).
+        if [[ -z "${TARGET_HOME:-}" ]]; then
+            if command -v getent &>/dev/null; then
+                TARGET_HOME="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)"
+            fi
+            # Fallback if getent unavailable or returned empty
+            TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+        fi
+    fi
+
+    # Safety net: verify TARGET_HOME matches the system passwd entry.
+    # Catches containers where $HOME is set incorrectly.
+    if command -v getent &>/dev/null; then
+        local _passwd_home
+        _passwd_home="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)"
+        if [[ -n "$_passwd_home" && "$_passwd_home" != "$TARGET_HOME" ]]; then
+            log_warn "TARGET_HOME=$TARGET_HOME does not match passwd entry ($_passwd_home) for user '$TARGET_USER'. Using passwd entry."
+            TARGET_HOME="$_passwd_home"
+        fi
     fi
 
     if [[ -z "$TARGET_HOME" ]] || [[ "$TARGET_HOME" == "/" ]]; then
@@ -2666,8 +3224,8 @@ init_target_paths() {
     fi
 
     # ACFS directories for target user
-    ACFS_HOME="$TARGET_HOME/.acfs"
-    ACFS_STATE_FILE="$ACFS_HOME/state.json"
+    ACFS_HOME="${ACFS_HOME:-$TARGET_HOME/.acfs}"
+    ACFS_STATE_FILE="${ACFS_STATE_FILE:-$ACFS_HOME/state.json}"
 
     # Basic hardening: refuse to use a symlinked ACFS_HOME when running with
     # elevated privileges (prevents clobbering arbitrary paths via symlink tricks).
@@ -2900,7 +3458,13 @@ run_ubuntu_upgrade_phase() {
             log_info "Automatically rebooting to clear pending updates..."
 
             # Initialize state file early for tracking
-            mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}"
+            # Try without sudo first, fall back to sudo for system directories
+            if ! mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}" 2>/dev/null; then
+                if [[ $EUID -ne 0 ]] && command -v sudo &>/dev/null; then
+                    sudo mkdir -p "${ACFS_RESUME_DIR:-/var/lib/acfs}"
+                    sudo chown "$(id -u):$(id -g)" "${ACFS_RESUME_DIR:-/var/lib/acfs}" 2>/dev/null || true
+                fi
+            fi
             if type -t state_ensure_valid &>/dev/null; then
                 state_ensure_valid || true
             fi
@@ -3063,8 +3627,12 @@ normalize_user() {
     log_step "1/9" "Normalizing user account..."
 
     if [[ $EUID -eq 0 ]] && type -t prompt_ssh_key &>/dev/null; then
-        if ! prompt_ssh_key; then
-            log_warn "SSH key prompt failed or was skipped; continuing"
+        if [[ "$LOCAL_MODE" == "true" ]]; then
+            log_detail "Skipping SSH key prompt (local desktop mode)"
+        else
+            if ! prompt_ssh_key; then
+                log_warn "SSH key prompt failed or was skipped; continuing"
+            fi
         fi
     fi
 
@@ -3119,8 +3687,13 @@ normalize_user() {
                 
                 # Print password for the operator (important for safe mode)
                 echo "" >&2
-                log_warn "Generated password for '$TARGET_USER': $user_password"
-                log_warn "Save this password! You may need it for sudo access (safe mode)."
+                if declare -f log_sensitive >/dev/null; then
+                    log_sensitive "Generated password for '$TARGET_USER': $user_password"
+                    log_sensitive "Save this password! You may need it for sudo access (safe mode)."
+                else
+                    log_warn "Generated password for '$TARGET_USER': $user_password"
+                    log_warn "Save this password! You may need it for sudo access (safe mode)."
+                fi
                 echo "" >&2
             else
                 log_warn "Failed to generate password for $TARGET_USER"
@@ -3230,7 +3803,7 @@ setup_filesystem() {
     done
 
     # Ensure workspace directories are owned by target user (avoid over-broad recursive chown).
-    try_step "Setting /data ownership" $SUDO chown -h "$TARGET_USER:$TARGET_USER" /data /data/projects /data/cache || true
+    try_step_optional "Setting /data ownership" $SUDO chown -h "$TARGET_USER:$TARGET_USER" /data /data/projects /data/cache || true
 
     # Install AGENTS.md template to /data/projects for agent guidance
     log_detail "Installing AGENTS.md template"
@@ -3532,12 +4105,23 @@ install_cli_tools() {
         try_step "Configuring git-lfs" run_as_target git lfs install --skip-repo || true
     fi
 
-    # Install optional apt packages individually to prevent one failure from blocking others
+    # Install optional apt packages - batch install for speed (14→1 apt-get calls)
     log_detail "Installing optional apt packages"
     local optional_pkgs=(lsd eza bat fd-find btop dust neovim htop tree ncdu httpie entr mtr pv docker.io docker-compose-plugin)
-    for pkg in "${optional_pkgs[@]}"; do
-        $SUDO apt-get install -y "$pkg" >/dev/null 2>&1 || log_detail "$pkg not available (optional)"
-    done
+    # First attempt: batch install all at once (fastest path)
+    if ! $SUDO apt-get install -y "${optional_pkgs[@]}" >/dev/null 2>&1; then
+        # Fallback: some packages failed, install individually to get what we can
+        log_detail "Batch install failed, trying packages individually"
+        for pkg in "${optional_pkgs[@]}"; do
+            $SUDO apt-get install -y "$pkg" >/dev/null 2>&1 || log_detail "$pkg not available (optional)"
+        done
+    fi
+
+    # Ubuntu ships fd as "fdfind"; provide the expected fd command for contracts/tools.
+    if ! command_exists fd && command_exists fdfind; then
+        log_detail "Creating fd symlink for fdfind..."
+        $SUDO ln -sf "$(command -v fdfind)" /usr/local/bin/fd 2>/dev/null || true
+    fi
 
     # Robust lazygit install (apt or binary fallback)
     if ! command_exists lazygit; then
@@ -3778,13 +4362,21 @@ install_languages_legacy_tools() {
         try_step "Installing Atuin" acfs_run_verified_upstream_script_as_target "atuin" "sh" || return 1
     fi
 
-    # Zoxide (install as target user)
+    # Zoxide - prefer apt to avoid GitHub API rate limits in CI
     # Check multiple possible locations
     if [[ -x "$TARGET_HOME/.local/bin/zoxide" ]] || [[ -x "/usr/local/bin/zoxide" ]] || command -v zoxide &>/dev/null; then
         log_detail "Zoxide already installed"
     else
         log_detail "Installing Zoxide for $TARGET_USER"
-        try_step "Installing Zoxide" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+        # Prefer apt (avoids GitHub API rate limits), fall back to upstream script
+        if apt-cache show zoxide &>/dev/null; then
+            try_step "Installing Zoxide (apt)" $SUDO apt-get install -y zoxide || {
+                log_detail "apt install failed, falling back to upstream script"
+                try_step "Installing Zoxide (upstream)" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+            }
+        else
+            try_step "Installing Zoxide" acfs_run_verified_upstream_script_as_target "zoxide" "sh" || return 1
+        fi
     fi
 }
 
@@ -4369,7 +4961,7 @@ install_stack_phase() {
             # Config format fixed for proper [models] section (bd-2od5.2.5)
             if run_as_target tee "$ntm_config_file" > /dev/null << 'NTM_CONFIG_EOF'
 # NTM Configuration - created by ACFS
-# Updated model defaults for ChatGPT Pro and Gemini accounts
+# Updated model defaults for Codex Plus/Pro and Gemini accounts
 
 [models]
 # Default models when no specifier given
@@ -4438,7 +5030,7 @@ NTM_CONFIG_EOF
                     run_as_target tmux kill-session -t "$tmux_session" 2>/dev/null || true
 
                     # Create new detached session and run the installer
-                    if try_step "Installing MCP Agent Mail in tmux" run_as_target tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$target_dir" --yes; then
+                    if try_step "Installing MCP Agent Mail in tmux" run_as_target bash -lc "exec 198>&- 199>&- 200>&-; tmux new-session -d -s \"$tmux_session\" \"$tmp_install\" --dir \"$target_dir\" --yes"; then
                         log_success "MCP Agent Mail installing in tmux session '$tmux_session'"
                         log_info "Attach with: tmux attach -t $tmux_session"
                         # Give it a moment to start
@@ -4497,11 +5089,32 @@ NTM_CONFIG_EOF
     fi
 
     # SLB (Simultaneous Launch Button)
+    # The upstream install script calls GitHub API for latest version, which hits rate limits in CI.
+    # We install via .deb package directly to avoid this.
     if binary_installed "slb"; then
         log_detail "SLB already installed"
     else
         log_detail "Installing SLB"
-        try_step "Installing SLB" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+        local slb_version="0.2.0"
+        local slb_arch="amd64"
+        [[ "$(uname -m)" == "aarch64" ]] && slb_arch="arm64"
+        local slb_deb="slb_${slb_version}_linux_${slb_arch}.deb"
+        local slb_url="https://github.com/Dicklesworthstone/slb/releases/download/v${slb_version}/${slb_deb}"
+        local slb_tmp
+        slb_tmp="$(mktemp -d "${TMPDIR:-/tmp}/acfs-slb.XXXXXX" 2>/dev/null)" || slb_tmp=""
+        if [[ -n "$slb_tmp" ]] && [[ -d "$slb_tmp" ]]; then
+            if acfs_curl -o "${slb_tmp}/${slb_deb}" "$slb_url" && \
+               $SUDO dpkg -i "${slb_tmp}/${slb_deb}"; then
+                log_success "SLB installed via .deb"
+            else
+                log_warn "SLB .deb install failed, trying upstream script"
+                try_step "Installing SLB (upstream)" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+            fi
+            rm -rf "$slb_tmp"
+        else
+            log_warn "Failed to create temp directory for SLB, trying upstream script"
+            try_step "Installing SLB (upstream)" acfs_run_verified_upstream_script_as_target "slb" "bash" || log_warn "SLB installation may have failed"
+        fi
     fi
 
     # RU (Repo Updater)
@@ -4611,7 +5224,7 @@ finalize() {
 
     # Install acfs scripts (for acfs CLI subcommands)
     log_detail "Installing acfs scripts"
-    try_step "Creating ACFS scripts directory" $SUDO mkdir -p "$ACFS_HOME/scripts/lib" || return 1
+    try_step "Creating ACFS scripts directory" run_as_target mkdir -p "$ACFS_HOME/scripts/lib" || return 1
     
     # Install script libraries
     try_step "Installing logging.sh" install_asset "scripts/lib/logging.sh" "$ACFS_HOME/scripts/lib/logging.sh" || return 1
@@ -4623,6 +5236,9 @@ finalize() {
     try_step "Installing continue.sh" install_asset "scripts/lib/continue.sh" "$ACFS_HOME/scripts/lib/continue.sh" || return 1
     try_step "Installing info.sh" install_asset "scripts/lib/info.sh" "$ACFS_HOME/scripts/lib/info.sh" || return 1
     try_step "Installing cheatsheet.sh" install_asset "scripts/lib/cheatsheet.sh" "$ACFS_HOME/scripts/lib/cheatsheet.sh" || return 1
+    try_step "Installing webhook.sh" install_asset "scripts/lib/webhook.sh" "$ACFS_HOME/scripts/lib/webhook.sh" || return 1
+    try_step "Installing notify.sh" install_asset "scripts/lib/notify.sh" "$ACFS_HOME/scripts/lib/notify.sh" || return 1
+    try_step "Installing notifications.sh" install_asset "scripts/lib/notifications.sh" "$ACFS_HOME/scripts/lib/notifications.sh" || return 1
     try_step "Installing dashboard.sh" install_asset "scripts/lib/dashboard.sh" "$ACFS_HOME/scripts/lib/dashboard.sh" || return 1
     try_step "Installing agent_resources.sh" install_asset "scripts/lib/agent_resources.sh" "$ACFS_HOME/scripts/lib/agent_resources.sh" || return 1
     try_step "Installing agent resources templates" install_agent_resources_templates || return 1
@@ -4632,6 +5248,17 @@ finalize() {
     try_step "Setting acfs-update permissions" $SUDO chmod 755 "$ACFS_HOME/bin/acfs-update" || return 1
     try_step "Setting acfs-update ownership" $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/bin/acfs-update" || return 1
     try_step "Linking acfs-update command" run_as_target ln -sf "$ACFS_HOME/bin/acfs-update" "$TARGET_HOME/.local/bin/acfs-update" || return 1
+
+    # Install root AGENTS.md generator (if available) and generate /AGENTS.md once
+    if [[ -n "${SCRIPT_DIR:-}" ]] && [[ -f "$SCRIPT_DIR/scripts/generate-root-agents-md.sh" ]]; then
+        try_step "Installing flywheel-update-agents-md" install_asset "scripts/generate-root-agents-md.sh" "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Setting flywheel-update-agents-md permissions" $SUDO chmod 755 "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Setting flywheel-update-agents-md ownership" $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_HOME/bin/flywheel-update-agents-md" || return 1
+        try_step "Linking flywheel-update-agents-md command" $SUDO ln -sf "$ACFS_HOME/bin/flywheel-update-agents-md" "/usr/local/bin/flywheel-update-agents-md" || return 1
+        try_step "Generating /AGENTS.md" $SUDO /usr/local/bin/flywheel-update-agents-md || true
+    else
+        log_warn "Root AGENTS.md generator not found; skipping /AGENTS.md generation"
+    fi
 
     # Install services-setup wizard
     try_step "Installing services-setup.sh" install_asset "scripts/services-setup.sh" "$ACFS_HOME/scripts/services-setup.sh" || return 1
@@ -4649,7 +5276,7 @@ finalize() {
     try_step "Installing newproj_screens.sh" install_asset "scripts/lib/newproj_screens.sh" "$ACFS_HOME/scripts/lib/newproj_screens.sh" || return 1
     try_step "Installing newproj_tui.sh" install_asset "scripts/lib/newproj_tui.sh" "$ACFS_HOME/scripts/lib/newproj_tui.sh" || return 1
 
-    try_step "Creating newproj_screens directory" $SUDO mkdir -p "$ACFS_HOME/scripts/lib/newproj_screens" || return 1
+    try_step "Creating newproj_screens directory" run_as_target mkdir -p "$ACFS_HOME/scripts/lib/newproj_screens" || return 1
     
     local screens=(
         "screen_agents_preview.sh"
@@ -4696,7 +5323,9 @@ finalize() {
     # Legacy state file (only if state.sh is unavailable)
     if type -t state_load &>/dev/null; then
         if [[ -f "$ACFS_STATE_FILE" ]]; then
-            $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE" || true
+            if ! $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE"; then
+                log_warn "Could not set ownership on state.json"
+            fi
         fi
     else
         cat > "$ACFS_STATE_FILE" << EOF
@@ -4713,6 +5342,36 @@ finalize() {
 }
 EOF
         $SUDO chown "$TARGET_USER:$TARGET_USER" "$ACFS_STATE_FILE"
+    fi
+
+    # ============================================================
+    # Postcondition Assertions
+    # Verify critical files were installed correctly
+    # ============================================================
+    local critical_files=(
+        "$ACFS_HOME/scripts/lib/dashboard.sh"
+        "$ACFS_HOME/scripts/lib/info.sh"
+        "$ACFS_HOME/scripts/lib/state.sh:optional"
+        "$ACFS_HOME/bin/acfs"
+    )
+
+    local missing_critical=0
+    for f_entry in "${critical_files[@]}"; do
+        local f="${f_entry%%:*}"
+        local optional="${f_entry#*:}"
+        if [[ ! -f "$f" ]]; then
+            if [[ "$optional" == "optional" ]]; then
+                log_warn "Optional file missing after finalize: $f"
+            else
+                log_error "Critical file missing after finalize: $f"
+                missing_critical=1
+            fi
+        fi
+    done
+
+    if [[ $missing_critical -eq 1 ]]; then
+        log_error "finalize phase failed postcondition checks"
+        return 1
     fi
 
     log_success "Installation complete!"
@@ -4978,6 +5637,68 @@ Tip: use --print to see upstream install scripts that will be fetched."
         fi
     fi
 
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        local local_summary_content="Version: $ACFS_VERSION
+Mode:    $MODE
+
+Next steps (local desktop mode):
+
+  1. Exit this installer (back to your host shell)
+  2. Enter the sandbox:
+     acfs-local shell
+
+  3. Run the onboarding tutorial:
+     onboard
+
+  4. Check everything is working:
+     acfs doctor
+
+  5. Start your agent cockpit:
+     ntm"
+
+        {
+            if [[ "$HAS_GUM" == "true" ]]; then
+                echo ""
+                gum style \
+                    --border double \
+                    --border-foreground "$ACFS_SUCCESS" \
+                    --padding "1 3" \
+                    --margin "1 0" \
+                    --align left \
+                    "$(gum style --foreground "$ACFS_SUCCESS" --bold '🎉 ACFS Installation Complete!')
+
+$local_summary_content"
+            else
+                echo ""
+                echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+                echo -e "${GREEN}║            🎉 ACFS Installation Complete!                   ║${NC}"
+                echo -e "${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
+                echo ""
+                echo -e "Version: ${BLUE}$ACFS_VERSION${NC}"
+                echo -e "Mode:    ${BLUE}$MODE${NC}"
+                echo ""
+                echo -e "${YELLOW}Next steps (local desktop mode):${NC}"
+                echo ""
+                echo -e "  1. Exit this installer (back to your host shell)"
+                echo -e "  2. Enter the sandbox:"
+                echo -e "     ${BLUE}acfs-local shell${NC}"
+                echo ""
+                echo -e "  3. Run the onboarding tutorial:"
+                echo -e "     ${BLUE}onboard${NC}"
+                echo ""
+                echo -e "  4. Check everything is working:"
+                echo -e "     ${BLUE}acfs doctor${NC}"
+                echo ""
+                echo -e "  5. Start your agent cockpit:"
+                echo -e "     ${BLUE}ntm${NC}"
+                echo ""
+                echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+                echo ""
+            fi
+        } >&2
+        return 0
+    fi
+
     local summary_content="Version: $ACFS_VERSION
 Mode:    $MODE
 
@@ -5089,14 +5810,631 @@ $summary_content"
 }
 
 # ============================================================
+# Interactive Startup
+# ============================================================
+
+is_macos() {
+    [[ "$(uname -s)" == "Darwin" ]]
+}
+
+acfs_run_macos_bootstrap_script() {
+    local -a inner_install_args=()
+    local inner_install_args_b64=""
+    local script_path=""
+    local raw_script_url=""
+    local tmp_script=""
+
+    acfs_build_local_inner_install_args inner_install_args
+    if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+        log_warn "base64 not available; cannot launch external macOS bootstrap script."
+        return 1
+    fi
+
+    # Prefer local script from repository checkout.
+    if [[ -n "${SCRIPT_DIR:-}" ]] && [[ -f "$SCRIPT_DIR/scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="$SCRIPT_DIR/scripts/local/acfs_macos_bootstrap.sh"
+    elif [[ -f "./scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="./scripts/local/acfs_macos_bootstrap.sh"
+    elif [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "$ACFS_BOOTSTRAP_DIR/scripts/local/acfs_macos_bootstrap.sh" ]]; then
+        script_path="$ACFS_BOOTSTRAP_DIR/scripts/local/acfs_macos_bootstrap.sh"
+    fi
+
+    # Curl|bash fallback: fetch the dedicated macOS bootstrap script.
+    if [[ -z "$script_path" ]] && command -v curl &>/dev/null; then
+        raw_script_url="${ACFS_RAW%/}/scripts/local/acfs_macos_bootstrap.sh"
+        if command -v mktemp &>/dev/null; then
+            tmp_script="$(mktemp "${TMPDIR:-/tmp}/acfs-macos-bootstrap.XXXXXX" 2>/dev/null)" || tmp_script=""
+        fi
+        if [[ -n "$tmp_script" ]] && curl "${ACFS_EARLY_CURL_ARGS[@]}" "$raw_script_url" -o "$tmp_script" 2>/dev/null; then
+            chmod +x "$tmp_script" 2>/dev/null || true
+            script_path="$tmp_script"
+        fi
+    fi
+
+    if [[ -z "$script_path" ]]; then
+        return 1
+    fi
+
+    ACFS_INSTALL_SCRIPT_DIR="${SCRIPT_DIR:-}" \
+    ACFS_LOCAL_INSTALL_ARGS_B64="$inner_install_args_b64" \
+    YES_MODE="${YES_MODE:-false}" \
+    MODE="${MODE:-vibe}" \
+    IDEMPOTENCY_AUDIT="${IDEMPOTENCY_AUDIT:-false}" \
+    ACFS_RAW="${ACFS_RAW:-}" \
+    ACFS_CHECKSUMS_REF="${ACFS_CHECKSUMS_REF:-}" \
+    ACFS_RUN_ID="${ACFS_RUN_ID:-}" \
+    ACFS_MACOS_VM_NAME="${ACFS_MACOS_VM_NAME:-}" \
+    ACFS_MACOS_VM_CPUS="${ACFS_MACOS_VM_CPUS:-}" \
+    ACFS_MACOS_VM_MEM="${ACFS_MACOS_VM_MEM:-}" \
+    ACFS_MACOS_VM_DISK="${ACFS_MACOS_VM_DISK:-}" \
+    ACFS_WORKSPACE_HOST="${ACFS_WORKSPACE_HOST:-}" \
+    bash "$script_path"
+}
+
+acfs_interactive_mode_select() {
+    # Skip if args provided (expert mode)
+    if [[ $# -gt 0 ]]; then
+        return 0
+    fi
+    
+    # Skip if --yes or non-interactive
+    if [[ "$YES_MODE" == "true" ]] || [[ ! -t 0 ]]; then
+        return 0
+    fi
+
+    # Don't prompt if we're already inside a container
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        if [[ "${ID:-}" == "ubuntu" ]] && [[ "${container:-}" == "lxc" ]]; then
+            return 0
+        fi
+    fi
+
+    print_banner
+
+    echo ""
+    echo "╔═════════════════════════════════════════════════════════════════╗"
+    echo "║           ACFS Installation Mode Selection                      ║"
+    echo "╠═════════════════════════════════════════════════════════════════╣"
+    echo "║  Choose how you want to install ACFS:                           ║"
+    echo "║                                                                 ║"
+    echo "║  1) VPS (Remote Ubuntu Server) - [Standard]                     ║"
+    echo "║     - Installs directly on the current machine                   ║"
+    echo "║     - Best for fresh Ubuntu servers (OVH, Contabo, etc.)        ║"
+    echo "║                                                                 ║"
+    echo "║  2) macOS Local (Isolated Sandbox via Multipass VM)             ║"
+    echo "║     - Creates a lightweight Ubuntu VM on your Mac               ║"
+    echo "║     - Runs ACFS inside a sandbox for total safety               ║"
+    echo "║                                                                 ║"
+    echo "║  3) Ubuntu Desktop Local (Isolated Sandbox via LXD)             ║"
+    echo "║     - Uses Linux-native containers on your Ubuntu PC            ║"
+    echo "║     - No performance overhead; preserves your host files         ║"
+    echo "╚═════════════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    local choice=""
+    local current_os
+    current_os=$(uname -s)
+
+    while [[ -z "$choice" ]]; do
+        printf "  Select mode [1-3]: "
+        read -r choice
+        case "$choice" in
+            1)
+                log_info "Proceeding with standard VPS installation."
+                ;;
+            2)
+                if [[ "$current_os" != "Darwin" ]]; then
+                    log_warn "macOS mode selected but you are on $current_os. Proceeding anyway..."
+                fi
+                LOCAL_MODE=true
+                MACOS_MODE=true
+                ;;
+            3)
+                if [[ "$current_os" != "Linux" ]]; then
+                    log_error "Ubuntu Local mode requires a Linux host. Please choose (2) macOS mode instead."
+                    choice=""
+                    continue
+                fi
+                LOCAL_MODE=true
+                # Ask for ZFS
+                echo ""
+                echo "─── Ubuntu Local Storage Configuration ───"
+                echo "ACFS can use a raw partition for ZFS storage (higher performance)."
+                printf "Specify device path (e.g. /dev/nvme0n1p6) or press Enter for 'dir' driver: "
+                read -r zfs_dev
+                if [[ -n "$zfs_dev" ]]; then
+                    export ACFS_LXD_ZFS_DEVICE="$zfs_dev"
+                    log_info "Using ZFS device: $zfs_dev"
+                else
+                    log_info "Using standard directory storage."
+                fi
+                ;;
+            *)
+                log_error "Invalid selection '$choice'."
+                choice=""
+                ;;
+        esac
+    done
+}
+
+bootstrap_macos_vm() {
+    # Prefer the dedicated host bootstrap script. Keep inline implementation as
+    # fallback for resilience if script loading fails.
+    if acfs_run_macos_bootstrap_script; then
+        return 0
+    fi
+    log_warn "Dedicated macOS bootstrap script unavailable. Falling back to inline implementation."
+
+    multipass_supports_wait_ready() {
+        multipass help wait-ready >/dev/null 2>&1
+    }
+
+    multipass_wait_ready() {
+        local timeout="${1:-120}"
+        local attempts=0
+        if multipass_supports_wait_ready; then
+            while [[ $attempts -lt 3 ]]; do
+                if multipass wait-ready --timeout "$timeout" >/dev/null 2>&1; then
+                    return 0
+                fi
+                attempts=$((attempts + 1))
+                sleep 2
+            done
+            return 1
+        fi
+
+        attempts=0
+        while [[ $attempts -lt 5 ]]; do
+            if multipass version >/dev/null 2>&1; then
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            sleep 2
+        done
+        return 1
+    }
+
+    multipass_get_state() {
+        local vm="$1"
+        multipass info "$vm" 2>/dev/null | awk -F': ' '/^State:/{print $2; exit}' || true
+    }
+
+    multipass_ensure_vm_running() {
+        local vm="$1"
+        local state
+        state="$(multipass_get_state "$vm")"
+        if [[ "$state" == "Running" ]]; then
+            return 0
+        fi
+        if [[ "$state" == "Stopped" || "$state" == "Suspended" ]]; then
+            if multipass start "$vm" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        if multipass restart "$vm" >/dev/null 2>&1; then
+            return 0
+        fi
+        if multipass start "$vm" >/dev/null 2>&1; then
+            return 0
+        fi
+        return 1
+    }
+
+    multipass_wait_for_exec() {
+        local vm="$1"
+        local retry=0
+        while ! multipass exec "$vm" -- true >/dev/null 2>&1; do
+            retry=$((retry + 1))
+            if [[ $retry -eq 8 ]]; then
+                log_warn "VM '$vm' not responding yet. Attempting to restart..."
+                multipass_ensure_vm_running "$vm" || true
+            fi
+            if [[ $retry -gt 30 ]]; then
+                return 1
+            fi
+            sleep 2
+        done
+        return 0
+    }
+
+    multipass_mount_workspace() {
+        local vm="$1"
+        local host_path="$2"
+        local target="acfs-workspace"
+        if multipass exec "$vm" -- bash -c 'if command -v mountpoint >/dev/null 2>&1; then mountpoint -q /home/ubuntu/acfs-workspace; else grep -q " /home/ubuntu/acfs-workspace " /proc/mounts; fi' >/dev/null 2>&1; then
+            return 0
+        fi
+        if multipass mount "$host_path" "$vm:$target" >/dev/null 2>&1; then
+            if multipass exec "$vm" -- test -d "/home/ubuntu/$target" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+
+        log_warn "Workspace mount failed. Attempting to unmount and retry..."
+        multipass umount "$vm:$target" >/dev/null 2>&1 || true
+        multipass umount "$vm:/home/ubuntu/$target" >/dev/null 2>&1 || true
+        sleep 1
+        if multipass mount "$host_path" "$vm:$target" >/dev/null 2>&1; then
+            if multipass exec "$vm" -- test -d "/home/ubuntu/$target" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        return 1
+    }
+
+    multipass_exec_retry() {
+        local vm="$1"
+        local cmd="$2"
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            if multipass exec "$vm" -- bash -c "$cmd"; then
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            log_warn "Command failed in VM (attempt $attempts/3). Retrying..."
+            multipass_ensure_vm_running "$vm" || true
+            sleep 2
+        done
+        return 1
+    }
+
+    local vm_name="${ACFS_MACOS_VM_NAME:-acfs-host}"
+    local cpus="${ACFS_MACOS_VM_CPUS:-4}"
+    local mem="${ACFS_MACOS_VM_MEM:-8G}"
+    local disk="${ACFS_MACOS_VM_DISK:-40G}"
+    local -a inner_install_args=()
+    local inner_install_args_q=""
+    local inner_install_args_b64=""
+
+    audit_macos_bootstrap() {
+        local issues=0
+        log_step "VM" "Idempotency audit (macOS Multipass)..."
+
+        if ! command -v multipass &>/dev/null; then
+            log_warn "Multipass not installed. Would install via Homebrew."
+            issues=$((issues + 1))
+        else
+            if ! multipass_wait_ready 30; then
+                log_warn "Multipass daemon not ready. Would retry and prompt to restart."
+                issues=$((issues + 1))
+            fi
+
+            local workspace_host="${ACFS_WORKSPACE_HOST:-$HOME/acfs-workspace}"
+            if [[ -e "$workspace_host" && ! -d "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' is not a directory. Would choose fallback."
+                issues=$((issues + 1))
+            elif [[ ! -d "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' does not exist. Would create it."
+                issues=$((issues + 1))
+            elif [[ ! -w "$workspace_host" ]]; then
+                log_warn "Workspace path '$workspace_host' is not writable. Would choose fallback."
+                issues=$((issues + 1))
+            fi
+
+            if multipass list 2>/dev/null | awk '{print $1}' | grep -qx "$vm_name"; then
+                local state
+                state="$(multipass_get_state "$vm_name" || true)"
+                if [[ -z "$state" ]]; then
+                    log_warn "Unable to read VM state. Would re-check and attempt start."
+                    issues=$((issues + 1))
+                elif [[ "$state" != "Running" ]]; then
+                    log_warn "VM '$vm_name' is $state. Would start it."
+                    issues=$((issues + 1))
+                else
+                    if ! multipass exec "$vm_name" -- true >/dev/null 2>&1; then
+                        log_warn "VM '$vm_name' not responding to exec. Would restart it."
+                        issues=$((issues + 1))
+                    else
+                        if ! multipass exec "$vm_name" -- bash -c 'if command -v mountpoint >/dev/null 2>&1; then mountpoint -q /home/ubuntu/acfs-workspace; else grep -q " /home/ubuntu/acfs-workspace " /proc/mounts; fi' >/dev/null 2>&1; then
+                            log_warn "Workspace mount missing in VM. Would re-mount."
+                            issues=$((issues + 1))
+                        fi
+                        if multipass exec "$vm_name" -- bash -c 'command -v acfs-local >/dev/null 2>&1'; then
+                            if ! multipass exec "$vm_name" -- bash -c 'acfs-local audit' >/dev/null 2>&1; then
+                                log_warn "In-VM audit reported issues. Review inside VM."
+                                issues=$((issues + 1))
+                            fi
+                        else
+                            log_warn "acfs-local not found inside VM; in-VM audit skipped."
+                        fi
+                    fi
+                fi
+            else
+                log_warn "VM '$vm_name' not found. Would launch a new VM."
+                issues=$((issues + 1))
+            fi
+        fi
+
+        if [[ $issues -eq 0 ]]; then
+            log_success "Idempotency audit: no issues detected."
+        else
+            log_warn "Idempotency audit: $issues issue(s) detected."
+        fi
+        return $issues
+    }
+
+    if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
+        audit_macos_bootstrap
+        return $?
+    fi
+
+    acfs_build_local_inner_install_args inner_install_args
+    inner_install_args_q="$(acfs_shell_escape_args "${inner_install_args[@]}")"
+    if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+        log_fatal "base64 is required to forward local installer arguments through macOS bootstrap."
+    fi
+    local child_parent_run_id_q=""
+    local child_env_prefix=""
+    if [[ -n "${ACFS_RUN_ID:-}" ]]; then
+        printf -v child_parent_run_id_q '%q' "$ACFS_RUN_ID"
+        child_env_prefix="ACFS_PARENT_RUN_ID=${child_parent_run_id_q} "
+    fi
+
+    # Check if multipass exists (auto-remediate via Homebrew if available)
+    if ! command -v multipass &>/dev/null; then
+        echo ""
+        log_warn "Multipass is required for macOS Local installation."
+        if command -v brew &>/dev/null; then
+            if [[ "$YES_MODE" == "true" ]]; then
+                log_step "VM" "Installing Multipass via Homebrew..."
+                if ! brew install --cask multipass; then
+                    log_fatal "Failed to install Multipass via Homebrew."
+                fi
+            else
+                printf "  Install Multipass via Homebrew now? [Y/n]: "
+                read -r install_choice
+                if [[ "$install_choice" =~ ^[Nn] ]]; then
+                    log_error "Please install Multipass and re-run this installer."
+                    exit 1
+                fi
+                if ! brew install --cask multipass; then
+                    log_fatal "Failed to install Multipass via Homebrew."
+                fi
+            fi
+        else
+            log_error "Homebrew not found. Install Multipass manually:"
+            echo ""
+            echo "    brew install --cask multipass"
+            echo ""
+            log_error "Then re-run this installer."
+            exit 1
+        fi
+    fi
+
+    if ! multipass_wait_ready 120; then
+        log_fatal "Multipass daemon did not become ready. Please restart Multipass and try again."
+    fi
+
+    if [[ "$YES_MODE" == "false" ]]; then
+        echo ""
+        echo "─── macOS Local VM Configuration ───"
+        printf "  VM Instance Name [%s]: " "$vm_name"
+        read -r input && [[ -n "$input" ]] && vm_name="$input"
+        printf "  CPU Cores [%s]: " "$cpus"
+        read -r input && [[ -n "$input" ]] && cpus="$input"
+        printf "  Memory (e.g. 8G) [%s]: " "$mem"
+        read -r input && [[ -n "$input" ]] && mem="$input"
+        printf "  Disk Size (e.g. 40G) [%s]: " "$disk"
+        read -r input && [[ -n "$input" ]] && disk="$input"
+        echo ""
+    fi
+
+    if [[ ! "$cpus" =~ ^[0-9]+$ ]] || [[ "$cpus" -lt 1 ]]; then
+        log_warn "Invalid CPU value '$cpus'. Using default: 4"
+        cpus="4"
+    fi
+    if [[ ! "$mem" =~ ^[0-9]+[GM]$ ]]; then
+        log_warn "Invalid memory value '$mem'. Using default: 8G"
+        mem="8G"
+    fi
+    if [[ ! "$disk" =~ ^[0-9]+[GM]$ ]]; then
+        log_warn "Invalid disk value '$disk'. Using default: 40G"
+        disk="40G"
+    fi
+
+    log_step "VM" "Checking workspace availability..."
+    local workspace_host="${ACFS_WORKSPACE_HOST:-$HOME/acfs-workspace}"
+    if [[ -e "$workspace_host" && ! -d "$workspace_host" ]]; then
+        local fallback
+        fallback="$HOME/acfs-workspace-$(date +%Y%m%d-%H%M%S)"
+        log_warn "Workspace path '$workspace_host' is not a directory. Using '$fallback' instead."
+        workspace_host="$fallback"
+    fi
+    mkdir -p "$workspace_host"
+    if [[ ! -w "$workspace_host" ]]; then
+        local fallback
+        fallback="$HOME/acfs-workspace-$(date +%Y%m%d-%H%M%S)"
+        log_warn "Workspace path '$workspace_host' is not writable. Using '$fallback' instead."
+        workspace_host="$fallback"
+        mkdir -p "$workspace_host"
+    fi
+
+    if multipass list 2>/dev/null | awk '{print $1}' | grep -qx "$vm_name"; then
+        log_warn "VM '$vm_name' already exists."
+        if [[ "$YES_MODE" == "false" ]]; then
+            printf "  Use existing VM? [Y/n]: "
+            read -r use_existing
+            if [[ "$use_existing" =~ ^[Nn] ]]; then
+                log_fatal "Aborting. Please choose a different name or delete the existing VM: multipass delete $vm_name"
+            fi
+        fi
+        if ! multipass_ensure_vm_running "$vm_name"; then
+            log_warn "Unable to start existing VM '$vm_name'."
+        fi
+    else
+        log_step "VM" "Launching Multipass VM: $vm_name ($cpus CPUs, $mem RAM, $disk Disk)..."
+        multipass launch --name "$vm_name" --cpus "$cpus" --memory "$mem" --disk "$disk" 24.04
+    fi
+
+    log_step "VM" "Waiting for VM '$vm_name' to be reachable..."
+    if ! multipass_wait_for_exec "$vm_name"; then
+        log_fatal "VM '$vm_name' did not become reachable via SSH after 60 seconds."
+    fi
+
+    log_step "VM" "Mounting workspace: $workspace_host → /home/ubuntu/acfs-workspace..."
+    if ! multipass_mount_workspace "$vm_name" "$workspace_host"; then
+        log_warn "Workspace mount failed. Continuing without host workspace sharing."
+    fi
+
+    log_step "VM" "Preparing installer inside VM..."
+    
+    # Determine how to run based on current execution mode
+    if [[ -z "${SCRIPT_DIR:-}" ]]; then
+        log_step "VM" "Running installer inside VM via curl..."
+        if ! multipass_exec_retry "$vm_name" "${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' curl -fsSL \"$ACFS_RAW/install.sh\" | bash -s -- ${inner_install_args_q}"; then
+            log_fatal "Installer failed inside VM. Check network connectivity and retry."
+        fi
+    else
+        log_step "VM" "Transferring local ACFS repo to VM..."
+        local tmp_tar="acfs-repo-$(date +%s).tar"
+        local tmp_dir
+        tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/acfs-transfer.XXXXXX")"
+        local tmp_tar_path="$tmp_dir/$tmp_tar"
+        
+        # Create tarball locally (exclude .git and node_modules)
+        # We use a subshell to avoid changing current directory
+        # We create the tarball outside of SCRIPT_DIR to avoid "Can't add archive to itself" 
+        (cd "$SCRIPT_DIR" && COPYFILE_DISABLE=1 tar -cf "$tmp_tar_path" --exclude=".git" --exclude="node_modules" .)
+        
+        # Transfer tarball to VM
+        if ! multipass transfer "$tmp_tar_path" "$vm_name:/home/ubuntu/$tmp_tar"; then
+            log_warn "Transfer failed. Retrying..."
+            multipass_ensure_vm_running "$vm_name" || true
+            if ! multipass transfer "$tmp_tar_path" "$vm_name:/home/ubuntu/$tmp_tar"; then
+                log_fatal "Transfer failed after retry. Check VM connectivity and retry."
+            fi
+        fi
+        
+        # Clean up local tarball and tmp dir
+        rm -rf "$tmp_dir"
+        
+        # Ensure target directory exists and is clean
+        multipass exec "$vm_name" -- rm -rf /home/ubuntu/agentic-coding
+        multipass exec "$vm_name" -- mkdir -p /home/ubuntu/agentic-coding
+        
+        # Extract inside VM
+        multipass exec "$vm_name" -- tar -xf "/home/ubuntu/$tmp_tar" -C /home/ubuntu/agentic-coding
+        
+        # Clean up remote tarball
+        multipass exec "$vm_name" -- rm "/home/ubuntu/$tmp_tar"
+        
+        log_step "VM" "Starting ACFS installation inside VM..."
+        if ! multipass_exec_retry "$vm_name" "cd /home/ubuntu/agentic-coding && ${child_env_prefix}ACFS_LOCAL_INSTALL_ARGS_B64='${inner_install_args_b64}' ./install.sh ${inner_install_args_q}"; then
+            log_fatal "Installer failed inside VM. Review logs inside the VM and retry."
+        fi
+    fi
+
+    log_success "ACFS installed in macOS host VM: $vm_name"
+    echo ""
+    echo "═════════════════════════════════════════════════════════════════"
+    echo "  Your ACFS environment is ready!"
+    echo "─────────────────────────────────────────────────────────────────"
+    echo "  To enter your ACFS sandbox:"
+    echo "    1. Connect to VM:      ${BLUE}multipass shell $vm_name${NC}"
+    echo "    2. Enter sandbox:      ${BLUE}acfs-local shell${NC}"
+    echo ""
+    echo "  Your Mac folder ${BLUE}$workspace_host${NC}"
+    echo "  is shared as ${BLUE}/data/projects${NC} inside the sandbox."
+    echo "═════════════════════════════════════════════════════════════════"
+    echo ""
+}
+
+# ============================================================
 # Main
 # ============================================================
 main() {
+    if acfs_args_request_help "$@"; then
+        print_usage
+        exit 0
+    fi
+
     parse_args "$@"
+
+    if [[ "$HELP_MODE" == "true" ]]; then
+        print_usage
+        exit 0
+    fi
+
+    # Interactive mode selection (if no args provided)
+    acfs_interactive_mode_select "$@"
 
     # --yes should always behave non-interactively (skip prompts), regardless of flag order.
     if [[ "$YES_MODE" == "true" ]]; then
         export ACFS_INTERACTIVE=false
+    fi
+
+    # macOS Local Mode Handling
+    if [[ "$MACOS_MODE" == "true" ]]; then
+        # Check if we're already inside a Mac (Darwin) - if so, bootstrap the VM
+        if is_macos; then
+            bootstrap_macos_vm
+            exit 0
+        fi
+        # If we get here, we're likely inside the VM already (having been launched by bootstrap_macos_vm)
+        # Continue to LOCAL_MODE logic below
+    fi
+
+    # Local Desktop Mode: If --local/--desktop was passed and we're NOT already
+    # inside an LXD container, redirect to acfs-local create (sandbox provisioning)
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        # Source os_detect to get is_lxd_container function
+        local lib_dir
+        if [[ -n "${SCRIPT_DIR:-}" ]]; then
+            lib_dir="$SCRIPT_DIR/scripts/lib"
+        else
+            # Fallback: attempt to find the lib directory relative to this script
+            lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/lib"
+        fi
+
+        if [[ -f "$lib_dir/os_detect.sh" ]]; then
+            # shellcheck source=scripts/lib/os_detect.sh
+            source "$lib_dir/os_detect.sh"
+        fi
+
+        # Check if we're inside an LXD container
+        if declare -f is_lxd_container &>/dev/null && ! is_lxd_container; then
+            # We're on the host - redirect to acfs-local container management
+            local local_script
+            if [[ -n "${SCRIPT_DIR:-}" ]]; then
+                local_script="$SCRIPT_DIR/scripts/local/acfs_container.sh"
+            else
+                local_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/local/acfs_container.sh"
+            fi
+
+            if [[ -x "$local_script" ]]; then
+                echo ""
+                echo "╔══════════════════════════════════════════════════════════════╗"
+                echo "║           ACFS Local Desktop Mode Detected                   ║"
+                echo "╠══════════════════════════════════════════════════════════════╣"
+                echo "║  Redirecting to sandboxed installation...                    ║"
+                echo "║  Your host system will NOT be modified.                      ║"
+                echo "╚══════════════════════════════════════════════════════════════╝"
+                echo ""
+
+                # Forward arguments to container context via base64 payload
+                local inner_install_args_b64=""
+                local inner_install_args=()
+                acfs_build_local_inner_install_args inner_install_args
+                if ! inner_install_args_b64="$(acfs_encode_install_args_b64 "${inner_install_args[@]}")"; then
+                    log_fatal "base64 is required to forward local installer arguments to container."
+                fi
+                export ACFS_LOCAL_INSTALL_ARGS_B64="$inner_install_args_b64"
+
+                if [[ "$IDEMPOTENCY_AUDIT" == "true" ]]; then
+                    exec "$local_script" audit
+                else
+                    exec "$local_script" create
+                fi
+            else
+                log_error "Local desktop mode requires scripts/local/acfs_container.sh"
+                log_error "Please clone the full ACFS repository first."
+                exit 1
+            fi
+        fi
+        # If we're already inside a container, continue normal installation
+        log_detail "Inside LXD container - proceeding with normal installation"
     fi
 
     # Handle --pin-ref early (before any heavy setup) - just resolve SHA and exit
@@ -5116,12 +6454,30 @@ main() {
             ACFS_RAW="https://raw.githubusercontent.com/${ACFS_REPO_OWNER}/${ACFS_REPO_NAME}/${ACFS_REF}"
             export ACFS_REF ACFS_RAW
         fi
-        bootstrap_repo_archive
+        # Download and extract the repo archive for curl-pipe mode.
+        # This sets ACFS_BOOTSTRAP_DIR and related paths. If it fails, we cannot continue
+        # because the library files (install_helpers.sh, etc.) won't be available.
+        if ! bootstrap_repo_archive; then
+            log_error "Bootstrap failed. Cannot continue without library files."
+            log_error "Try again, or run from a local checkout instead of curl|bash."
+            exit 1
+        fi
+        # Verify bootstrap succeeded - ACFS_BOOTSTRAP_DIR must be set for curl-pipe mode
+        if [[ -z "${ACFS_BOOTSTRAP_DIR:-}" ]]; then
+            log_error "Bootstrap did not set ACFS_BOOTSTRAP_DIR. This is a bug."
+            exit 1
+        fi
     fi
 
     # Detect environment and source manifest index (mjt.5.3)
     # This must happen BEFORE any handlers that need module data
     detect_environment
+
+    # Fail fast if generated installers are stale relative to manifest.
+    acfs_verify_manifest_consistency
+
+    # Validate stage selector flags now that phase IDs are available.
+    acfs_validate_stage_selector_flags
 
     # Acquire install-wide flock to prevent concurrent install.sh processes.
     # Uses FD 199 (autofix.sh already uses FD 200 for its own lock).
@@ -5129,14 +6485,19 @@ main() {
     if [[ "$LIST_MODULES" != "true" ]] && [[ "$PRINT_PLAN_MODE" != "true" ]] \
        && [[ "$DRY_RUN" != "true" ]] && [[ "$PRINT_MODE" != "true" ]]; then
         local _acfs_lock_dir="${ACFS_HOME:-$HOME/.acfs}"
-        mkdir -p "$_acfs_lock_dir" 2>/dev/null || true
+        if ! mkdir -p "$_acfs_lock_dir" 2>/dev/null; then
+            log_fatal "Cannot create install lock directory: $_acfs_lock_dir"
+        fi
         local _acfs_lock_file="$_acfs_lock_dir/.install.lock"
-        # NOTE: exec with high FDs can fail on some bash versions (5.3+).
-        # We try FD 199, then 198 as fallback, and skip locking if both fail.
+        # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
+        # before `if` can catch the failure. We test in a subshell first,
+        # then only exec in the main shell if the subshell succeeded.
         local _acfs_lock_fd=""
-        if exec 199>"$_acfs_lock_file" 2>/dev/null; then
+        if (exec 199>"$_acfs_lock_file") 2>/dev/null; then
+            exec 199>"$_acfs_lock_file"
             _acfs_lock_fd=199
-        elif exec 198>"$_acfs_lock_file" 2>/dev/null; then
+        elif (exec 198>"$_acfs_lock_file") 2>/dev/null; then
+            exec 198>"$_acfs_lock_file"
             _acfs_lock_fd=198
         fi
         if [[ -n "$_acfs_lock_fd" ]]; then
@@ -5146,7 +6507,7 @@ main() {
                 exit 1
             fi
         else
-            log_warn "Could not acquire install lock (continuing anyway)"
+            log_fatal "Could not open install lock file: $_acfs_lock_file"
         fi
     fi
 
@@ -5174,6 +6535,24 @@ main() {
     if [[ "$LIST_MODULES" == "true" ]]; then
         list_modules
         exit 0
+    fi
+
+    # Early Sudo Check (bd-sudo-fix)
+    # If not running as root, we must have passwordless sudo access for non-interactive installs.
+    if [[ "$EUID" -ne 0 ]]; then
+        # Check if we have passwordless sudo
+        if ! sudo -n true 2>/dev/null; then
+            # If in --yes mode (non-interactive) or --dry-run, this is a blocker
+            if [[ "$YES_MODE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+                log_error "Error: ACFS installation requires passwordless sudo or running as root."
+                log_error "The installer cannot prompt for a password in non-interactive/dry-run mode."
+                log_error "To fix, run as root:"
+                log_error "  sudo $0 $*"
+                log_error "Or configure passwordless sudo for prerequisites."
+                exit 1
+            fi
+            # In interactive mode, we'll likely prompt later, which is fine.
+        fi
     fi
 
     # Handle --print-plan: print execution plan and exit (mjt.5.3/5.4)
@@ -5290,6 +6669,13 @@ main() {
     disable_needrestart_apt_hook  # Prevent apt hangs on Ubuntu 22.04+ (issue #70)
     validate_target_user
     init_target_paths
+
+    # Initialize observability (needs ACFS_HOME from init_target_paths)
+    if type -t _observability_init &>/dev/null; then
+        _observability_init
+        _emit_event "install_start" "" "mode=${MODE:-unknown}" "target_user=${TARGET_USER:-unknown}"
+    fi
+
     acfs_log_init   # Start capturing stderr to log file (uses ACFS_HOME/logs)
     ensure_ubuntu
 
@@ -5309,10 +6695,12 @@ main() {
     # ============================================================
     # State Management and Resume Logic (mjt.5.8)
     # ============================================================
-    # Initialize state file location (uses TARGET_USER's home)
-    ACFS_HOME="${ACFS_HOME:-/home/${TARGET_USER}/.acfs}"
+    # CRITICAL: run_ubuntu_upgrade_phase() overrides ACFS_STATE_FILE to
+    # /var/lib/acfs/state.json for upgrade tracking. Reset it to the
+    # correct per-user path now that the upgrade phase is done.
+    # (ACFS_HOME was already set correctly by init_target_paths.)
     ACFS_STATE_FILE="$ACFS_HOME/state.json"
-    export ACFS_HOME ACFS_STATE_FILE
+    export ACFS_STATE_FILE
 
     # Validate and handle existing state file
     if type -t state_ensure_valid &>/dev/null; then
@@ -5331,23 +6719,81 @@ main() {
         case $resume_result in
             0) # Resume - state functions will skip completed phases
                 log_info "Resuming installation from last checkpoint..."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "resume" "" "state_file=${ACFS_STATE_FILE:-unknown}"
+                fi
                 ;;
             1) # Fresh install - confirm before proceeding, then initialize state
-                confirm_or_exit
+                local proceed_result=0
+                confirm_or_exit || proceed_result=$?
+                case $proceed_result in
+                    0) ;;
+                    2)
+                        log_info "Installation aborted by user."
+                        if type -t _emit_event &>/dev/null; then
+                            _emit_event "install_end" "" "status=aborted"
+                        fi
+                        exit 0
+                        ;;
+                    *)
+                        exit "$proceed_result"
+                        ;;
+                esac
                 if type -t state_init &>/dev/null; then
-                    state_init
+                    if ! state_init; then
+                        log_warn "Initial state setup failed at: ${ACFS_STATE_FILE:-<unset>}"
+                        log_warn "Attempting one-time state recovery and retry..."
+
+                        # Best-effort recovery for stale/corrupt state paths.
+                        # This keeps normal installs moving after interrupted upgrades.
+                        if type -t state_backup_and_remove &>/dev/null; then
+                            state_backup_and_remove || true
+                        fi
+
+                        if ! state_init; then
+                            local state_dir=""
+                            if [[ -n "${ACFS_STATE_FILE:-}" ]]; then
+                                state_dir="$(dirname "${ACFS_STATE_FILE}")"
+                            fi
+                            log_error "Failed to initialize installation state."
+                            if [[ -n "$state_dir" ]]; then
+                                log_error "State directory may be unreadable/unwritable: $state_dir"
+                            fi
+                            exit 1
+                        fi
+
+                        log_detail "State initialization recovered on retry"
+                    fi
                 fi
                 ;;
             2) # Abort
                 log_info "Installation aborted by user."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "install_end" "" "status=aborted"
+                fi
                 exit 0
                 ;;
         esac
     else
         # Fallback: use original confirm_or_exit
-        confirm_or_exit
+        local proceed_result=0
+        confirm_or_exit || proceed_result=$?
+        case $proceed_result in
+            0) ;;
+            2)
+                log_info "Installation aborted by user."
+                if type -t _emit_event &>/dev/null; then
+                    _emit_event "install_end" "" "status=aborted"
+                fi
+                exit 0
+                ;;
+            *)
+                exit "$proceed_result"
+                ;;
+        esac
     fi
 
+    local total_seconds=0
     if [[ "$DRY_RUN" != "true" ]]; then
         # Execute phases with state tracking (mjt.5.8)
         # Each run_phase call checks if phase is already completed and skips if so
@@ -5370,8 +6816,21 @@ main() {
                 show_progress_header "$phase_num" 9 "$phase_name" "$installation_start_time"
             fi
 
+            # Emit stage_start event
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "stage_start" "$phase_id" "display=$phase_display"
+            fi
+
             if type -t run_phase &>/dev/null; then
                 if ! run_phase "$phase_id" "$phase_display" "$phase_func"; then
+                    # Emit stage_end failure event with error context
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "stage_end" "$phase_id" "status=failed" "exit_code=${LAST_ERROR_CODE:-1}"
+                    fi
+                    # Print failure summary
+                    if type -t _print_failure_summary &>/dev/null; then
+                        _print_failure_summary "$phase_id" "$phase_name" "${LAST_ERROR_CODE:-1}" "${LAST_ERROR_OUTPUT:-}"
+                    fi
                     # Use structured error reporting
                     if type -t report_failure &>/dev/null; then
                         report_failure "$phase_num" 9
@@ -5385,10 +6844,44 @@ main() {
             else
                 # Fallback: direct call with basic error handling
                 if ! "$phase_func"; then
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "stage_end" "$phase_id" "status=failed"
+                    fi
                     log_error "Phase $phase_display failed"
                     print_resume_hint "$phase_id" ""
                     exit 1
                 fi
+            fi
+
+            # Verify postconditions after successful phase completion.
+            # A postcondition failure is a hard failure: rollback phase completion and stop.
+            if type -t _run_phase_postconditions &>/dev/null; then
+                if ! _run_phase_postconditions "$phase_id"; then
+                    log_error "Phase $phase_display failed postconditions"
+                    if type -t _emit_event &>/dev/null; then
+                        _emit_event "check_failed" "$phase_id" "type=postcondition"
+                        _emit_event "stage_end" "$phase_id" "status=failed" "reason=postcondition"
+                    fi
+                    if type -t state_unmark_phase &>/dev/null; then
+                        state_unmark_phase "$phase_id" || true
+                    fi
+                    if type -t state_phase_fail &>/dev/null; then
+                        state_phase_fail "$phase_id" "Postcondition verification" "Phase '$phase_id' failed postconditions" || true
+                    fi
+                    if type -t _print_failure_summary &>/dev/null; then
+                        _print_failure_summary "$phase_id" "$phase_name" 1 "postcondition failed"
+                    fi
+                    if type -t report_failure &>/dev/null; then
+                        report_failure "$phase_num" 9
+                    fi
+                    print_resume_hint "$phase_id" ""
+                    exit 1
+                fi
+            fi
+
+            # Emit stage_end success event only after postconditions pass.
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "stage_end" "$phase_id" "status=success"
             fi
         }
 
@@ -5425,7 +6918,7 @@ main() {
         fi
 
         # Calculate installation time for success report
-        local installation_end_time total_seconds
+        local installation_end_time
         installation_end_time=$(date +%s)
         total_seconds=$((installation_end_time - installation_start_time))
 
@@ -5442,9 +6935,26 @@ main() {
         # Emit install summary JSON (bd-31ps.3.2)
         acfs_summary_emit "success" "$total_seconds" 2>/dev/null || true
 
+        # Send webhook notification if configured (bd-2zqr)
+        if type -t webhook_notify &>/dev/null; then
+            webhook_notify "success" "${ACFS_SUMMARY_FILE:-}" 2>/dev/null || true
+        fi
+        # Send ntfy.sh notification if configured (bd-2igt6)
+        if type -t acfs_notify_install_success &>/dev/null; then
+            acfs_notify_install_success 2>/dev/null || true
+        fi
+
         SMOKE_TEST_FAILED=false
         if ! run_smoke_test; then
             SMOKE_TEST_FAILED=true
+        fi
+    fi
+
+    if type -t _emit_event &>/dev/null && [[ "$DRY_RUN" != "true" ]]; then
+        if [[ "${SMOKE_TEST_FAILED:-false}" == "true" ]]; then
+            _emit_event "install_end" "" "status=failed" "reason=smoke_test" "total_seconds=${total_seconds}"
+        else
+            _emit_event "install_end" "" "status=success" "total_seconds=${total_seconds}"
         fi
     fi
 

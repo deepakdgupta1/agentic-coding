@@ -165,7 +165,7 @@ report_failure() {
     fi
 
     # Build resume command (prefer HTTPS-only curl when supported)
-    local install_url="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}/install.sh"
+    local install_url="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}/install.sh"
     local curl_cmd="curl -fsSL"
     if command -v curl &>/dev/null && curl --help all 2>/dev/null | grep -q -- '--proto'; then
         curl_cmd="curl --proto '=https' --proto-redir '=https' -fsSL"

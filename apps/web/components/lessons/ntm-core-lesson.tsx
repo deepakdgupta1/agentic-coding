@@ -89,7 +89,7 @@ export function NtmCoreLesson() {
           <CommandSection
             title="Create a Project Session"
             icon={<LayoutGrid className="h-4 w-4" />}
-            code="ntm spawn myproject --cc=2 --cod=1 --gmi=1"
+            code="ntm spawn myproject --cc=2 --cod=1 --gmi=1 --amp=1"
             description="Creates a tmux session with multiple agent panes."
           >
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -104,6 +104,10 @@ export function NtmCoreLesson() {
               <SessionComponent
                 label="1 Gemini pane"
                 color="from-blue-500 to-indigo-500"
+              />
+              <SessionComponent
+                label="1 Amp pane"
+                color="from-fuchsia-500 to-pink-500"
               />
               <SessionComponent
                 label='Session: "myproject"'
@@ -185,7 +189,7 @@ ntm send myproject --cod "Focus on the frontend"`}
         <Paragraph>For a typical project:</Paragraph>
 
         <div className="mt-6">
-          <CodeBlock code="ntm spawn myproject --cc=2 --cod=1 --gmi=1" />
+          <CodeBlock code="ntm spawn myproject --cc=2 --cod=1 --gmi=1 --amp=1" />
         </div>
 
         <div className="mt-6">
@@ -276,6 +280,7 @@ function NtmDiagram() {
           <AgentPane name="Claude" shortcut="cc" color="from-orange-500 to-amber-500" delay={0.3} />
           <AgentPane name="Codex" shortcut="cod" color="from-emerald-500 to-teal-500" delay={0.4} />
           <AgentPane name="Gemini" shortcut="gmi" color="from-blue-500 to-indigo-500" delay={0.5} />
+          <AgentPane name="Amp" shortcut="amp" color="from-fuchsia-500 to-pink-500" delay={0.6} />
         </div>
       </div>
     </div>
@@ -499,7 +504,7 @@ function KeyboardShortcutTable({
                   {key}
                 </kbd>
                 {j < shortcut.keys.length - 1 && (
-                  <span className="text-white/30 text-xs">then</span>
+                  <span className="text-white/50 text-xs">then</span>
                 )}
               </span>
             ))}

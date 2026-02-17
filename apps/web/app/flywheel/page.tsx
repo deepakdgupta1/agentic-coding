@@ -585,7 +585,7 @@ function ToolCard({ tool, index }: { tool: FlywheelTool; index: number }) {
         {/* Install command */}
         {tool.installCommand && (
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-muted-foreground">
               {tool.installCommand.length > 60
                 ? tool.installCommand.slice(0, 60) + "..."
                 : tool.installCommand}
@@ -757,7 +757,7 @@ function CTASection() {
               </Button>
               <Button asChild size="lg" variant="outline">
                 <a
-                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  href="https://github.com/deepakdgupta1/agentic-coding"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -836,7 +836,7 @@ export default function FlywheelPage() {
 
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <a
-                href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                href="https://github.com/deepakdgupta1/agentic-coding"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center min-h-[44px] px-2 transition-colors hover:text-foreground"

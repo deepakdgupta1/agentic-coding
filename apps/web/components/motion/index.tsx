@@ -1,6 +1,6 @@
 "use client";
 
-import { m, AnimatePresence, type Variants } from "framer-motion";
+import { m, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 
 /**
  * Spring configurations optimized for Stripe/Linear-style subtle, professional feel.
@@ -138,6 +138,172 @@ export const staggerSlow: Variants = {
   },
 };
 
+// =============================================================================
+// MODAL & SHEET ENTRANCE VARIANTS
+// =============================================================================
+
+/** Modal entrance - scale and fade from center (dialogs, popups) */
+export const modalEntrance: Variants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.95,
+    y: 10,
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: springs.smooth,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.98,
+    y: 5,
+    transition: { duration: 0.15 },
+  },
+};
+
+/** Bottom sheet entrance - slide from bottom with spring physics */
+export const sheetEntrance: Variants = {
+  hidden: {
+    y: "100%",
+    opacity: 0.8,
+  },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 30,
+    },
+  },
+  exit: {
+    y: "100%",
+    opacity: 0.8,
+    transition: { duration: 0.2 },
+  },
+};
+
+// =============================================================================
+// PREMIUM SCROLL REVEAL VARIANTS
+// =============================================================================
+
+/** Fade up with blur effect - premium reveal for hero sections */
+export const fadeUpBlur: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 30,
+    filter: "blur(10px)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: springs.smooth,
+  },
+  exit: {
+    opacity: 0,
+    y: -15,
+    filter: "blur(5px)",
+    transition: { duration: 0.2 },
+  },
+};
+
+/** Scale up entrance - great for badges, pills, and small UI elements */
+export const scaleUp: Variants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.8,
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: springs.snappy,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.9,
+    transition: { duration: 0.1 },
+  },
+};
+
+// =============================================================================
+// ADDITIONAL STAGGER VARIANTS
+// =============================================================================
+
+/** Micro stagger for pill/tag lists - very quick succession */
+export const staggerMicro: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.02,
+      delayChildren: 0,
+    },
+  },
+};
+
+/** Cascade stagger for dashboard cards - elegant delayed reveal */
+export const staggerCascade: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.15,
+      staggerDirection: 1,
+    },
+  },
+};
+
+// =============================================================================
+// PRESENCE ANIMATION HELPERS
+// =============================================================================
+
+/** Motion props type for presence animations */
+export interface PresenceMotionProps {
+  initial: "hidden" | false;
+  animate: "visible";
+  exit?: "exit";
+  variants: Variants;
+}
+
+/**
+ * Get animation props that respect reduced motion preference.
+ * Use this to conditionally apply animations based on user preferences.
+ *
+ * @param variants - The animation variants to use
+ * @param prefersReducedMotion - Whether user prefers reduced motion
+ * @returns Motion props object ready to spread onto a motion component
+ *
+ * @example
+ * ```tsx
+ * const prefersReducedMotion = useReducedMotion();
+ * return (
+ *   <motion.div {...getPresenceProps(modalEntrance, prefersReducedMotion ?? false)}>
+ *     {children}
+ *   </motion.div>
+ * );
+ * ```
+ */
+export function getPresenceProps(
+  variants: Variants,
+  prefersReducedMotion: boolean
+): PresenceMotionProps {
+  if (prefersReducedMotion) {
+    return {
+      initial: false,
+      animate: "visible",
+      variants,
+    };
+  }
+  return {
+    initial: "hidden",
+    animate: "visible",
+    exit: "exit",
+    variants,
+  };
+}
+
 /**
  * Button/interactive element hover and tap props
  * Use with spread: {...buttonMotion}
@@ -199,5 +365,5 @@ export const MotionH4 = m.h4;
 
 // Re-export `m` as `motion` for backwards compatibility with LazyMotion strict mode
 // This allows existing code using `motion.div` etc. to work without changes
-export { m as motion, AnimatePresence };
+export { m as motion, AnimatePresence, useReducedMotion };
 export type { Variants };

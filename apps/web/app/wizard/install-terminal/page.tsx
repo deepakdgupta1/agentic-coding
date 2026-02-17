@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Terminal, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandCard } from "@/components/command-card";
+import { CodeBlock } from "@/components/ui/code-block";
 import { AlertCard } from "@/components/alert-card";
 import { OutputPreview } from "@/components/alert-card";
 import { TrackedLink } from "@/components/tracked-link";
@@ -369,9 +370,9 @@ function WindowsContent() {
             <div className="space-y-4">
               <GuideStep number={1} title="Type the command">
                 In the Windows Terminal window, type exactly:
-                <code className="mt-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-sm">
-                  ssh -V
-                </code>
+                <div className="mt-2">
+                  <CodeBlock code="ssh -V" variant="compact" />
+                </div>
                 <em className="mt-1 block text-xs">
                   That&apos;s &quot;ssh&quot; (lowercase), a space, a dash, and a capital &quot;V&quot;
                 </em>
@@ -419,7 +420,7 @@ export default function InstallTerminalPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "install_terminal",
-    stepNumber: 2,
+    stepNumber: 3,
     stepTitle: "Install Terminal",
   });
 
@@ -429,15 +430,15 @@ export default function InstallTerminalPage() {
     if (os === null) {
       router.push(withCurrentSearch("/wizard/os-selection"));
     } else if (os === "linux") {
-      // Linux users already have a terminal - skip to SSH key generation
-      markStepComplete(2);
-      router.push(withCurrentSearch("/wizard/generate-ssh-key"));
+      // Linux users already have a terminal - route to install target selection
+      markStepComplete(3);
+      router.push(withCurrentSearch("/wizard/install-target"));
     }
   }, [ready, os, router]);
 
   const handleContinue = useCallback(() => {
     markComplete({ selected_os: os });
-    markStepComplete(2);
+    markStepComplete(3);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/generate-ssh-key"));
   }, [router, os, markComplete]);

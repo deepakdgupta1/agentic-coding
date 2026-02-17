@@ -198,6 +198,7 @@ export type WizardStep =
   | 'os_selection'
   | 'rent_vps'
   | 'create_vps'
+  | 'install_target'
   | 'install_terminal'
   | 'generate_ssh_key'
   | 'ssh_connect'
@@ -672,8 +673,8 @@ export const trackSessionStart = (): void => {
     is_first_visit: isFirstVisit,
   });
 
-  // Check for returning user
-  const visitCount = parseInt(safeGetItem('acfs_visit_count') || '0', 10) + 1;
+  // Check for returning user (use || 0 to handle NaN from corrupted storage)
+  const visitCount = (parseInt(safeGetItem('acfs_visit_count') || '0', 10) || 0) + 1;
   safeSetItem('acfs_visit_count', String(visitCount));
 
   // Set comprehensive user properties

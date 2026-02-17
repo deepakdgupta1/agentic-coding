@@ -13,13 +13,17 @@ teardown() {
 }
 
 @test "logging: color variables are exported" {
-    # Color variables should be exported with ANSI escape sequences
+    # Color variables should be exported (but may be empty if NO_COLOR or no TTY)
+    # Test that the ACFS_COLORS_ENABLED flag is set correctly
     [[ -v ACFS_RED ]]
     [[ -v ACFS_GREEN ]]
     [[ -v ACFS_NC ]]
-    # Verify they contain escape sequences (start with \033)
-    [[ "$ACFS_RED" == *"033"* ]]
-    [[ "$ACFS_GREEN" == *"033"* ]]
+    [[ -v ACFS_COLORS_ENABLED ]]
+
+    # Without a TTY (bats environment), colors should be disabled
+    if [[ ! -t 2 ]]; then
+        [[ "$ACFS_COLORS_ENABLED" == "false" ]]
+    fi
 }
 
 @test "logging: log_success prints green checkmark to stderr" {

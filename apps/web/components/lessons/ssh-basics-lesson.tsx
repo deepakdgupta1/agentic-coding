@@ -34,6 +34,11 @@ export function SSHBasicsLesson() {
         Understand how to stay connected to your VPS.
       </GoalBanner>
 
+      <TipBox variant="info">
+        Using local desktop mode? You can skip this lesson. Enter the sandbox
+        with <InlineCode>acfs-local shell</InlineCode> instead of SSH.
+      </TipBox>
+
       {/* What Is SSH */}
       <Section
         title="What Is SSH?"

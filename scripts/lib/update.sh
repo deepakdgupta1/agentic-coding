@@ -21,14 +21,25 @@ if [[ -f "$SCRIPT_DIR/../../VERSION" ]]; then
     ACFS_VERSION="$(cat "$SCRIPT_DIR/../../VERSION" 2>/dev/null || echo "$ACFS_VERSION")"
 fi
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m'
+# Colors - respect NO_COLOR standard (https://no-color.org/)
+# Related: bd-39ye
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 2 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    NC='\033[0m'
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    DIM=''
+    NC=''
+fi
 
 # Counters
 SUCCESS_COUNT=0
@@ -150,7 +161,7 @@ get_version() {
         vercel)
             version=$(vercel --version 2>/dev/null || echo "unknown")
             ;;
-        ntm|ubs|bv|cass|cm|caam|slb|ru|dcg|apr|pt|xf|jfp|ms|br|rch|wa|brenner)
+        ntm|ubs|bv|cass|cm|caam|slb|ru|dcg|apr|pt|xf|jfp|ms|br|rch|giil|csctf|srps|tru|rano|mdwb|s2p|brenner)
             version=$("$tool" --version 2>/dev/null | head -1 || echo "unknown")
             ;;
         sg|lsd|dust|tldr)
@@ -491,10 +502,113 @@ run_cmd_sudo() {
 }
 
 # ============================================================
+# Migration Cleanup
+# ============================================================
+
+# Clean up legacy git_safety_guard artifacts from pre-DCG installations
+# This runs on every update to ensure stale files are removed
+cleanup_legacy_git_safety_guard() {
+    local cleaned=false
+    local hooks_dirs=(
+        "$HOME/.acfs/claude/hooks"
+        "$HOME/.claude/hooks"
+    )
+    local legacy_files=(
+        "git_safety_guard.py"
+        "git_safety_guard.sh"
+    )
+
+    # Remove legacy hook files
+    for dir in "${hooks_dirs[@]}"; do
+        for file in "${legacy_files[@]}"; do
+            if [[ -f "$dir/$file" ]]; then
+                rm -f "$dir/$file" 2>/dev/null && cleaned=true
+                log_to_file "Removed legacy file: $dir/$file"
+            fi
+        done
+        # Remove empty hooks directory
+        if [[ -d "$dir" ]] && [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+            rmdir "$dir" 2>/dev/null && cleaned=true
+            log_to_file "Removed empty directory: $dir"
+        fi
+    done
+
+    # Clean parent directories if empty
+    for parent in "$HOME/.acfs/claude" "$HOME/.claude"; do
+        if [[ -d "$parent" ]] && [[ -z "$(ls -A "$parent" 2>/dev/null)" ]]; then
+            rmdir "$parent" 2>/dev/null || true
+            log_to_file "Removed empty directory: $parent"
+        fi
+    done
+
+    # Clean git_safety_guard from Claude settings.json if present
+    local settings_file="$HOME/.claude/settings.json"
+    if [[ -f "$settings_file" ]] && command -v jq &>/dev/null; then
+        if jq -e '.hooks // empty' "$settings_file" &>/dev/null; then
+            # Check if git_safety_guard is referenced in hooks
+            if grep -q "git_safety_guard" "$settings_file" 2>/dev/null; then
+                local tmp_settings
+                tmp_settings=$(mktemp)
+                # Remove any hook entries containing git_safety_guard
+                if jq 'walk(if type == "object" and .hooks then .hooks |= map(select(. | tostring | contains("git_safety_guard") | not)) else . end)' "$settings_file" > "$tmp_settings" 2>/dev/null; then
+                    mv "$tmp_settings" "$settings_file" && cleaned=true
+                    log_to_file "Cleaned git_safety_guard references from $settings_file"
+                else
+                    rm -f "$tmp_settings"
+                fi
+            fi
+        fi
+    fi
+
+    if [[ "$cleaned" == "true" ]]; then
+        log_item "ok" "legacy cleanup" "removed git_safety_guard artifacts"
+    fi
+}
+
+# Fix stale aliases in deployed acfs.zshrc
+# Older versions aliased br='bun run dev', which shadows beads_rust (br).
+cleanup_legacy_br_alias() {
+    local deployed="$HOME/.acfs/zsh/acfs.zshrc"
+    [[ -f "$deployed" ]] || return 0
+
+    # Check for the exact problematic alias (uncommented)
+    if grep -q "^alias br='bun run dev'" "$deployed" 2>/dev/null; then
+        # Comment out the old alias (sync_acfs_zshrc will deploy the correct version later;
+        # this sed is a safety net for when the repo isn't available)
+        sed -i "s|^alias br='bun run dev'|# alias br='bun run dev'  # disabled - conflicts with beads_rust (br)|" "$deployed"
+        log_item "ok" "legacy cleanup" "fixed br alias conflict in deployed acfs.zshrc"
+        log_to_file "Commented out alias br='bun run dev' in $deployed"
+    fi
+}
+
+# Re-deploy acfs.zshrc from repo to ~/.acfs/ if repo copy is newer
+sync_acfs_zshrc() {
+    local repo_zshrc="$ACFS_REPO_ROOT/acfs/zsh/acfs.zshrc"
+    local deployed_zshrc="$HOME/.acfs/zsh/acfs.zshrc"
+
+    [[ -f "$repo_zshrc" ]] || return 0
+
+    # Skip if deployed copy is identical
+    if [[ -f "$deployed_zshrc" ]] && cmp -s "$repo_zshrc" "$deployed_zshrc"; then
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_item "ok" "acfs.zshrc" "would sync from repo (changed)"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$deployed_zshrc")"
+    cp "$repo_zshrc" "$deployed_zshrc"
+    log_item "ok" "acfs.zshrc" "synced from repo"
+    log_to_file "Deployed $repo_zshrc -> $deployed_zshrc"
+}
+
+# ============================================================
 # Checksums Refresh (Auto-update from GitHub)
 # ============================================================
 
-CHECKSUMS_URL="https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/checksums.yaml"
+CHECKSUMS_URL="https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/checksums.yaml"
 CHECKSUMS_LOCAL="${HOME}/.acfs/checksums.yaml"
 
 # Refresh checksums.yaml from GitHub before verifying installers
@@ -647,9 +761,48 @@ update_acfs_self() {
         return 0
     fi
 
-    # Check if ACFS repo exists and is a git repo
+    # Check if ACFS repo exists and is a git repo.
+    # If installed via tarball (no .git dir), bootstrap a git repo so
+    # the existing pull-based self-update logic works on subsequent runs.
     if [[ ! -d "$ACFS_REPO_ROOT/.git" ]]; then
-        log_item "skip" "ACFS self-update" "not a git repository at $ACFS_REPO_ROOT"
+        log_to_file "No .git directory found at $ACFS_REPO_ROOT — bootstrapping git repo for self-update..."
+
+        # Check if git is available before attempting bootstrap
+        if ! command -v git &>/dev/null; then
+            log_item "skip" "ACFS self-update" "git not found, cannot bootstrap"
+            return 0
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" init 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git init failed at $ACFS_REPO_ROOT"
+            return 0
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" remote add origin \
+                https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup.git 2>/dev/null; then
+            # Remote may already exist from a partial prior run; verify it points to the right URL
+            local existing_url
+            existing_url=$(git -C "$ACFS_REPO_ROOT" remote get-url origin 2>/dev/null) || true
+            if [[ "$existing_url" != *"agentic_coding_flywheel_setup"* ]]; then
+                log_item "warn" "ACFS self-update" "unexpected origin remote: $existing_url"
+                return 0
+            fi
+        fi
+
+        if ! git -C "$ACFS_REPO_ROOT" fetch origin main --quiet 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git fetch failed during bootstrap (network issue?)"
+            return 0
+        fi
+
+        # Use --mixed reset so local modifications (custom configs, etc.) are
+        # preserved as unstaged changes rather than being destroyed.
+        if ! git -C "$ACFS_REPO_ROOT" reset --mixed origin/main 2>/dev/null; then
+            log_item "warn" "ACFS self-update" "git reset failed during bootstrap"
+            return 0
+        fi
+
+        log_item "ok" "ACFS" "git repo bootstrapped from tarball install"
+        log_to_file "ACFS git repo initialized at $ACFS_REPO_ROOT — run 'acfs update' again for full self-update"
         return 0
     fi
 
@@ -712,19 +865,30 @@ update_acfs_self() {
         return 0
     fi
 
-    # Check for local modifications that would block pull
-    if ! git -C "$ACFS_REPO_ROOT" diff --quiet 2>/dev/null; then
-        log_item "warn" "ACFS self-update" "local modifications detected, skipping"
-        log_to_file "Run 'git -C $ACFS_REPO_ROOT status' to see changes"
-        return 0
+    # Stash local modifications so they don't block the pull
+    local stashed=false
+    if ! git -C "$ACFS_REPO_ROOT" diff --quiet 2>/dev/null || ! git -C "$ACFS_REPO_ROOT" diff --cached --quiet 2>/dev/null; then
+        log_to_file "Local modifications detected, stashing before update..."
+        if git -C "$ACFS_REPO_ROOT" stash --quiet 2>/dev/null; then
+            stashed=true
+        fi
     fi
 
     # Pull updates
     log_to_file "Pulling updates..."
     if ! git -C "$ACFS_REPO_ROOT" pull --ff-only origin main 2>/dev/null; then
-        log_item "warn" "ACFS self-update" "git pull failed"
-        log_to_file "Try: git -C $ACFS_REPO_ROOT pull --ff-only origin main"
-        return 0
+        # ff-only failed (diverged history?), try reset --mixed
+        log_to_file "ff-only pull failed, using reset --mixed"
+        git -C "$ACFS_REPO_ROOT" reset --mixed origin/main 2>/dev/null || {
+            log_item "warn" "ACFS self-update" "git update failed"
+            [[ "$stashed" == "true" ]] && git -C "$ACFS_REPO_ROOT" stash pop --quiet 2>/dev/null || true
+            return 0
+        }
+    fi
+
+    # Restore local modifications
+    if [[ "$stashed" == "true" ]]; then
+        git -C "$ACFS_REPO_ROOT" stash pop --quiet 2>/dev/null || true
     fi
 
     log_item "ok" "ACFS" "updated ($commit_count commits)"
@@ -807,20 +971,21 @@ wait_for_apt_lock() {
     local interval=5
     local waited=0
 
-    while [[ $waited -lt $max_wait ]]; do
-        # Check if any apt-related process is running
-        local apt_procs=""
-        apt_procs=$(pgrep -a 'apt|dpkg|unattended-upgr' 2>/dev/null | head -3 || true)
+    if ! command -v fuser &>/dev/null; then
+        log_to_file "fuser not available (psmisc not installed), skipping apt lock detection"
+        return 0
+    fi
 
-        # Check for lock files
+    while [[ $waited -lt $max_wait ]]; do
+        # Only check actual lock files — background processes (e.g. unattended-upgrades
+        # daemon) don't hold locks unless actively installing
         local lock_held=false
-        if [[ -f /var/lib/dpkg/lock-frontend ]] && fuser /var/lib/dpkg/lock-frontend &>/dev/null; then
-            lock_held=true
-        elif [[ -f /var/lib/apt/lists/lock ]] && fuser /var/lib/apt/lists/lock &>/dev/null; then
-            lock_held=true
-        elif [[ -n "$apt_procs" ]]; then
-            lock_held=true
-        fi
+        for lockfile in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/lib/dpkg/lock; do
+            if [[ -f "$lockfile" ]] && fuser "$lockfile" &>/dev/null; then
+                lock_held=true
+                break
+            fi
+        done
 
         if [[ "$lock_held" == "false" ]]; then
             return 0
@@ -829,9 +994,9 @@ wait_for_apt_lock() {
         if [[ $waited -eq 0 ]]; then
             log_item "wait" "apt lock" "waiting for other package operations to complete..."
             log_to_file "APT lock detected, waiting up to ${max_wait}s for release"
-            if [[ -n "$apt_procs" ]]; then
-                log_to_file "Running processes: $apt_procs"
-            fi
+            local lock_info=""
+            lock_info=$(fuser -v /var/lib/dpkg/lock-frontend 2>&1 || true)
+            [[ -n "$lock_info" ]] && log_to_file "Lock holder: $lock_info"
         fi
 
         sleep "$interval"
@@ -886,44 +1051,37 @@ fix_apt_issues() {
 
 # Check if apt is locked by another process, with automatic waiting and fixing
 check_apt_lock() {
-    # First attempt: check if lock is immediately available
-    local apt_procs=""
-    apt_procs=$(pgrep -a 'apt|dpkg|unattended-upgr' 2>/dev/null | head -1 || true)
-
-    if [[ -z "$apt_procs" ]]; then
-        # Also check lock files directly
-        if [[ -f /var/lib/dpkg/lock-frontend ]] && ! fuser /var/lib/dpkg/lock-frontend &>/dev/null; then
-            return 0  # Lock is free
-        elif [[ ! -f /var/lib/dpkg/lock-frontend ]]; then
-            return 0  # Lock file doesn't exist
+    # Only check if actual dpkg/apt lock files are held by a process.
+    # Background daemons (e.g. unattended-upgrades) don't hold locks unless
+    # actively installing, so pgrep-based checks cause false positives.
+    local locks_held=false
+    for lockfile in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/lib/dpkg/lock; do
+        if [[ -f "$lockfile" ]] && fuser "$lockfile" &>/dev/null; then
+            locks_held=true
+            break
         fi
+    done
+
+    if [[ "$locks_held" == "false" ]]; then
+        return 0  # No locks held, safe to proceed
     fi
 
-    # Lock is held - wait for it to be released
+    # Lock IS held — wait for release
     if wait_for_apt_lock 120; then
         log_item "ok" "apt lock" "lock released, proceeding"
         return 0
     fi
 
-    # Still locked after waiting - try to diagnose
-    log_item "warn" "apt lock" "still locked after 2 minutes"
+    # Still locked after waiting — show diagnostic
+    log_item "skip" "apt" "dpkg lock held after 2m wait"
     log_to_file "APT lock still held after waiting"
 
-    # Show what's holding the lock
     local lock_holder=""
     lock_holder=$(sudo fuser -v /var/lib/dpkg/lock-frontend 2>&1 || true)
     if [[ -n "$lock_holder" ]]; then
         log_to_file "Lock holder: $lock_holder"
         if [[ "$QUIET" != "true" ]]; then
             echo -e "       ${DIM}Lock held by: $lock_holder${NC}"
-        fi
-    fi
-
-    # Check for unattended-upgrades specifically
-    if pgrep -x "unattended-upgr" &>/dev/null; then
-        log_item "info" "apt" "unattended-upgrades is running (this is normal on fresh systems)"
-        if [[ "$QUIET" != "true" ]]; then
-            echo -e "       ${DIM}Tip: You can wait, or stop it with: sudo systemctl stop unattended-upgrades${NC}"
         fi
     fi
 
@@ -1040,6 +1198,7 @@ update_agents() {
         if ! run_cmd_claude_update; then
             log_to_file "Claude update failed, attempting reinstall via official installer"
             if update_require_security; then
+                # INTENTIONAL: verified installer is the correct fallback for failed updates
                 run_cmd "Claude Code (reinstall)" update_run_verified_installer claude latest
             else
                 log_item "fail" "Claude Code" "update failed and reinstall unavailable (missing security.sh)"
@@ -1053,6 +1212,7 @@ update_agents() {
     elif [[ "$FORCE_MODE" == "true" ]]; then
         capture_version_before "claude"
         if update_require_security; then
+            # INTENTIONAL: verified installer is the correct path for fresh installs
             run_cmd "Claude Code (install)" update_run_verified_installer claude latest
             if capture_version_after "claude"; then
                 [[ "$QUIET" != "true" ]] && printf "       ${DIM}%s → %s${NC}\n" "${VERSION_BEFORE[claude]}" "${VERSION_AFTER[claude]}"
@@ -1113,9 +1273,12 @@ update_agents() {
 }
 
 # Helper for Claude update with proper error handling
+# FIX(bd-gsjqf.2): Replaced bare "claude update --channel latest" (flag does not exist)
+# with update_run_verified_installer which uses the official install.sh script.
+# See: https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/issues/125
 run_cmd_claude_update() {
-    local desc="Claude Code (native update)"
-    local cmd_display="claude update"
+    local desc="Claude Code (verified installer)"
+    local cmd_display="update_run_verified_installer claude latest"
 
     log_to_file "Running: $cmd_display"
 
@@ -1137,27 +1300,27 @@ run_cmd_claude_update() {
         fi
 
         if [[ "$QUIET" != "true" ]] && [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
+            if update_run_verified_installer claude latest 2>&1 | tee -a "$UPDATE_LOG_FILE"; then
                 exit_code=0
             else
                 exit_code=${PIPESTATUS[0]}
             fi
         elif [[ -n "${UPDATE_LOG_FILE:-}" ]]; then
-            if claude update >> "$UPDATE_LOG_FILE" 2>&1; then
+            if update_run_verified_installer claude latest >> "$UPDATE_LOG_FILE" 2>&1; then
                 exit_code=0
             else
                 exit_code=$?
             fi
         else
             if [[ "$QUIET" != "true" ]]; then
-                claude update || exit_code=$?
+                update_run_verified_installer claude latest || exit_code=$?
             else
-                claude update >/dev/null 2>&1 || exit_code=$?
+                update_run_verified_installer claude latest >/dev/null 2>&1 || exit_code=$?
             fi
         fi
     else
         local output=""
-        output=$(claude update 2>&1) || exit_code=$?
+        output=$(update_run_verified_installer claude latest 2>&1) || exit_code=$?
         [[ -n "$output" ]] && log_to_file "Output: $output"
     fi
 
@@ -1531,151 +1694,143 @@ update_stack() {
         return 0
     fi
 
-    # DCG migration: offer install for existing users who don't have it yet
-    if ! cmd_exists dcg; then
-        log_item "warn" "DCG not installed" "new safety tool available in the ACFS stack"
+    # NTM - always install/update (installer is idempotent)
+    run_cmd "NTM" update_run_verified_installer ntm
 
-        if [[ "$YES_MODE" == "true" || "$FORCE_MODE" == "true" ]]; then
-            run_cmd "DCG (install)" update_run_verified_installer dcg --easy-mode
-            if cmd_exists dcg && cmd_exists claude; then
-                run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-            fi
-        elif [[ -t 0 ]]; then
-            [[ "$QUIET" != "true" ]] && echo ""
-            read -r -p "Install DCG now? [Y/n] " response || true
-            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-                run_cmd "DCG (install)" update_run_verified_installer dcg --easy-mode
-                if cmd_exists dcg && cmd_exists claude; then
-                    run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-                fi
-            else
-                log_item "skip" "DCG" "skipped (install later: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
-            fi
-        else
-            log_item "skip" "DCG" "not installed (non-interactive; run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh | bash)"
-        fi
-    fi
-
-    # NTM
-    if cmd_exists ntm; then
-        run_cmd "NTM" update_run_verified_installer ntm
-    fi
-
-    # MCP Agent Mail - Special handling for tmux (server blocks)
+    # MCP Agent Mail - always install/update (requires tmux for server process)
     # Note: Version tracking not possible for async tmux updates
-    if cmd_exists "am" || [[ -d "$HOME/mcp_agent_mail" ]]; then
-        if cmd_exists tmux; then
-            local tool="mcp_agent_mail"
-            local url="${KNOWN_INSTALLERS[$tool]:-}"
-            local expected_sha256
-            expected_sha256="$(get_checksum "$tool")"
+    if cmd_exists tmux; then
+        local tool="mcp_agent_mail"
+        local url="${KNOWN_INSTALLERS[$tool]:-}"
+        local expected_sha256
+        expected_sha256="$(get_checksum "$tool")"
 
-            if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
-                # Fetch and verify content first
-                local tmp_install
-                tmp_install=$(mktemp "${TMPDIR:-/tmp}/acfs-install-am.XXXXXX" 2>/dev/null) || tmp_install=""
-                if [[ -z "$tmp_install" ]]; then
-                    log_item "fail" "MCP Agent Mail" "failed to create temp file for verified installer"
-                else
-                    if verify_checksum "$url" "$expected_sha256" "$tool" > "$tmp_install"; then
-                        chmod +x "$tmp_install"
-
-                        local tmux_session="acfs-services"
-                        # Kill old session if exists
-                        tmux kill-session -t "$tmux_session" 2>/dev/null || true
-
-                        # Launch in tmux (tmux does not split a single string into argv).
-                        # NOTE: run_cmd always returns 0 (unless aborting), so do not use it in an `if ...; then` check.
-                        run_cmd "MCP Agent Mail (tmux)" tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$HOME/mcp_agent_mail" --yes
-
-                        # Confirm session exists before printing "running" hint (avoids misleading output on failure).
-                        if tmux has-session -t "$tmux_session" 2>/dev/null; then
-                            log_to_file "Started MCP Agent Mail update in tmux session: $tmux_session"
-                            [[ "$QUIET" != "true" ]] && printf "       ${DIM}Update running in tmux session '%s'${NC}\n" "$tmux_session"
-                        fi
-
-                        # Cleanup happens when system tmp is cleaned
-                    else
-                        rm -f "$tmp_install"
-                        log_item "fail" "MCP Agent Mail" "verification failed"
-                    fi
-                fi
+        if [[ -n "$url" ]] && [[ -n "$expected_sha256" ]]; then
+            # Fetch and verify content first
+            local tmp_install
+            tmp_install=$(mktemp "${TMPDIR:-/tmp}/acfs-install-am.XXXXXX" 2>/dev/null) || tmp_install=""
+            if [[ -z "$tmp_install" ]]; then
+                log_item "fail" "MCP Agent Mail" "failed to create temp file for verified installer"
             else
-                log_item "fail" "MCP Agent Mail" "unknown installer URL/checksum"
+                if verify_checksum "$url" "$expected_sha256" "$tool" > "$tmp_install"; then
+                    chmod +x "$tmp_install"
+
+                    local tmux_session="acfs-services"
+                    # Kill old session if exists
+                    tmux kill-session -t "$tmux_session" 2>/dev/null || true
+
+                    # Launch in tmux (tmux does not split a single string into argv).
+                    # NOTE: run_cmd always returns 0 (unless aborting), so do not use it in an `if ...; then` check.
+                    run_cmd "MCP Agent Mail (tmux)" tmux new-session -d -s "$tmux_session" "$tmp_install" --dir "$HOME/mcp_agent_mail" --yes
+
+                    # Confirm session exists before printing "running" hint (avoids misleading output on failure).
+                    if tmux has-session -t "$tmux_session" 2>/dev/null; then
+                        log_to_file "Started MCP Agent Mail update in tmux session: $tmux_session"
+                        [[ "$QUIET" != "true" ]] && printf "       ${DIM}Update running in tmux session '%s'${NC}\n" "$tmux_session"
+                    fi
+
+                    # Cleanup happens when system tmp is cleaned
+                else
+                    rm -f "$tmp_install"
+                    log_item "fail" "MCP Agent Mail" "verification failed"
+                fi
             fi
         else
-            log_item "skip" "MCP Agent Mail" "tmux not found (required for update)"
+            log_item "fail" "MCP Agent Mail" "unknown installer URL/checksum"
         fi
+    else
+        log_item "skip" "MCP Agent Mail" "tmux not found (required for install)"
     fi
 
-    # Meta Skill (ms)
-    if cmd_exists ms; then
-        run_cmd "Meta Skill" update_run_verified_installer ms --easy-mode
-    fi
+    # Meta Skill (ms) - always install/update (installer is idempotent)
+    run_cmd "Meta Skill" update_run_verified_installer ms --easy-mode
 
-    # APR (Automated Plan Reviser Pro)
-    if cmd_exists apr; then
-        run_cmd "APR" update_run_verified_installer apr --easy-mode
-    fi
+    # APR (Automated Plan Reviser Pro) - always install/update
+    run_cmd "APR" update_run_verified_installer apr --easy-mode
 
-    # Process Triage (pt)
-    if cmd_exists pt; then
-        run_cmd "Process Triage" update_run_verified_installer pt
-    fi
+    # Process Triage (pt) - always install/update
+    run_cmd "Process Triage" update_run_verified_installer pt
 
-    # xf (X Archive Search)
-    if cmd_exists xf; then
-        run_cmd "xf" update_run_verified_installer xf --easy-mode
-    fi
+    # xf (X Archive Search) - always install/update
+    run_cmd "xf" update_run_verified_installer xf --easy-mode
 
-    # JeffreysPrompts (jfp)
+    # JeffreysPrompts (jfp) - only update if already installed
+    # Note: JFP requires a paid subscription to jeffreysprompts.com
     if cmd_exists jfp; then
-        run_cmd "JeffreysPrompts" jfp update
+        run_cmd "JeffreysPrompts" update_run_verified_installer jfp
     fi
 
-    # UBS
-    if cmd_exists ubs; then
-        run_cmd "Ultimate Bug Scanner" update_run_verified_installer ubs --easy-mode
+    # UBS - always install/update (installer is idempotent)
+    run_cmd "Ultimate Bug Scanner" update_run_verified_installer ubs --easy-mode
+
+    # Beads Viewer - always install/update
+    run_cmd "Beads Viewer" update_run_verified_installer bv
+
+    # Beads Rust (br) - local issue tracker CLI - always install/update
+    run_cmd "Beads Rust" update_run_verified_installer br
+
+    # CASS - always install/update
+    run_cmd "CASS" update_run_verified_installer cass --easy-mode --verify
+
+    # CASS Memory - always install/update
+    run_cmd "CASS Memory" update_run_verified_installer cm --easy-mode --verify
+
+    # CAAM - always install/update
+    run_cmd "CAAM" update_run_verified_installer caam
+
+    # SLB - always install/update
+    run_cmd "SLB" update_run_verified_installer slb
+
+    # RU (Repo Updater) - always install/update
+    run_cmd "RU" update_run_verified_installer ru --easy-mode
+
+    # DCG (Destructive Command Guard) - always install/update
+    run_cmd "DCG" update_run_verified_installer dcg --easy-mode
+    # Re-register hook after install/update to ensure latest version is active
+    if cmd_exists dcg && cmd_exists claude; then
+        run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
     fi
 
-    # Beads Viewer
-    if cmd_exists bv; then
-        run_cmd "Beads Viewer" update_run_verified_installer bv
+    # RCH (Remote Compilation Helper) - always install/update
+    run_cmd "RCH" update_run_verified_installer rch
+
+    # GIIL (Google Image Inline Linker) - always install/update
+    run_cmd "GIIL" update_run_verified_installer giil
+
+    # CSCTF (Chat Shared Conversation To File) - always install/update
+    run_cmd "CSCTF" update_run_verified_installer csctf
+
+    # SRPS (System Resource Protection Script) - always install/update
+    run_cmd "SRPS" update_run_verified_installer srps
+
+    # TRU (Toon Rust) - always install/update
+    run_cmd "TRU" update_run_verified_installer tru
+
+    # RANO - always install/update
+    run_cmd "RANO" update_run_verified_installer rano
+
+    # MDWB (Markdown Web Browser) - always install/update
+    run_cmd "MDWB" update_run_verified_installer mdwb
+
+    # S2P (Source to Prompt TUI) - always install/update
+    run_cmd "S2P" update_run_verified_installer s2p
+
+    # Brenner Bot - always install/update
+    run_cmd "Brenner Bot" update_run_verified_installer brenner_bot
+}
+
+# ============================================================
+# Root AGENTS.md Generation
+# ============================================================
+update_root_agents_md() {
+    log_section "Root AGENTS.md"
+
+    if ! cmd_exists flywheel-update-agents-md; then
+        log_item "skip" "Root AGENTS.md" "flywheel-update-agents-md not installed"
+        return 0
     fi
 
-    # CASS
-    if cmd_exists cass; then
-        run_cmd "CASS" update_run_verified_installer cass --easy-mode --verify
-    fi
-
-    # CASS Memory
-    if cmd_exists cm; then
-        run_cmd "CASS Memory" update_run_verified_installer cm --easy-mode --verify
-    fi
-
-    # CAAM
-    if cmd_exists caam; then
-        run_cmd "CAAM" update_run_verified_installer caam
-    fi
-
-    # SLB
-    if cmd_exists slb; then
-        run_cmd "SLB" update_run_verified_installer slb
-    fi
-
-    # RU (Repo Updater)
-    if cmd_exists ru; then
-        run_cmd "RU" update_run_verified_installer ru --easy-mode
-    fi
-
-    # DCG (Destructive Command Guard)
-    if cmd_exists dcg; then
-        run_cmd "DCG" update_run_verified_installer dcg --easy-mode
-        # Re-register hook after update to ensure latest version is active
-        if cmd_exists claude; then
-            run_cmd "DCG Hook" dcg install --force 2>/dev/null || true
-        fi
-    fi
+    run_cmd_sudo "Root AGENTS.md" flywheel-update-agents-md
 }
 
 # ============================================================
@@ -1698,13 +1853,13 @@ update_omz() {
     # Set DISABLE_UPDATE_PROMPT to avoid interactive prompts
     local upgrade_script="$omz_dir/tools/upgrade.sh"
     if [[ -x "$upgrade_script" ]]; then
-        run_cmd "Oh-My-Zsh upgrade" env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" "$upgrade_script"
+        run_cmd "Oh-My-Zsh upgrade" timeout 120 env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" "$upgrade_script"
     elif [[ -f "$upgrade_script" ]]; then
-        run_cmd "Oh-My-Zsh upgrade" env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" bash "$upgrade_script"
+        run_cmd "Oh-My-Zsh upgrade" timeout 120 env DISABLE_UPDATE_PROMPT=true ZSH="$omz_dir" bash "$upgrade_script"
     else
         # Fallback to git pull
         if [[ -d "$omz_dir/.git" ]]; then
-            run_cmd "Oh-My-Zsh (git pull)" git -C "$omz_dir" pull --ff-only
+            run_cmd "Oh-My-Zsh (git pull)" timeout 60 git -C "$omz_dir" pull --ff-only
         else
             log_item "skip" "Oh-My-Zsh" "no upgrade mechanism found"
             return 0
@@ -1736,7 +1891,7 @@ update_p10k() {
     # Use --ff-only to avoid merge conflicts
     local output=""
     local exit_code=0
-    output=$(git -C "$p10k_dir" pull --ff-only 2>&1) || exit_code=$?
+    output=$(timeout 60 git -C "$p10k_dir" pull --ff-only 2>&1) || exit_code=$?
 
     if [[ $exit_code -eq 0 ]]; then
         if capture_version_after "p10k"; then
@@ -1788,7 +1943,7 @@ update_zsh_plugins() {
 
         local output=""
         local exit_code=0
-        output=$(git -C "$plugin_dir" pull --ff-only 2>&1) || exit_code=$?
+        output=$(timeout 60 git -C "$plugin_dir" pull --ff-only 2>&1) || exit_code=$?
 
         if [[ $exit_code -eq 0 ]]; then
             if ! echo "$output" | grep -q "Already up to date"; then
@@ -1903,6 +2058,9 @@ update_shell() {
     # Installer-based updates (Atuin, Zoxide)
     update_atuin
     update_zoxide
+
+    # Keep deployed acfs.zshrc in sync with repo
+    sync_acfs_zshrc
 }
 
 # ============================================================
@@ -1999,7 +2157,7 @@ SKIP OPTIONS (exclude categories from update):
   --no-stack         Skip Dicklesworthstone stack tool updates
 
 BEHAVIOR OPTIONS:
-  --force            Install tools that are missing (not just update existing)
+  --force            Force reinstallation even if already up to date
   --dry-run          Preview changes without making them
   --yes, -y          Non-interactive mode, skip all prompts
   --quiet, -q        Minimal output, only show errors and summary
@@ -2039,7 +2197,7 @@ WHAT EACH CATEGORY UPDATES:
   apt:      System packages via apt update && apt upgrade && apt autoremove
   shell:    Oh-My-Zsh, Powerlevel10k, zsh plugins (git pull)
             Atuin, Zoxide (reinstall from upstream)
-  agents:   Claude Code (claude update)
+  agents:   Claude Code (verified installer: curl claude.ai/install.sh | bash -- latest)
             Codex CLI (bun install -g --trust @openai/codex@latest)
             Gemini CLI (bun install -g --trust @google/gemini-cli@latest)
   cloud:    Wrangler, Vercel (bun install -g --trust <pkg>@latest)
@@ -2047,7 +2205,11 @@ WHAT EACH CATEGORY UPDATES:
             GitHub CLI (gh extension upgrade --all)
             Google Cloud SDK (gcloud components update)
   runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update), Go (apt-managed)
-  stack:    NTM, UBS, BV, CASS, CM, CAAM, SLB, DCG, RU (re-run upstream installers)
+  stack:    Dicklesworthstone stack tools (verified upstream installers)
+            Installs missing tools and updates existing ones automatically:
+            NTM, Agent Mail, Meta Skill, APR, pt, xf, UBS, BV, BR, CASS, CM,
+            CAAM, SLB, RU, DCG, RCH, GIIL, CSCTF, SRPS, TRU, RANO, MDWB, S2P, Brenner Bot
+            Exception: JFP requires subscription, only updated if already installed
 
 LOGS:
   Update logs are saved to: ~/.acfs/logs/updates/
@@ -2071,7 +2233,7 @@ TROUBLESHOOTING:
       sudo systemctl start unattended-upgrades
 
   - If an agent update fails: try running the update command directly:
-    claude update
+    curl -fsSL https://claude.ai/install.sh | bash -s -- latest
     bun install -g --trust @openai/codex@latest
     bun install -g --trust @google/gemini-cli@latest
 
@@ -2252,6 +2414,10 @@ main() {
         export ACFS_INTERACTIVE=false
     fi
 
+    # Clean up legacy artifacts from previous versions
+    cleanup_legacy_git_safety_guard
+    cleanup_legacy_br_alias
+
     # Run updates
     update_apt
     update_bun
@@ -2263,6 +2429,7 @@ main() {
     update_go
     update_shell
     update_stack
+    update_root_agents_md
 
     # Summary
     print_summary

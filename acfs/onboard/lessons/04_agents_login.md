@@ -4,16 +4,16 @@
 
 ---
 
-## The Primary Agents
+## The Agents
 
-You have three primary coding agents (Amp + Gemini + Codex) and one secondary agent installed:
+Claude Code is the **default primary** agent. Codex, Gemini, and Amp are additional perspectives you can use as needed:
 
 | Agent | Command | Alias | Company | Role |
 |-------|---------|-------|---------|------|
-| Amp | `amp` | `amp` | Sourcegraph | **PRIMARY** — reasoning |
-| Gemini CLI | `gemini` | `gmi` | Google | **PRIMARY** — coding & docs |
-| Codex CLI | `codex` | `cod` | OpenAI | **PRIMARY** — code review, bug fixes |
-| Claude Code | `claude` | `cc` | Anthropic | secondary |
+| Claude Code | `claude` | `cc` | Anthropic | **PRIMARY** — default |
+| Codex CLI | `codex` | `cod` | OpenAI | optional |
+| Gemini CLI | `gemini` | `gmi` | Google | optional |
+| Amp | `amp` | `amp` | Sourcegraph | optional reasoning |
 
 ---
 
@@ -21,21 +21,21 @@ You have three primary coding agents (Amp + Gemini + Codex) and one secondary ag
 
 The aliases are configured for **maximum power** (vibe mode):
 
-### `amp` (Amp) — PRIMARY (reasoning)
+### `amp` (Amp) — optional reasoning
 ```bash
 amp
 ```
 - Sourcegraph's AI coding agent
 - Excellent for reasoning and architecture
 
-### `gmi` (Gemini CLI) — PRIMARY (coding & docs)
+### `gmi` (Gemini CLI) — optional (coding & docs)
 ```bash
 gemini --yolo
 ```
 - YOLO mode (no confirmations)
 - Great for coding and documentation
 
-### `cod` (Codex CLI) — PRIMARY (code review)
+### `cod` (Codex CLI) — optional (code review)
 ```bash
 codex --dangerously-bypass-approvals-and-sandbox
 ```
@@ -43,7 +43,7 @@ codex --dangerously-bypass-approvals-and-sandbox
 - No approval/sandbox checks
 - Best for code review, bug fixes, enhancements
 
-### `cc` (Claude Code)
+### `cc` (Claude Code) — PRIMARY
 ```bash
 NODE_OPTIONS="--max-old-space-size=32768" \
   claude --dangerously-skip-permissions
@@ -60,13 +60,14 @@ Each agent needs to be authenticated once:
 
 ### Claude Code
 ```bash
-claude auth login
+cc
 ```
 Follow the browser link to authenticate with your Anthropic account.
 
 ### Codex CLI
 
-**On a headless VPS**, Codex requires special handling because its OAuth callback expects `localhost:1455`:
+**On a headless VPS**, Codex requires special handling because its OAuth callback expects `localhost:1455`.
+If you are in local desktop mode, you can usually use the standard login flow.
 
 **Option 1: Device Auth (Recommended)**
 ```bash
@@ -88,13 +89,13 @@ codex login
 ```bash
 codex login
 ```
-Follow the browser prompts to authenticate with your **ChatGPT Pro/Plus/Team account**.
+Follow the browser prompts to authenticate with your **Codex Plus** account (minimum). **Codex Pro** is recommended.
 
 > **⚠️ OpenAI Has TWO Account Types:**
 >
 > | Account Type | For | Auth Method | How to Get |
 > |--------------|-----|-------------|------------|
-> | **ChatGPT** (Pro/Plus/Team) | Codex CLI, ChatGPT web | OAuth via `codex login` | [chat.openai.com](https://chat.openai.com) subscription |
+> | **ChatGPT** (Codex Plus/Pro) | Codex CLI, ChatGPT web | OAuth via `codex login` | [chat.openai.com](https://chat.openai.com) subscription |
 > | **API** (pay-as-you-go) | OpenAI API, libraries | `OPENAI_API_KEY` env var | [platform.openai.com](https://platform.openai.com) billing |
 >
 > Codex CLI uses **ChatGPT OAuth**, not API keys. If you have an `OPENAI_API_KEY`, that's for the API—different system!
@@ -161,16 +162,16 @@ Let's verify your agents are ready:
 
 ```bash
 # Check which agents are installed
-which claude codex gemini
+which claude codex gemini amp
 
 # Check your agent credential backups
 caam ls
 
 # If you haven't logged in yet, start with Claude:
-claude auth login
+cc
 ```
 
-**Pro tip:** If you set up your accounts during the wizard (Step 7: Set Up Accounts), you already have the credentials ready—just run the login commands!
+**Pro tip:** If you set up your accounts during the wizard (Step 8: Set Up Accounts), you already have the credentials ready—just run the login commands!
 
 ---
 

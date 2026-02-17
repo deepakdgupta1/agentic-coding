@@ -30,18 +30,18 @@ export function AgentsLoginLesson() {
         Login to your coding agents and understand the shortcuts.
       </GoalBanner>
 
-      {/* The Three Agents */}
+      {/* The Four Agents */}
       <Section
-        title="The Three Agents"
+        title="The Four Agents"
         icon={<Bot className="h-5 w-5" />}
         delay={0.1}
       >
         <Paragraph>
-          You have three powerful coding agents installed, each from a different
-          AI company:
+          You have four powerful coding agents installed. Claude Code is the
+          primary default; Codex, Gemini, and Amp are optional perspectives.
         </Paragraph>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <AgentInfoCard
             name="Claude Code"
             command="claude"
@@ -65,6 +65,13 @@ export function AgentsLoginLesson() {
             company="Google"
             gradient="from-blue-500 to-indigo-500"
             delay={0.3}
+          />
+          <AgentInfoCard
+            name="Amp CLI"
+            command="amp"
+            company="Sourcegraph"
+            gradient="from-fuchsia-500 to-pink-500"
+            delay={0.4}
           />
         </div>
       </Section>
@@ -115,6 +122,13 @@ export function AgentsLoginLesson() {
             gradient="from-blue-500/20 to-indigo-500/20"
           />
         </div>
+
+        <div className="mt-6">
+          <TipBox variant="info">
+            Amp doesn&apos;t need a special alias — just run{" "}
+            <InlineCode>amp</InlineCode>.
+          </TipBox>
+        </div>
       </Section>
 
       <Divider />
@@ -131,8 +145,8 @@ export function AgentsLoginLesson() {
           {/* Claude Login */}
           <LoginStep
             agent="Claude Code"
-            command="claude auth login"
-            description="Follow the browser link to authenticate with your Anthropic account."
+            command="cc"
+            description="Start Claude Code and follow the browser link to authenticate. If cc isn't available, use 'claude'."
             gradient="from-orange-500/10 to-amber-500/10"
           />
 
@@ -148,6 +162,14 @@ export function AgentsLoginLesson() {
             command="gemini"
             description="Follow the prompts to authenticate with your Google account."
             gradient="from-blue-500/10 to-indigo-500/10"
+          />
+
+          {/* Amp Login */}
+          <LoginStep
+            agent="Amp CLI (optional)"
+            command="amp"
+            description="Launch Amp and follow any prompts to authenticate."
+            gradient="from-fuchsia-500/10 to-pink-500/10"
           />
         </div>
       </Section>
@@ -201,6 +223,7 @@ caam backup gemini my-main-account`}
           <CodeBlock code={`cc "Hello! Please confirm you're working."`} />
           <CodeBlock code={`cod "Hello! Please confirm you're working."`} />
           <CodeBlock code={`gmi "Hello! Please confirm you're working."`} />
+          <CodeBlock code={`amp "Hello! Please confirm you're working."`} />
         </div>
       </Section>
 
@@ -249,18 +272,21 @@ caam backup gemini my-main-account`}
             code={`# Check which agents are installed
 $ which claude codex gemini
 
+# Amp is optional
+$ which amp
+
 # Check your agent credential backups
 $ caam ls
 
 # If you haven't logged in yet, start with Claude:
-$ claude auth login`}
+$ cc`}
             showLineNumbers
           />
         </div>
 
         <div className="mt-6">
           <TipBox variant="tip">
-            If you set up your accounts during the wizard (Step 7: Set Up
+            If you set up your accounts during the wizard (Step 8: Set Up
             Accounts), you already have the credentials ready—just run the login
             commands!
           </TipBox>
@@ -283,7 +309,7 @@ function AgentInfoCard({
 }: {
   name: string;
   command: string;
-  alias: string;
+  alias?: string;
   company: string;
   gradient: string;
   delay: number;
@@ -308,15 +334,17 @@ function AgentInfoCard({
           <Bot className="h-7 w-7 text-white" />
         </div>
         <span className="font-bold text-white">{name}</span>
-        <span className="text-xs text-white/40 mt-1">{company}</span>
+        <span className="text-xs text-white/60 mt-1">{company}</span>
 
         <div className="mt-4 flex flex-col gap-2 w-full">
           <code className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.08] text-xs font-mono text-white/70">
             {command}
           </code>
-          <code className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary">
-            {alias}
-          </code>
+          {alias && alias !== command && (
+            <code className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary">
+              {alias}
+            </code>
+          )}
         </div>
       </div>
     </motion.div>
@@ -395,7 +423,7 @@ function LoginStep({
       <h4 className="font-bold text-white mb-3 group-hover:text-primary transition-colors">{agent}</h4>
       <div className="mb-3 rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden group-hover:bg-black/40 transition-colors">
         <pre className="p-3 text-sm font-mono text-emerald-400">
-          <span className="text-white/30">$ </span>
+          <span className="text-white/50">$ </span>
           {command}
         </pre>
       </div>
@@ -438,14 +466,14 @@ function CodexLoginSection() {
               rel="noopener noreferrer"
               className="text-primary underline"
             >
-              ChatGPT Settings → Security
+              OpenAI Settings → Security
             </a>
           </li>
           <li>Then run the command below</li>
         </ol>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-sm font-mono text-emerald-400">
-            <span className="text-white/30">$ </span>codex login --device-auth
+            <span className="text-white/50">$ </span>codex login --device-auth
           </pre>
         </div>
       </div>
@@ -461,22 +489,22 @@ function CodexLoginSection() {
         </ol>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-xs font-mono text-emerald-400 overflow-x-auto">
-            <span className="text-white/30"># On laptop:</span>{"\n"}
-            <span className="text-white/30">$ </span>ssh -L 1455:localhost:1455 ubuntu@YOUR_VPS_IP{"\n"}
-            <span className="text-white/30"># Then on VPS:</span>{"\n"}
-            <span className="text-white/30">$ </span>codex login
+            <span className="text-white/50"># On laptop:</span>{"\n"}
+            <span className="text-white/50">$ </span>ssh -L 1455:localhost:1455 ubuntu@YOUR_VPS_IP{"\n"}
+            <span className="text-white/50"># Then on VPS:</span>{"\n"}
+            <span className="text-white/50">$ </span>codex login
           </pre>
         </div>
       </div>
 
       {/* Option 3: Standard */}
       <div>
-        <p className="text-xs font-semibold text-white/40 mb-2">
+        <p className="text-xs font-semibold text-white/60 mb-2">
           Option 3: Standard (if you have a browser)
         </p>
         <div className="rounded-xl bg-black/30 border border-white/[0.06] overflow-hidden">
           <pre className="p-3 text-sm font-mono text-emerald-400">
-            <span className="text-white/30">$ </span>codex login
+            <span className="text-white/50">$ </span>codex login
           </pre>
         </div>
       </div>
@@ -509,10 +537,10 @@ function OpenAIAccountWarning() {
         <div className="grid gap-4 md:grid-cols-2 mb-4">
           <div className="p-4 rounded-xl bg-black/20 border border-white/[0.06]">
             <h5 className="font-bold text-white mb-2">
-              ChatGPT (Pro/Plus/Team)
+              Codex (Plus/Pro)
             </h5>
             <ul className="space-y-1 text-xs text-white/60">
-              <li>• For Codex CLI, ChatGPT web</li>
+              <li>• For Codex CLI (consumer login)</li>
               <li>• Auth via OAuth ({`\`codex login\``})</li>
               <li>
                 • Get at{" "}
@@ -534,13 +562,14 @@ function OpenAIAccountWarning() {
         </div>
 
         <p className="text-sm text-white/70">
-          Codex CLI uses <strong>ChatGPT OAuth</strong>, not API keys. If you
-          have an <InlineCode>OPENAI_API_KEY</InlineCode>, that&apos;s for the
-          API—different system!
+          Codex CLI uses <strong>OpenAI consumer OAuth</strong> (Codex Plus/Pro),
+          not API keys. If you have an{" "}
+          <InlineCode>OPENAI_API_KEY</InlineCode>, that&apos;s for the API—different
+          system!
         </p>
 
         <p className="mt-3 text-sm text-amber-400/80">
-          <strong>If login fails:</strong> Check ChatGPT Settings → Security →
+          <strong>If login fails:</strong> Check your OpenAI settings → Security →
           &quot;API/Device access&quot;
         </p>
       </div>

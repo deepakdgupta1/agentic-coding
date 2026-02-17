@@ -246,16 +246,16 @@ run_wizard_confirm_only() {
     local project_name="$1"
     local project_dir="$2"
     local tech_stack="$3"
-    local enable_bd="${4:-true}"
     local enable_agent_configs="${5:-true}"
+    local enable_br="${4:-true}"
     local enable_agents="${6:-true}"
     local enable_ubsignore="${7:-true}"
 
     state_set "project_name" "$project_name"
     state_set "project_dir" "$project_dir"
     state_set "tech_stack" "$tech_stack"
-    state_set "enable_bd" "$enable_bd"
     state_set "enable_agent_configs" "$enable_agent_configs"
+    state_set "enable_br" "$enable_br"
     state_set "enable_agents" "$enable_agents"
     state_set "enable_ubsignore" "$enable_ubsignore"
 

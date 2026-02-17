@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { manifestTools, type ManifestWebTool } from "@/lib/generated/manifest-web-index";
 
 // =============================================================================
@@ -180,7 +182,7 @@ function ToolCard({ tool, index }: ToolCardProps) {
                 href={tool.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-muted-foreground ring-1 ring-white/10 transition-all hover:bg-white/10 hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 text-muted-foreground ring-1 ring-white/10 transition-all hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-ring outline-none"
                 aria-label={`View ${tool.displayName} on GitHub`}
               >
                 <ExternalLink className="h-4 w-4" />
@@ -302,6 +304,7 @@ function SearchInput({ value, onChange }: SearchInputProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search tools..."
+        aria-label="Search tools"
         className={cn(
           "w-full rounded-xl bg-card/50 py-3 pl-10 pr-10 text-sm",
           "border border-border/50 backdrop-blur-sm",
@@ -314,6 +317,7 @@ function SearchInput({ value, onChange }: SearchInputProps) {
         <button
           onClick={() => onChange("")}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+          aria-label="Clear search"
         >
           <X className="h-4 w-4" />
         </button>
@@ -476,30 +480,27 @@ export default function ToolsPage() {
 
             {/* Tools grid */}
             {filteredTools.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredTools.map((tool, index) => (
                   <ToolCard key={tool.id} tool={tool} index={index} />
                 ))}
               </div>
             ) : (
-              <div className="py-16 text-center">
-                <Search className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-medium text-white">
-                  No tools found
-                </h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Try adjusting your search or filter criteria.
-                </p>
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedCategory(null);
-                  }}
-                  className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-                >
-                  Clear filters
-                </button>
-              </div>
+              <EmptyState
+                icon={Search}
+                title="No tools found"
+                description="Try adjusting your search or filter criteria."
+                action={
+                  <Button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory(null);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                }
+              />
             )}
           </div>
         </section>

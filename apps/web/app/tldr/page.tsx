@@ -77,7 +77,7 @@ function FlywheelExplanation() {
 // FOOTER CTA WITH COPY BUTTON
 // =============================================================================
 
-const INSTALL_COMMAND = `curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh | bash -s -- --yes --mode vibe`;
+const INSTALL_COMMAND = `curl -fsSL https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh | bash -s -- --yes --mode vibe`;
 
 function FooterCTA({ id }: { id?: string }) {
   const [copied, setCopied] = useState(false);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2317  # test helpers are invoked by this script
+# shellcheck disable=SC2317,SC2329  # test helpers are invoked dynamically by this script
 # ============================================================
 # Unit Tests for newproj_logging.sh
 # Run with: bash scripts/lib/test_newproj_logging.sh
@@ -297,7 +297,7 @@ test_log_dump_state() {
     declare -A TEST_STATE=(
         [project_name]="my-project"
         [tech_stack]="nodejs typescript"
-        [enable_bd]="true"
+        [enable_br]="true"
     )
 
     log_dump_state TEST_STATE

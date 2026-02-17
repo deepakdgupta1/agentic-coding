@@ -17,6 +17,7 @@ import {
   useUserOS,
   useDetectedOS,
   type OperatingSystem,
+  useInstallTarget,
 } from "@/lib/userPreferences";
 import { withCurrentSearch } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ function OSCard({ icon, title, description, selected, detected, onClick }: OSCar
           ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
           : "border-border/50 bg-card/50 hover:border-primary/30 hover:bg-card/80 hover:shadow-md"
       )}
+      style={{ touchAction: "manipulation" }}
       onClick={onClick}
       role="radio"
       tabIndex={0}
@@ -110,6 +112,7 @@ function OSCard({ icon, title, description, selected, detected, onClick }: OSCar
 export default function OSSelectionPage() {
   const router = useRouter();
   const [storedOS, setStoredOS] = useUserOS();
+  const [, setInstallTarget] = useInstallTarget();
   const detectedOS = useDetectedOS();
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -141,16 +144,15 @@ export default function OSSelectionPage() {
       markStepComplete(1);
       setIsNavigating(true);
 
-      // Linux users already have a terminal and SSH - skip to SSH key generation
       if (selectedOS === "linux") {
-        // Also mark install-terminal step as complete since Linux users skip it
-        markStepComplete(2);
-        router.push(withCurrentSearch("/wizard/generate-ssh-key"));
+        router.push(withCurrentSearch("/wizard/install-target"));
       } else {
+        setInstallTarget("vps");
+        markStepComplete(2);
         router.push(withCurrentSearch("/wizard/install-terminal"));
       }
     }
-  }, [selectedOS, router, markComplete, setStoredOS]);
+  }, [selectedOS, router, markComplete, setStoredOS, setInstallTarget]);
 
   return (
     <div className="space-y-8">
@@ -175,7 +177,7 @@ export default function OSSelectionPage() {
       </div>
 
       {/* OS Options */}
-      <div data-os-selection className="grid gap-6 sm:grid-cols-3" role="radiogroup" aria-label="Select your operating system">
+      <div data-os-selection className="grid gap-6 sm:grid-cols-3" role="radiogroup" aria-label="Select your operating system" style={{ touchAction: "pan-y" }}>
         <OSCard
           icon={<Apple className="h-10 w-10" />}
           title="Mac"
@@ -237,7 +239,7 @@ export default function OSSelectionPage() {
             <br /><br />
             <strong>Linux</strong> = If you&apos;re already using Ubuntu, Debian, Fedora, Arch,
             or another Linux distribution. You probably already know if you&apos;re running Linux!
-            Selecting Linux will skip the terminal installation step since you already have one.
+            Selecting Linux will skip the terminal installation step and let you choose between a VPS or local desktop install.
           </GuideExplain>
 
           <GuideSection title="How do I know which one I have?">

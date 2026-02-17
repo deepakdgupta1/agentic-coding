@@ -94,6 +94,9 @@ brew install expect
 ```bash
 # Run Docker-based installer test
 ./tests/vm/test_install_ubuntu.sh
+
+# Run mocked macOS bootstrap test (no Multipass/macOS required)
+./tests/vm/test_macos_bootstrap.sh
 ```
 
 ## Writing Tests

@@ -121,7 +121,7 @@ tmux attach -t practice
 
 ## Why This Matters for Agents
 
-Your coding agents (Gemini, Amp, Codex, Claude) run in tmux panes.
+Your coding agents (Claude primary, plus Codex/Gemini/Amp if you use them) run in tmux panes.
 
 If SSH drops, they keep running. When you reconnect and reattach, they're still there!
 

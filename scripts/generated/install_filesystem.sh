@@ -127,7 +127,7 @@ INSTALL_BASE_FILESYSTEM
     else
         if ! run_as_root_shell <<'INSTALL_BASE_FILESYSTEM'
 # Install AGENTS.md template to workspace root for agent guidance
-ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
 CURL_ARGS=(-fsSL)
 if curl --help all 2>/dev/null | grep -q -- '--proto'; then
   CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)

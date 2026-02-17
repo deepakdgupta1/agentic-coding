@@ -133,7 +133,7 @@ export function QuickAccessBar() {
               <AnimatePresence>
                 {isCopied && (
                   <motion.span
-                    className="absolute -top-1 right-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-lg shadow-emerald-500/30"
+                    className="absolute -top-1 right-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/30"
                     initial={{ scale: 0, y: 10 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0, y: -10 }}
@@ -149,7 +149,7 @@ export function QuickAccessBar() {
       </div>
 
       {/* Hint text */}
-      <p className="mt-2 text-center text-[11px] text-white/40">
+      <p className="mt-2 text-center text-xs text-white/60">
         Tap to copy command
       </p>
     </motion.div>

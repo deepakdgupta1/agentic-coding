@@ -1121,8 +1121,32 @@ check_stack() {
         version=$(get_version_line "ms")
         check "stack.meta_skill" "meta_skill ($version)" "pass" "installed"
     else
-        check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
-            "Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/meta_skill/main/scripts/install.sh | bash"
+        # Detect architecture to give the right install advice
+        local _ms_arch _ms_os _ms_fix
+        _ms_arch="$(uname -m 2>/dev/null || echo unknown)"
+        _ms_os="$(uname -s 2>/dev/null || echo unknown)"
+        _ms_fix="Re-run: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/meta_skill/main/scripts/install.sh | bash"
+
+        # Pre-built binaries exist for: x86_64-linux, aarch64-darwin, x86_64-darwin
+        # ARM64 Linux (aarch64-Linux) does NOT have a pre-built binary yet (GH#1)
+        case "${_ms_arch}-${_ms_os}" in
+            aarch64-Linux|arm64-Linux)
+                # ARM64 Linux binary is not yet published; the install script will 404
+                check "stack.meta_skill" "meta_skill (ms)" "warn" \
+                    "ARM64 Linux binary not yet available (see meta_skill GH#1)" \
+                    "Build from source: cargo install --git https://github.com/Dicklesworthstone/meta_skill"
+                ;;
+            x86_64-Linux|x86_64-Darwin|arm64-Darwin|aarch64-Darwin)
+                # These platforms have pre-built binaries
+                check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
+                    "$_ms_fix"
+                ;;
+            *)
+                _ms_fix="meta_skill has no pre-built binary for ${_ms_arch}-${_ms_os}. Build from source: cargo install --git https://github.com/Dicklesworthstone/meta_skill"
+                check "stack.meta_skill" "meta_skill (ms)" "warn" "not installed" \
+                    "$_ms_fix"
+                ;;
+        esac
     fi
 
     # Check rch (Remote Compilation Helper)
@@ -1179,6 +1203,100 @@ check_stack() {
 }
 
 # ============================================================
+# Utility Tools Health Checks (bd-2gog)
+# ============================================================
+# Optional utility tools from the Dicklesworthstone ecosystem.
+# These are non-fatal checks (skip status) since utilities are optional.
+# ============================================================
+
+check_utilities() {
+    section "Utility tools"
+
+    # tru (Token-Optimized Notation)
+    if command -v tru &>/dev/null; then
+        local version
+        version=$(get_version_line "tru")
+        check "util.tru" "tru ($version)" "pass" "installed"
+    else
+        check "util.tru" "tru (token notation)" "skip" "not installed (optional)"
+    fi
+
+    # rust_proxy (Transparent Proxy Routing)
+    if command -v rust_proxy &>/dev/null; then
+        local version
+        version=$(get_version_line "rust_proxy")
+        check "util.rust_proxy" "rust_proxy ($version)" "pass" "installed"
+    else
+        check "util.rust_proxy" "rust_proxy (proxy routing)" "skip" "not installed (optional)"
+    fi
+
+    # rano (Network Observer for AI CLIs)
+    if command -v rano &>/dev/null; then
+        local version
+        version=$(get_version_line "rano")
+        check "util.rano" "rano ($version)" "pass" "installed"
+    else
+        check "util.rano" "rano (network observer)" "skip" "not installed (optional)"
+    fi
+
+    # xf (X/Twitter Archive Search)
+    if command -v xf &>/dev/null; then
+        local version
+        version=$(get_version_line "xf")
+        check "util.xf" "xf ($version)" "pass" "installed"
+    else
+        check "util.xf" "xf (X archive search)" "skip" "not installed (optional)"
+    fi
+
+    # mdwb (Markdown Web Browser)
+    if command -v mdwb &>/dev/null; then
+        local version
+        version=$(get_version_line "mdwb")
+        check "util.mdwb" "mdwb ($version)" "pass" "installed"
+    else
+        check "util.mdwb" "mdwb (markdown browser)" "skip" "not installed (optional)"
+    fi
+
+    # pt (Process Triage)
+    if command -v pt &>/dev/null; then
+        local version
+        version=$(get_version_line "pt")
+        check "util.pt" "pt ($version)" "pass" "installed"
+    else
+        check "util.pt" "pt (process triage)" "skip" "not installed (optional)"
+    fi
+
+    # aadc (ASCII Diagram Corrector)
+    if command -v aadc &>/dev/null; then
+        local version
+        version=$(get_version_line "aadc")
+        check "util.aadc" "aadc ($version)" "pass" "installed"
+    else
+        check "util.aadc" "aadc (ASCII diagram corrector)" "skip" "not installed (optional)"
+    fi
+
+    # s2p (Source to Prompt TUI)
+    if command -v s2p &>/dev/null; then
+        local version
+        version=$(get_version_line "s2p")
+        check "util.s2p" "s2p ($version)" "pass" "installed"
+    else
+        check "util.s2p" "s2p (source to prompt)" "skip" "not installed (optional)"
+    fi
+
+    # caut (Coding Agent Usage Tracker)
+    if command -v caut &>/dev/null; then
+        local version
+        version=$(get_version_line "caut")
+        check "util.caut" "caut ($version)" "pass" "installed"
+    else
+        check "util.caut" "caut (usage tracker)" "skip" "not installed (optional)"
+    fi
+
+    blank_line
+}
+
+# ============================================================
 # Manifest Supplemental Checks (bd-31ps.5.1)
 # ============================================================
 # Runs manifest-derived checks for tools NOT already covered by the bespoke
@@ -1213,6 +1331,8 @@ _is_bespoke_covered() {
         stack.beads_rust.*|stack.cass|stack.cm.*|stack.caam) return 0 ;;
         stack.dcg.*|stack.ru|stack.meta_skill.*) return 0 ;;
         stack.brenner_bot|stack.rch|stack.wezterm_automata) return 0 ;;
+        # check_utilities (bd-2gog)
+        util.*) return 0 ;;
     esac
     return 1
 }
@@ -1441,6 +1561,9 @@ run_deep_checks() {
     # Network health checks (bead bd-31ps.7.2)
     deep_check_network
 
+    # Notification (ntfy.sh) connectivity check (GitHub issue #131)
+    deep_check_notifications
+
     # Calculate deep check specific counts
     DEEP_PASS_COUNT=$((PASS_COUNT - pre_pass))
     DEEP_WARN_COUNT=$((WARN_COUNT - pre_warn))
@@ -1534,7 +1657,7 @@ check_claude_auth() {
 }
 
 # check_codex_auth - Thorough Codex CLI authentication check
-# Codex CLI uses OAuth (ChatGPT accounts), NOT OPENAI_API_KEY environment variable.
+# Codex CLI uses OAuth (Codex Plus/Pro accounts), NOT OPENAI_API_KEY environment variable.
 # Token location: ~/.codex/auth.json (or $CODEX_HOME/auth.json)
 # Returns via check(): pass (auth OK), warn (partial/skipped), fail (auth broken)
 # Related: bead 325, ua5 (Codex auth documentation fix)
@@ -1586,7 +1709,7 @@ check_codex_auth() {
     fi
 
     if [[ "$has_oauth" == "true" ]]; then
-        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OAuth authenticated (ChatGPT account)"
+        check "deep.agent.codex_auth" "Codex CLI auth" "pass" "OAuth authenticated (Codex Plus/Pro account)"
     elif [[ "$has_api_key" == "true" ]]; then
         check "deep.agent.codex_auth" "Codex CLI auth" "pass" "API key authenticated (pay-as-you-go)"
     else
@@ -1939,6 +2062,61 @@ check_network_apt_mirror() {
         check "deep.network.apt_mirror" "APT mirror" "warn" "$mirror_host unreachable" "Check /etc/apt/sources.list or network"
     else
         check "deep.network.apt_mirror" "APT mirror" "warn" "HTTP $http_status from $mirror_host" "May need to switch mirrors"
+    fi
+}
+
+# deep_check_notifications - Verify ntfy.sh notification configuration and connectivity
+# Related: GitHub issue #131
+deep_check_notifications() {
+    local config_file="${HOME}/.config/acfs/config.yaml"
+    local enabled="" topic="" server=""
+
+    # Read config (same logic as notify.sh)
+    if [[ -f "$config_file" ]]; then
+        enabled=$(grep -E '^\s*ntfy_enabled\s*:' "$config_file" 2>/dev/null | head -1 | \
+                  sed -E 's/^\s*ntfy_enabled\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                  sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+        topic=$(grep -E '^\s*ntfy_topic\s*:' "$config_file" 2>/dev/null | head -1 | \
+                sed -E 's/^\s*ntfy_topic\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+        server=$(grep -E '^\s*ntfy_server\s*:' "$config_file" 2>/dev/null | head -1 | \
+                 sed -E 's/^\s*ntfy_server\s*:\s*//; s/^["'"'"']//; s/["'"'"']$//' | \
+                 sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+    fi
+
+    # Allow env overrides
+    enabled="${ACFS_NTFY_ENABLED:-$enabled}"
+    topic="${ACFS_NTFY_TOPIC:-$topic}"
+    server="${ACFS_NTFY_SERVER:-$server}"
+    server="${server:-https://ntfy.sh}"
+
+    # Check configuration state
+    if [[ "$enabled" != "true" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "not enabled" "acfs notifications enable"
+        return
+    fi
+
+    if [[ -z "$topic" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "enabled but no topic set" "acfs notifications enable"
+        return
+    fi
+
+    # Topic and enabled are set -- test server connectivity
+    if ! command -v curl &>/dev/null; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "curl not available" "apt install curl"
+        return
+    fi
+
+    # HEAD request against the server health endpoint (lightweight)
+    local http_code
+    http_code=$(curl -sL --max-time 5 --connect-timeout 3 -o /dev/null -w "%{http_code}" "${server}/v1/health" 2>/dev/null) || http_code="000"
+
+    if [[ "$http_code" =~ ^2 ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "pass" "enabled, server reachable (${server})"
+    elif [[ "$http_code" == "000" ]]; then
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "server unreachable (${server})" "Check network or acfs notifications set-server <url>"
+    else
+        check "deep.notifications.ntfy" "ntfy.sh notifications" "warn" "server returned HTTP ${http_code}" "Check server URL: ${server}"
     fi
 }
 
@@ -2528,6 +2706,7 @@ $(gum style --foreground "$ACFS_MUTED" "OS:") $(gum style --foreground "$ACFS_TE
     check_agents
     check_cloud
     check_stack
+    check_utilities
     check_manifest_supplemental
     show_skipped_tools
 

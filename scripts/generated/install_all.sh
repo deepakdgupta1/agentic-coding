@@ -143,6 +143,7 @@ install_all() {
     install_agents_claude
     install_agents_codex
     install_agents_gemini
+    install_agents_amp
     log_section "Category: tools"
     install_tools_vault
     log_section "Category: db"
@@ -186,6 +187,7 @@ install_all() {
     install_acfs_workspace
     install_acfs_onboard
     install_acfs_update
+    install_acfs_nightly
     install_acfs_doctor
 
     log_success "All modules installed!"

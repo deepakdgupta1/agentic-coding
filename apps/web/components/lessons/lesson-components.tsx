@@ -5,13 +5,13 @@ import { motion } from "@/components/motion";
 import {
   Check,
   Copy,
-  Terminal,
   Lightbulb,
   AlertTriangle,
   ChevronRight,
   Sparkles,
   Zap,
 } from "lucide-react";
+import { CodeBlock as SharedCodeBlock, type CodeBlockProps as SharedCodeBlockProps } from "@/components/ui/code-block";
 
 // =============================================================================
 // SECTION COMPONENT - Beautiful section dividers with gradient headers
@@ -59,9 +59,8 @@ interface ParagraphProps {
 export function Paragraph({ children, highlight }: ParagraphProps) {
   return (
     <p
-      className={`text-lg leading-relaxed ${
-        highlight ? "text-white/80" : "text-white/60"
-      }`}
+      className={`text-lg leading-relaxed ${highlight ? "text-white/80" : "text-white/60"
+        }`}
     >
       {children}
     </p>
@@ -69,105 +68,12 @@ export function Paragraph({ children, highlight }: ParagraphProps) {
 }
 
 // =============================================================================
-// CODE BLOCK - Interactive terminal-style code display
+// CODE BLOCK - Re-exported from shared ui/code-block
 // =============================================================================
-interface CodeBlockProps {
-  code: string;
-  language?: string;
-  filename?: string;
-  showLineNumbers?: boolean;
-}
-
-export function CodeBlock({
-  code,
-  language = "bash",
-  filename,
-  showLineNumbers = false,
-}: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard access denied - silently fail
-    }
-  };
-
-  const lines = code.trim().split("\n");
-
-  return (
-    <div className="group relative rounded-2xl overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-xl">
-      {/* Terminal header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/80" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-            <div className="w-3 h-3 rounded-full bg-green-500/80" />
-          </div>
-          {filename && (
-            <span className="text-xs text-white/40 font-mono">{filename}</span>
-          )}
-          {!filename && (
-            <div className="flex items-center gap-1.5 text-white/40">
-              <Terminal className="h-3.5 w-3.5" />
-              <span className="text-xs font-mono">{language}</span>
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-white/40 hover:text-white hover:bg-white/10"
-        >
-          {copied ? (
-            <>
-              <Check className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-emerald-400">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="h-3.5 w-3.5" />
-              <span>Copy</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Code content */}
-      <div className="relative p-5 overflow-x-auto">
-        <pre className="font-mono text-sm">
-          {lines.map((line, i) => (
-            <div key={i} className="flex">
-              {showLineNumbers && (
-                <span className="select-none w-8 text-white/20 text-right pr-4">
-                  {i + 1}
-                </span>
-              )}
-              <code className="text-white/90">
-                {line.startsWith("$") ? (
-                  <>
-                    <span className="text-emerald-400">$</span>
-                    <span className="text-white/90">{line.slice(1)}</span>
-                  </>
-                ) : line.startsWith("#") ? (
-                  <span className="text-white/40">{line}</span>
-                ) : (
-                  line
-                )}
-              </code>
-            </div>
-          ))}
-        </pre>
-
-        {/* Subtle glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-violet-500/5 pointer-events-none" />
-      </div>
-    </div>
-  );
+export function CodeBlock(
+  props: Omit<SharedCodeBlockProps, "variant" | "copyable">,
+) {
+  return <SharedCodeBlock {...props} variant="terminal" copyable />;
 }
 
 // =============================================================================
@@ -204,7 +110,7 @@ export function FeatureCard({
     >
       {/* Gradient overlay on hover */}
       <div
-        className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+        className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-500`}
       />
 
       <div className="relative flex items-start gap-4">
@@ -323,12 +229,12 @@ export function CommandList({ commands }: CommandListProps) {
             onClick={() => handleCopy(cmd.command, i)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 border border-white/[0.08] font-mono text-sm text-emerald-400 transition-all duration-300 hover:bg-black/60 hover:border-emerald-500/30"
           >
-            <span className="text-white/30">$</span>
+            <span className="text-white/50">$</span>
             <span>{cmd.command}</span>
             {copiedIndex === i ? (
               <Check className="h-4 w-4 text-emerald-400" />
             ) : (
-              <Copy className="h-4 w-4 text-white/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Copy className="h-4 w-4 text-white/50 opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
           </button>
           <span className="text-white/50 text-sm">{cmd.description}</span>
@@ -412,7 +318,7 @@ export function DiagramArrow({ direction = "right" }: { direction?: "right" | "d
   return (
     <div className={`flex items-center justify-center ${direction === "down" ? "py-2" : "px-2"}`}>
       <ChevronRight
-        className={`h-6 w-6 text-white/30 ${direction === "down" ? "rotate-90" : ""}`}
+        className={`h-6 w-6 text-white/50 ${direction === "down" ? "rotate-90" : ""}`}
       />
     </div>
   );

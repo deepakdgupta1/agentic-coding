@@ -10,7 +10,7 @@
 import type { OperatingSystem, InstallMode } from "./userPreferences";
 
 const INSTALL_URL =
-  "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh";
+  "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh";
 
 export interface CommandBuilderInputs {
   ip: string;

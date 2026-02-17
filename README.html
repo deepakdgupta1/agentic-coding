@@ -162,16 +162,16 @@ A complete bootstrapping system that transforms a fresh Ubuntu VPS into a profes
   </table>
 </div>
 <h3 id="quick-install">Quick Install</h3>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 </code></pre>
 <p>The installer is <strong>idempotent</strong>—if interrupted, simply re-run it. It will automatically resume from the last completed phase without prompts.</p>
 <blockquote>
 <p><strong>Production environments:</strong> For stable, reproducible installs, pin to a tagged release or specific commit:</p>
 <pre><code class="language-bash"><span class="hljs-comment"># Preferred: use a tagged release (e.g., v0.5.0)</span>
-ACFS_REF=v0.5.0 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.5.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+ACFS_REF=v0.5.0 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.5.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 
 <span class="hljs-comment"># Alternative: pin to a specific commit SHA</span>
-ACFS_REF=abc1234 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/abc1234/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+ACFS_REF=abc1234 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/abc1234/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 </code></pre>
 <p>Tagged releases are tested and stable. Setting <code>ACFS_REF</code> ensures all fetched scripts use the same version.</p>
 </blockquote>
@@ -591,13 +591,13 @@ git commit -m <span class="hljs-string">&quot;chore: update upstream checksums&q
 <p>The installer is the heart of ACFS—a modular Bash script that transforms a fresh Ubuntu VPS into a fully-configured development environment.</p>
 <h3 id="usage">Usage</h3>
 <p>Full vibe mode (recommended for throwaway VPS):</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 </code></pre>
 <p>Interactive mode (asks for confirmation):</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot;</span> | bash
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh&quot;</span> | bash
 </code></pre>
 <p>Safe mode (no passwordless sudo, agent confirmations enabled):</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot;</span> | bash -s -- --mode safe
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh&quot;</span> | bash -s -- --mode safe
 </code></pre>
 <h3 id="installer-modes">Installer Modes</h3>
 <table>
@@ -683,11 +683,11 @@ git commit -m <span class="hljs-string">&quot;chore: update upstream checksums&q
 <li>Already-installed tools are detected and skipped</li>
 </ul>
 <p>To force a fresh reinstall of all tools:</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --force-reinstall
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --force-reinstall
 </code></pre>
 <h3 id="pre-flight-check">Pre-Flight Check</h3>
 <p>Before running the full installer, validate your system:</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/scripts/preflight.sh&quot;</span> | bash
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh&quot;</span> | bash
 </code></pre>
 <p>This checks:</p>
 <ul>
@@ -724,10 +724,10 @@ git commit -m <span class="hljs-string">&quot;chore: update upstream checksums&q
 <li>SSH sessions disconnect during reboots (reconnect to monitor)</li>
 </ul>
 <p><strong>To skip automatic upgrade:</strong></p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --skip-ubuntu-upgrade
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --skip-ubuntu-upgrade
 </code></pre>
 <p><strong>To specify a different target version:</strong></p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --target-ubuntu=25.04
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --target-ubuntu=25.04
 </code></pre>
 <p><strong>Monitoring upgrade progress:</strong></p>
 <pre><code class="language-bash"><span class="hljs-comment"># Check current status</span>
@@ -3491,7 +3491,7 @@ harness_summary  <span class="hljs-comment"># Outputs: 15 passed, 0 failed, 2 sk
 <p>For local development, use the individual tools directly.</p>
 <h3 id="what-if-the-installer-fails">What if the installer fails?</h3>
 <p>The installer is <strong>checkpointed</strong>. Simply re-run it:</p>
-<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+<pre><code class="language-bash">curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 </code></pre>
 <p>It will skip already-completed phases and resume where it left off.</p>
 <h3 id="how-do-i-update-tools">How do I update tools?</h3>
@@ -4431,7 +4431,7 @@ ts=<span class="hljs-string">&quot;<span class="hljs-subst">$(date +%Y%m%d_%H%M%
   [ -f <span class="hljs-string">&quot;<span class="hljs-variable">$f</span>&quot;</span> ] &amp;&amp; <span class="hljs-built_in">mv</span> <span class="hljs-string">&quot;<span class="hljs-variable">$f</span>&quot;</span> <span class="hljs-string">&quot;<span class="hljs-variable">$f</span>&quot;</span>.backup.<span class="hljs-string">&quot;<span class="hljs-variable">$ts</span>&quot;</span>
 <span class="hljs-keyword">done</span>
 
-curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --force-reinstall
+curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?<span class="hljs-subst">$(date +%s)</span>&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe --force-reinstall
 </code></pre>
 <hr>
 <h2 id="security-threat-model">Security Threat Model</h2>
@@ -4949,7 +4949,7 @@ RU syncs repos and automates commits
 </table>
 <p><strong>Examples:</strong></p>
 <pre><code class="language-bash"><span class="hljs-comment"># Install from a tagged release (recommended for production)</span>
-ACFS_REF=v0.1.0 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.1.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+ACFS_REF=v0.1.0 curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.1.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 
 <span class="hljs-comment"># Install from a specific branch (development/testing)</span>
 ACFS_REF=feature/new-tool curl -fsSL <span class="hljs-string">&quot;...&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
@@ -4958,7 +4958,7 @@ ACFS_REF=feature/new-tool curl -fsSL <span class="hljs-string">&quot;...&quot;</
 ACFS_REF=abc1234 curl -fsSL <span class="hljs-string">&quot;...&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 
 <span class="hljs-comment"># Pin installer version but use latest checksums (avoid stale hash mismatches)</span>
-ACFS_REF=v0.5.0 ACFS_CHECKSUMS_REF=main curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.5.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
+ACFS_REF=v0.5.0 ACFS_CHECKSUMS_REF=main curl -fsSL <span class="hljs-string">&quot;https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.5.0/install.sh&quot;</span> | bash -s -- --<span class="hljs-built_in">yes</span> --mode vibe
 </code></pre>
 <blockquote>
 <p><strong>Tip:</strong> Always match the URL path with <code>ACFS_REF</code> so the initial script and all subsequently fetched scripts come from the same ref.
@@ -5177,7 +5177,7 @@ Resume from 90%:  2 minutes
 <h2 id="links">Links</h2>
 <ul>
 <li><strong>Website:</strong> <a href="https://agent-flywheel.com">agent-flywheel.com</a> — Interactive wizard for beginners</li>
-<li><strong>GitHub:</strong> <a href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup">Dicklesworthstone/agentic_coding_flywheel_setup</a></li>
+<li><strong>GitHub:</strong> <a href="https://github.com/deepakdgupta1/agentic-coding">deepakdgupta1/agentic-coding</a></li>
 <li><strong>Related Projects:</strong>
 <ul>
 <li><a href="https://github.com/Dicklesworthstone/ntm">ntm</a> - Named Tmux Manager</li>

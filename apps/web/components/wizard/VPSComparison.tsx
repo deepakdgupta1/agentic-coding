@@ -189,7 +189,7 @@ export function VPSComparison() {
                         {provider.name}
                       </span>
                       {provider.isTopPick && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs font-medium text-primary">
                           <Star className="h-2.5 w-2.5" />
                           Top pick
                         </span>

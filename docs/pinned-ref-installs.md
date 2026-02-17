@@ -14,10 +14,10 @@ Set the `ACFS_REF` environment variable before running the installer:
 
 ```bash
 # Pin to a tagged release (recommended for production)
-ACFS_REF=v0.6.0 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/v0.6.0/install.sh" | bash -s -- --yes --mode vibe
+ACFS_REF=v0.6.0 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.6.0/install.sh" | bash -s -- --yes --mode vibe
 
 # Pin to a specific commit SHA (maximum reproducibility)
-ACFS_REF=abc1234 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/abc1234/install.sh" | bash -s -- --yes --mode vibe
+ACFS_REF=abc1234 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/abc1234/install.sh" | bash -s -- --yes --mode vibe
 ```
 
 ## When to Use Pinning
@@ -71,9 +71,9 @@ View available releases:
 
 ```bash
 # List all tags
-curl -s "https://api.github.com/repos/Dicklesworthstone/agentic_coding_flywheel_setup/tags" | jq -r '.[].name'
+curl -s "https://api.github.com/repos/deepakdgupta1/agentic-coding/tags" | jq -r '.[].name'
 
-# Or visit: https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/releases
+# Or visit: https://github.com/deepakdgupta1/agentic-coding/releases
 ```
 
 ## Verifying Your Installation

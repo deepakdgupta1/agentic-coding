@@ -18,7 +18,7 @@ import {
 } from "@/components/simpler-guide";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
 import { Jargon } from "@/components/jargon";
-import { useVPSIP } from "@/lib/userPreferences";
+import { useInstallTarget, useVPSIP } from "@/lib/userPreferences";
 import { withCurrentSearch } from "@/lib/utils";
 import { CommandBuilderPanel } from "@/components/command-builder-panel";
 
@@ -85,22 +85,115 @@ export default function LaunchOnboardingPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "launch_onboarding",
-    stepNumber: 13,
+    stepNumber: 14,
     stepTitle: "Launch Onboarding",
   });
 
   // Get user's VPS IP for reconnection instructions
   const [vpsIP] = useVPSIP();
   const displayIP = vpsIP || "YOUR_VPS_IP";
+  const [installTarget] = useInstallTarget();
+  const isLocal = installTarget === "local";
 
   // Mark all steps complete on reaching this page
   useEffect(() => {
     markComplete({ wizard_completed: true });
-    markStepComplete(13);
+    markStepComplete(14);
     // Mark all steps as completed
     const allSteps = Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1);
     setCompletedSteps(allSteps);
   }, [markComplete]);
+
+  if (isLocal) {
+    return (
+      <div className="space-y-8">
+        {/* Confetti */}
+        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden" aria-hidden="true">
+          {CONFETTI_PARTICLES.map((p) => (
+            <ConfettiParticle
+              key={p.id}
+              delay={p.delay}
+              left={p.left}
+              color={p.color}
+              size={p.size}
+              rotation={p.rotation}
+              duration={p.duration}
+              isRound={p.isRound}
+            />
+          ))}
+        </div>
+
+        {/* Celebration header */}
+        <div className="space-y-4 text-center">
+          <div className="flex justify-center">
+            <div className="relative rounded-full bg-[oklch(0.72_0.19_145/0.2)] p-4 shadow-lg shadow-[oklch(0.72_0.19_145/0.3)]">
+              <PartyPopper className="h-12 w-12 text-[oklch(0.72_0.19_145)]" />
+              <Sparkles className="absolute -right-1 -top-1 h-6 w-6 text-[oklch(0.78_0.16_75)] animate-pulse" />
+            </div>
+          </div>
+          <h1 className="bg-gradient-to-r from-[oklch(0.72_0.19_145)] via-primary to-[oklch(0.7_0.2_330)] bg-clip-text text-3xl font-bold tracking-tight text-transparent">
+            Congratulations! Your sandbox is ready.
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            ACFS is installed inside a local LXD container. You&apos;re ready to start.
+          </p>
+        </div>
+
+        <AlertCard variant="warning" title="First login: You may see a configuration wizard">
+          <div className="space-y-2 text-sm">
+            <p>
+              When you first enter the sandbox, you might see the{" "}
+              <strong className="text-foreground">Powerlevel10k configuration wizard</strong>.
+            </p>
+            <p className="text-muted-foreground">
+              You can press{" "}
+              <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">q</kbd> to skip it, or follow
+              the prompts to customize your terminal appearance.
+            </p>
+          </div>
+        </AlertCard>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Enter the sandbox</h2>
+          <CommandCard
+            command="acfs-local shell"
+            description="Enter the ACFS sandbox"
+            runLocation="local"
+            showCheckbox
+            persistKey="local-shell-launch"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Run the onboarding tutorial</h2>
+          <CommandCard
+            command="onboard"
+            description="Start the interactive tutorial (run inside the sandbox shell)"
+            runLocation="local"
+            showCheckbox
+            persistKey="local-onboard"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Open the dashboard (optional)</h2>
+          <CommandCard
+            command="acfs-local dashboard"
+            description="Opens the local dashboard"
+            runLocation="local"
+          />
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button asChild size="lg" disableMotion>
+            <Link href="/learn/welcome">
+              Start learning <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -173,8 +266,8 @@ export default function LaunchOnboardingPage() {
               <div className="space-y-3">
                 <p className="font-medium">Claude Code</p>
                 <CommandCard
-                  command="claude"
-                  description="Follow the prompts. If it prints a URL, open it on your laptop to log in."
+                  command="cc"
+                  description="Follow the prompts. If cc isn't available, run 'claude'. If it prints a URL, open it on your laptop to log in."
                   runLocation="vps"
                 />
                 {/* Detailed OAuth flow explanation */}
@@ -188,7 +281,7 @@ export default function LaunchOnboardingPage() {
                     <li><strong className="text-foreground">Copy that code</strong> and paste it back into your <strong className="text-foreground">terminal window</strong> (the same one running Claude)</li>
                   </ol>
                   <p className="text-xs text-muted-foreground mt-2">
-                    When your browser says &quot;Paste this into Claude Code&quot; — that means paste the code into the terminal window where you typed <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">claude</code>.
+                    When your browser says &quot;Paste this into Claude Code&quot; — that means paste the code into the terminal window where you typed <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">cc</code> (or <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">claude</code>).
                   </p>
                 </div>
               </div>
@@ -211,12 +304,20 @@ export default function LaunchOnboardingPage() {
                 <CommandCard command="gemini" description="Follow the prompts to authenticate (Google account)." runLocation="vps" />
               </div>
             </div>
+            <div className="flex gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[oklch(0.78_0.16_75)] text-[oklch(0.15_0.02_75)] font-bold text-sm">4</div>
+              <div>
+                <p className="font-medium">Amp CLI (optional)</p>
+                <CommandCard command="amp" description="Follow the prompts to authenticate (Sourcegraph account)." runLocation="vps" />
+              </div>
+            </div>
           </div>
           <GuideTip>
             After authenticating, you can use the shortcuts (vibe mode):{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">cc</code> (Claude),{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">cod</code> (Codex),{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">gmi</code> (Gemini).
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">gmi</code> (Gemini),{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">amp</code> (Amp).
           </GuideTip>
         </div>
       </Card>
@@ -470,10 +571,11 @@ export default function LaunchOnboardingPage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Authenticate Claude</h3>
-              <CommandCard command="claude" runLocation="vps" />
+              <CommandCard command="cc" runLocation="vps" />
               <p className="text-sm text-muted-foreground">
                 The terminal will display a URL. Copy it and open in your laptop&apos;s
-                browser to log in, then return to your terminal.
+                browser to log in, then return to your terminal. If <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">cc</code>{" "}
+                isn&apos;t available, run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">claude</code> instead.
               </p>
             </div>
           </div>
@@ -572,7 +674,7 @@ export default function LaunchOnboardingPage() {
 
         {/* SSH Config tip */}
         <details className="mt-6 group">
-          <summary className="cursor-pointer font-medium text-[oklch(0.75_0.18_195)] hover:text-[oklch(0.65_0.18_195)] transition-colors">
+          <summary className="cursor-pointer font-medium text-[oklch(0.75_0.18_195)] hover:text-[oklch(0.65_0.18_195)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
             💡 Pro tip: Set up SSH config for easier access
           </summary>
           <div className="mt-4 space-y-4 pl-6 border-l-2 border-[oklch(0.75_0.18_195/0.3)]">
@@ -643,7 +745,7 @@ export default function LaunchOnboardingPage() {
       {/* Manual editing escape hatch */}
       <Card className="border-border/50 bg-card/50 p-4 backdrop-blur-sm">
         <details className="group">
-          <summary className="cursor-pointer font-semibold text-foreground hover:text-primary transition-colors">
+          <summary className="cursor-pointer font-semibold text-foreground hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
             How to edit files manually (when AI gets something wrong)
           </summary>
           <div className="mt-4 space-y-6 pl-4 border-l-2 border-primary/20">
@@ -720,7 +822,7 @@ export default function LaunchOnboardingPage() {
             <ul className="mt-2 space-y-1 text-sm">
               <li>
                 <a
-                  href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+                  href="https://github.com/deepakdgupta1/agentic-coding"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -757,8 +859,8 @@ export default function LaunchOnboardingPage() {
                 with auto-suggestions and beautiful colors
               </li>
               <li>
-                <strong>AI coding assistants:</strong> Claude Code, Codex, and Gemini CLI
-                are ready to help you write code
+                <strong>AI coding assistants:</strong> Claude Code (primary), Codex,
+                Gemini, and Amp CLI are ready to help you write code
               </li>
               <li>
                 <strong>Development tools:</strong> Fast search (ripgrep), git interface

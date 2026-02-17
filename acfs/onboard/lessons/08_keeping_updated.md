@@ -6,7 +6,7 @@
 
 ## Why Updates Matter
 
-Your VPS has 30+ tools installed. Each one gets improvements:
+Your ACFS environment (VPS or local sandbox) has 30+ tools installed. Each one gets improvements:
 - Bug fixes and security patches
 - New features and capabilities
 - Better performance
@@ -29,7 +29,7 @@ acfs-update
 That's it! This updates:
 - System packages (apt)
 - Shell tools (OMZ, P10K, plugins)
-- Coding agents (Gemini, Amp, Codex, Claude)
+- Coding agents (Claude Code primary; Codex, Gemini, Amp optional)
 - Cloud CLIs (Wrangler, Supabase, Vercel)
 - Language runtimes (Bun, Rust, uv)
 
@@ -128,13 +128,16 @@ Try updating directly:
 
 ```bash
 # Claude
-claude update
+claude update --channel latest
 
 # Codex
 bun install -g --trust @openai/codex@latest
 
 # Gemini
 bun install -g --trust @google/gemini-cli@latest
+
+# Amp
+bun install -g --trust @anthropic/amp-cli@latest
 ```
 
 ### Shell tools won't update

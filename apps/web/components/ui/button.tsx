@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { m, type HTMLMotionProps } from "framer-motion";
+import { AnimatePresence, m, type HTMLMotionProps } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { springs } from "@/components/motion";
@@ -17,7 +17,7 @@ import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
  * - xl: 56px (hero CTAs)
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "relative inline-flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-xl text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   {
     variants: {
       variant: {
@@ -32,6 +32,12 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent/20 hover:text-accent-foreground active:bg-accent/30",
         link: "text-primary underline-offset-4 hover:underline",
+        // Premium gradient variant for hero CTAs - Stripe-style
+        gradient:
+          "bg-gradient-to-r from-primary via-[oklch(0.65_0.2_220)] to-[oklch(0.6_0.22_280)] text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:brightness-110 active:brightness-95",
+        // Subtle gradient for secondary emphasis
+        "gradient-subtle":
+          "bg-gradient-to-r from-white/10 to-white/5 border border-white/20 text-white hover:from-white/15 hover:to-white/10 hover:border-white/30 active:from-white/20 active:to-white/15",
       },
       size: {
         default: "h-11 px-5 py-2.5 text-sm",
@@ -52,6 +58,28 @@ const buttonVariants = cva(
 
 type ButtonVariantProps = VariantProps<typeof buttonVariants>;
 
+type LoadingSpinnerProps = {
+  className?: string;
+  reducedMotion: boolean;
+};
+
+function LoadingSpinner({ className, reducedMotion }: LoadingSpinnerProps) {
+  if (reducedMotion) {
+    return <Loader2 className={cn("h-4 w-4", className)} aria-hidden="true" />;
+  }
+
+  return (
+    <m.span
+      className={cn("inline-flex", className)}
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+      aria-hidden="true"
+    >
+      <Loader2 className="h-4 w-4" />
+    </m.span>
+  );
+}
+
 interface ButtonProps
   extends Omit<HTMLMotionProps<"button">, "children">,
     ButtonVariantProps {
@@ -63,6 +91,8 @@ interface ButtonProps
   loading?: boolean;
   /** Optional text to show alongside spinner when loading (if omitted, only spinner shown) */
   loadingText?: string;
+  /** Optional loading progress (0-100) for determinate loading states */
+  loadingProgress?: number;
 }
 
 /**
@@ -85,6 +115,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       disableMotion = false,
       loading = false,
       loadingText,
+      loadingProgress,
       children,
       disabled,
       ...props
@@ -95,23 +126,40 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const prefersReducedMotion = useReducedMotion();
     const shouldDisableMotion = disableMotion || prefersReducedMotion;
 
-    // Loading spinner component
-    const LoadingSpinner = () => (
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-    );
+    const clampedProgress =
+      typeof loadingProgress === "number"
+        ? Math.max(0, Math.min(100, loadingProgress))
+        : undefined;
+    const showShimmer = loading && !shouldDisableMotion && variant !== "link";
+    const showProgress = loading && typeof clampedProgress === "number";
 
-    // Render content with optional loading state
-    const renderContent = () => {
-      if (loading) {
-        return (
-          <>
-            <LoadingSpinner />
-            {loadingText && <span>{loadingText}</span>}
-          </>
-        );
-      }
-      return children;
-    };
+    const content = (
+      <span className="relative z-10 inline-flex items-center justify-center gap-2">
+        <m.span
+          className="inline-flex items-center gap-2"
+          aria-hidden={loading}
+          animate={{ opacity: loading ? 0 : 1, scale: loading ? 0.98 : 1 }}
+          transition={shouldDisableMotion ? { duration: 0 } : { duration: 0.15 }}
+        >
+          {children}
+        </m.span>
+        <AnimatePresence>
+          {loading && (
+            <m.span
+              key="loading"
+              className="absolute inset-0 inline-flex items-center justify-center gap-2"
+              initial={shouldDisableMotion ? {} : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={shouldDisableMotion ? {} : { opacity: 0, scale: 0.96 }}
+              transition={shouldDisableMotion ? { duration: 0 } : { duration: 0.15 }}
+            >
+              <LoadingSpinner reducedMotion={shouldDisableMotion} />
+              {loadingText && <span>{loadingText}</span>}
+            </m.span>
+          )}
+        </AnimatePresence>
+      </span>
+    );
 
     // For asChild, use Slot without motion
     if (asChild) {
@@ -138,7 +186,22 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           className={cn(buttonVariants({ variant, size, className }))}
           {...(props as React.ComponentPropsWithoutRef<"button">)}
         >
-          {renderContent()}
+          {showShimmer && (
+            <span className="pointer-events-none absolute inset-0 z-0">
+              <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+            </span>
+          )}
+          {showProgress && (
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1 overflow-hidden rounded-b-xl bg-current/15">
+              <m.span
+                className="block h-full bg-current/50"
+                initial={{ width: 0 }}
+                animate={{ width: `${clampedProgress}%` }}
+                transition={shouldDisableMotion ? { duration: 0 } : { duration: 0.3 }}
+              />
+            </span>
+          )}
+          {content}
         </button>
       );
     }
@@ -157,7 +220,22 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         transition={springs.snappy}
         {...props}
       >
-        {renderContent()}
+        {showShimmer && (
+          <span className="pointer-events-none absolute inset-0 z-0">
+            <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+          </span>
+        )}
+        {showProgress && (
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1 overflow-hidden rounded-b-xl bg-current/15">
+            <m.span
+              className="block h-full bg-current/50"
+              initial={{ width: 0 }}
+              animate={{ width: `${clampedProgress}%` }}
+              transition={shouldDisableMotion ? { duration: 0 } : { duration: 0.3 }}
+            />
+          </span>
+        )}
+        {content}
       </m.button>
     );
   }

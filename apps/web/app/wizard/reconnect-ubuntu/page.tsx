@@ -29,7 +29,7 @@ export default function ReconnectUbuntuPage() {
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "reconnect_ubuntu",
-    stepNumber: 10,
+    stepNumber: 11,
     stepTitle: "Reconnect as Ubuntu",
   });
 
@@ -43,14 +43,14 @@ export default function ReconnectUbuntuPage() {
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(10);
+    markStepComplete(11);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/verify-key-connection"));
   }, [router, markComplete]);
 
   const handleSkip = useCallback(() => {
     markComplete({ skipped: true });
-    markStepComplete(10);
+    markStepComplete(11);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/verify-key-connection"));
   }, [router, markComplete]);

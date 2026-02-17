@@ -45,8 +45,31 @@ if ! declare -f acfs_log_init >/dev/null 2>&1; then
 
         # Tee stderr: all stderr output goes to both terminal and log file.
         # fd 3 = original stderr (preserved for terminal output).
-        exec 3>&2
-        exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)
+        #
+        # NOTE: Process substitution >(tee ...) can fail on some systems
+        # (especially Ubuntu 25.04 with bash 5.3+). We test first and
+        # fall back to simple file logging if it fails.
+        local tee_logging_ok=false
+        if command -v tee >/dev/null 2>&1; then
+            # Test if process substitution works before committing to it.
+            # On bash 5.3+, bare `exec` under set -e can exit the script
+            # before `if` catches the failure, so we test in a subshell.
+            # shellcheck disable=SC2261
+            if (exec 3>&1; echo test > >(cat >/dev/null)) 2>/dev/null; then
+                exec 3>&2 || true
+                # shellcheck disable=SC2261
+                # Use set +e locally to prevent exec from exiting under bash 5.3+
+                if (set +e; exec 2> >(tee -a "$ACFS_LOG_FILE" >&3)) 2>/dev/null; then
+                    exec 2> >(tee -a "$ACFS_LOG_FILE" >&3) && tee_logging_ok=true
+                fi
+            fi
+        fi
+
+        if [[ "$tee_logging_ok" != "true" ]]; then
+            # Fallback: rely on explicit logging calls instead of automatic tee
+            ACFS_LOG_FALLBACK=true
+            export ACFS_LOG_FALLBACK
+        fi
     }
 fi
 
@@ -85,13 +108,48 @@ if [[ -n "${_ACFS_LOGGING_SH_LOADED:-}" ]]; then
 fi
 _ACFS_LOGGING_SH_LOADED=1
 
-# Colors
-export ACFS_RED='\033[0;31m'
-export ACFS_GREEN='\033[0;32m'
-export ACFS_YELLOW='\033[0;33m'
-export ACFS_BLUE='\033[0;34m'
-export ACFS_GRAY='\033[0;90m'
-export ACFS_NC='\033[0m' # No Color
+# ============================================================
+# Color Support with NO_COLOR Standard (https://no-color.org/)
+# ============================================================
+#
+# Respects:
+# - NO_COLOR env var (any value = disable colors)
+# - Non-TTY output (pipes, redirects)
+#
+# Related: bd-39ye
+
+# Initialize colors based on environment
+_acfs_init_colors() {
+    # Disable colors if NO_COLOR is set (any value) or output is not a TTY
+    if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]]; then
+        # No colors - empty strings
+        export ACFS_RED=''
+        export ACFS_GREEN=''
+        export ACFS_YELLOW=''
+        export ACFS_BLUE=''
+        export ACFS_GRAY=''
+        export ACFS_NC=''
+        export ACFS_COLORS_ENABLED=false
+    else
+        # Colors enabled
+        export ACFS_RED='\033[0;31m'
+        export ACFS_GREEN='\033[0;32m'
+        export ACFS_YELLOW='\033[0;33m'
+        export ACFS_BLUE='\033[0;34m'
+        export ACFS_GRAY='\033[0;90m'
+        export ACFS_NC='\033[0m'
+        export ACFS_COLORS_ENABLED=true
+    fi
+}
+
+# Initialize colors on first load
+_acfs_init_colors
+
+# Check if colors are enabled
+# Usage: if acfs_colors_enabled; then echo "colors!"; fi
+acfs_colors_enabled() {
+    [[ "${ACFS_COLORS_ENABLED:-true}" == "true" ]]
+}
 
 # Log a major step (blue)
 # Usage: log_step "1/8" "Installing packages..."
@@ -123,7 +181,8 @@ fi
 # Usage: log_detail "Installing zsh..."
 if ! declare -f log_detail >/dev/null; then
     log_detail() {
-        printf "${ACFS_GRAY}    %s${ACFS_NC}\n" "$1" >&2
+        # Indent every line of the message with 2 spaces
+        echo -e "$1" | sed "s/^/${ACFS_GRAY}  /" | sed "s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -139,7 +198,7 @@ fi
 # Usage: log_success "Installation complete"
 if ! declare -f log_success >/dev/null; then
     log_success() {
-        printf "${ACFS_GREEN}✓ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_GREEN}✓ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -147,7 +206,30 @@ fi
 # Usage: log_warn "This may take a while"
 if ! declare -f log_warn >/dev/null; then
     log_warn() {
-        printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_YELLOW}⚠ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
+    }
+fi
+
+# Log sensitive warning message (tries to bypass log tee to avoid storing secrets)
+# Usage: log_sensitive "Generated password for user: ..."
+if ! declare -f log_sensitive >/dev/null; then
+    log_sensitive() {
+        local message="$1"
+
+        # If stderr is being tee'd, fd 3 is the original terminal stderr.
+        if { true >&3; } 2>/dev/null; then
+            printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" >&3
+            return 0
+        fi
+
+        # Fall back to /dev/tty when available to avoid log capture.
+        if [[ -w /dev/tty ]]; then
+            printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" > /dev/tty
+            return 0
+        fi
+
+        # Last resort: stderr (may be logged).
+        printf "${ACFS_YELLOW}⚠ %s${ACFS_NC}\n" "$message" >&2
     }
 fi
 
@@ -155,7 +237,7 @@ fi
 # Usage: log_error "Failed to install package"
 if ! declare -f log_error >/dev/null; then
     log_error() {
-        printf "${ACFS_RED}✖ %s${ACFS_NC}\n" "$1" >&2
+        echo -e "$1" | sed "1s/^/${ACFS_RED}✖ /; 1!s/^/  /; s/$/${ACFS_NC}/" >&2
     }
 fi
 
@@ -190,6 +272,15 @@ declare -gA ACFS_TIMERS=()
 # Progress Display (for multi-phase installations)
 # ============================================================
 
+# Update terminal title if supported
+set_terminal_title() {
+    local title="$1"
+    # Only if NOT in CI and it looks like a terminal
+    if [[ "${ACFS_CI:-false}" != "true" ]] && [[ -t 2 ]]; then
+        printf "\033]0;%s\007" "$title" >&2
+    fi
+}
+
 # Show installation progress header with visual progress bar
 # Usage: show_progress_header $current_phase $total_phases $phase_name $start_time
 if ! declare -f show_progress_header >/dev/null; then
@@ -201,6 +292,9 @@ if ! declare -f show_progress_header >/dev/null; then
 
         # Calculate percentage
         local percent=$((current * 100 / total))
+
+        # Update terminal title
+        set_terminal_title "ACFS Install: ${percent}% (${current}/${total}) - ${name}"
 
         # Calculate elapsed time
         local elapsed=0
@@ -226,19 +320,12 @@ if ! declare -f show_progress_header >/dev/null; then
         # Print progress header (box is 65 chars wide, content is 63 chars)
         echo "" >&2
         echo "╔═══════════════════════════════════════════════════════════════╗" >&2
-        # Progress line: "  Progress: [bar] 100%  (9/9)                 "
-        # We need to ensure the right padding adapts to the length of (current/total).
-        # Fixed width for the progress text part: 20 (bar) + 6 (percent) + variable (counts)
-        # Using printf * after the bar to pad the rest of the line.
         
         # Construct the progress detail string first: " 100%  (9/9)"
         local prog_detail
         printf -v prog_detail " %3d%%  (%d/%d)" "$percent" "$current" "$total"
         
         # Calculate padding needed to fill the rest of the 63-char content area minus "  Progress: [" and "]"
-        # "  Progress: [" is 13 chars. "]" is 1 char. Total 14 chars.
-        # Bar is 20 chars.
-        # 63 - 14 - 20 = 29 chars remaining for prog_detail + padding.
         local detail_len=${#prog_detail}
         local pad_len=$((29 - detail_len))
         local padding=""
@@ -248,8 +335,18 @@ if ! declare -f show_progress_header >/dev/null; then
 
         echo -e "║  Progress: [${bar}]${prog_detail}${padding} ║" >&2
         printf "║  Current:  %-50s ║\n" "$display_name" >&2
-        printf "║  Elapsed:  %3dm %02ds                                           ║\n" \
-               "$elapsed_min" "$elapsed_sec" >&2
+        
+        # Calculate elapsed line with dynamic padding
+        local elapsed_str
+        printf -v elapsed_str "  Elapsed:  %dm %02ds" "$elapsed_min" "$elapsed_sec"
+        local elapsed_len=${#elapsed_str}
+        local el_pad_len=$((63 - elapsed_len))
+        local el_padding=""
+        if [[ $el_pad_len -gt 0 ]]; then
+            el_padding=$(printf "%${el_pad_len}s" "")
+        fi
+        echo -e "║${elapsed_str}${el_padding}║" >&2
+        
         echo "╚═══════════════════════════════════════════════════════════════╝" >&2
         echo "" >&2
     }
@@ -268,7 +365,16 @@ if ! declare -f show_completion >/dev/null; then
         echo "╔═══════════════════════════════════════════════════════════════╗" >&2
         echo "║              ✓ Installation Complete!                         ║" >&2
         echo "╠═══════════════════════════════════════════════════════════════╣" >&2
-        printf "║  Total time: %3dm %02ds                                         ║\n" "$min" "$sec" >&2
+        
+        local timer_str
+        printf -v timer_str "  Total time: %dm %02ds" "$min" "$sec"
+        local timer_len=${#timer_str}
+        local t_pad_len=$((63 - timer_len))
+        local t_padding=""
+        if [[ $t_pad_len -gt 0 ]]; then
+            t_padding=$(printf "%${t_pad_len}s" "")
+        fi
+        echo -e "║${timer_str}${t_padding}║" >&2
         
         # Dynamic padding for "Phases completed: X/Y"
         # Label "  Phases completed: " is 20 chars.

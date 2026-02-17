@@ -102,6 +102,191 @@ ubuntu_needs_upgrade() {
     return 0  # Upgrade needed
 }
 
+# Get Ubuntu codename from the running system.
+# Returns codename (e.g., noble, questing) on stdout.
+ubuntu_get_system_codename() {
+    if [[ ! -f /etc/os-release ]]; then
+        return 1
+    fi
+
+    # shellcheck disable=SC1091
+    source /etc/os-release
+    if [[ "${ID:-}" != "ubuntu" ]]; then
+        return 1
+    fi
+
+    if [[ -n "${VERSION_CODENAME:-}" ]]; then
+        echo "${VERSION_CODENAME}"
+        return 0
+    fi
+
+    return 1
+}
+
+# Normalize an apt suite to its base Ubuntu codename.
+# Examples:
+#   noble-updates -> noble
+#   questing-security -> questing
+ubuntu_normalize_suite_codename() {
+    local suite="${1:-}"
+
+    suite="${suite%%/*}"
+    suite="${suite%-updates}"
+    suite="${suite%-security}"
+    suite="${suite%-backports}"
+    suite="${suite%-proposed}"
+
+    printf '%s\n' "$suite"
+}
+
+# Return 0 if URI points to an Ubuntu archive endpoint.
+ubuntu_is_ubuntu_archive_uri() {
+    local uri="${1:-}"
+    local uri_lower="${uri,,}"
+
+    [[ "$uri_lower" =~ (^|://)([^/@]+@)?([^/:]+\.)?ubuntu\.com(:[0-9]+)?/ubuntu(/|$) ]]
+}
+
+# Collect configured Ubuntu archive suites from apt source files.
+# Outputs one suite per line.
+ubuntu_collect_configured_ubuntu_suites() {
+    local file line
+    local -a source_files=()
+
+    if [[ -f /etc/apt/sources.list ]]; then
+        source_files+=("/etc/apt/sources.list")
+    fi
+
+    for file in /etc/apt/sources.list.d/*.list; do
+        [[ -f "$file" ]] || continue
+        source_files+=("$file")
+    done
+
+    # Parse legacy deb/deb-src files.
+    local -a fields=()
+    local idx uri suite
+    for file in "${source_files[@]}"; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="${line%%#*}"
+            [[ "$line" =~ [^[:space:]] ]] || continue
+
+            fields=()
+            read -r -a fields <<< "$line"
+            [[ ${#fields[@]} -ge 3 ]] || continue
+            [[ "${fields[0]}" == "deb" || "${fields[0]}" == "deb-src" ]] || continue
+
+            idx=1
+            if [[ "${fields[$idx]:-}" == \[* ]]; then
+                while [[ $idx -lt ${#fields[@]} && ! "${fields[$idx]}" =~ \]$ ]]; do
+                    idx=$((idx + 1))
+                done
+                idx=$((idx + 1))
+            fi
+
+            uri="${fields[$idx]:-}"
+            suite="${fields[$((idx + 1))]:-}"
+            [[ -n "$uri" && -n "$suite" ]] || continue
+
+            if ubuntu_is_ubuntu_archive_uri "$uri"; then
+                printf '%s\n' "$suite"
+            fi
+        done < "$file"
+    done
+
+    # Parse DEB822 .sources files.
+    for file in /etc/apt/sources.list.d/*.sources; do
+        [[ -f "$file" ]] || continue
+        awk '
+            function flush_stanza(   i, n, arr) {
+                if (has_ubuntu_uri && suites != "") {
+                    n = split(suites, arr, / +/)
+                    for (i = 1; i <= n; i++) {
+                        if (arr[i] != "") {
+                            print arr[i]
+                        }
+                    }
+                }
+                has_ubuntu_uri = 0
+                suites = ""
+            }
+
+            /^[[:space:]]*$/ {
+                flush_stanza()
+                next
+            }
+
+            {
+                line = $0
+                sub(/^[[:space:]]+/, "", line)
+
+                if (line ~ /^URIs:[[:space:]]*/) {
+                    uris = line
+                    sub(/^URIs:[[:space:]]*/, "", uris)
+                    n = split(uris, arr, / +/)
+                    for (i = 1; i <= n; i++) {
+                        uri = tolower(arr[i])
+                        if (uri ~ /(^|:\/\/)([^\/@]+@)?([^\/:]+\.)?ubuntu\.com(:[0-9]+)?\/ubuntu(\/|$)/) {
+                            has_ubuntu_uri = 1
+                        }
+                    }
+                } else if (line ~ /^Suites:[[:space:]]*/) {
+                    suites = line
+                    sub(/^Suites:[[:space:]]*/, "", suites)
+                }
+            }
+
+            END {
+                flush_stanza()
+            }
+        ' "$file"
+    done
+}
+
+# Strict safety check: ensure Ubuntu archive sources match current system codename.
+# Returns: 0 when all configured Ubuntu suites match VERSION_CODENAME, 1 otherwise.
+ubuntu_verify_sources_match_system_codename() {
+    local expected_codename
+    expected_codename="$(ubuntu_get_system_codename)" || {
+        log_error "Cannot determine Ubuntu codename from /etc/os-release"
+        return 1
+    }
+
+    local suite normalized
+    local saw_ubuntu_suite=0
+    local -A mismatched_suites=()
+
+    while IFS= read -r suite; do
+        [[ -n "$suite" ]] || continue
+        saw_ubuntu_suite=1
+
+        normalized="$(ubuntu_normalize_suite_codename "$suite")"
+        if [[ "$normalized" != "$expected_codename" ]]; then
+            mismatched_suites["$suite"]=1
+        fi
+    done < <(ubuntu_collect_configured_ubuntu_suites)
+
+    if [[ $saw_ubuntu_suite -eq 0 ]]; then
+        log_error "No enabled Ubuntu archive suites found in apt sources"
+        return 1
+    fi
+
+    if [[ ${#mismatched_suites[@]} -gt 0 ]]; then
+        local mismatch_list=""
+        for suite in "${!mismatched_suites[@]}"; do
+            if [[ -n "$mismatch_list" ]]; then
+                mismatch_list+=", "
+            fi
+            mismatch_list+="$suite"
+        done
+
+        log_error "Ubuntu apt source codename drift detected: expected '$expected_codename', found suite(s): $mismatch_list"
+        return 1
+    fi
+
+    log_detail "Ubuntu apt source codename verified: $expected_codename"
+    return 0
+}
+
 # ============================================================
 # Upgrade Path Calculation Functions
 # ============================================================
@@ -679,6 +864,13 @@ ubuntu_do_upgrade() {
         return 1
     fi
 
+    # Strict post-upgrade guardrail: prevent silent source codename drift
+    # (e.g., system on questing while sources still point at noble).
+    if ! ubuntu_verify_sources_match_system_codename; then
+        log_error "Post-upgrade apt source verification failed"
+        return 1
+    fi
+
     log_success "Upgrade to $next_version complete"
     log_warn "System needs to reboot to complete the upgrade"
 
@@ -1074,8 +1266,8 @@ upgrade_setup_infrastructure() {
     # This runs after all upgrades complete to resume ACFS installation
     log_detail "Creating continuation script..."
     local repo_owner repo_name repo_ref
-    repo_owner="${ACFS_REPO_OWNER:-Dicklesworthstone}"
-    repo_name="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+    repo_owner="${ACFS_REPO_OWNER:-deepakdgupta1}"
+    repo_name="${ACFS_REPO_NAME:-agentic-coding}"
     repo_ref="${ACFS_COMMIT_SHA_FULL:-${ACFS_REF:-main}}"
     local source_dir_q repo_ref_q install_url install_url_q
     source_dir_q=$(printf '%q' "$source_dir")

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, memo } from "react";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
-import { Layers, Wrench, Search, X } from "lucide-react";
+import { Layers, Wrench, Search, X, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TldrToolCard } from "./tldr-tool-card";
 import type { TldrFlywheelTool } from "@/lib/tldr-content";
@@ -17,7 +17,7 @@ interface TldrToolGridProps {
 }
 
 // =============================================================================
-// SEARCH BAR COMPONENT
+// SEARCH BAR COMPONENT - Enhanced with focus glow and animations
 // =============================================================================
 
 const ToolSearchBar = memo(function ToolSearchBar({
@@ -35,6 +35,8 @@ const ToolSearchBar = memo(function ToolSearchBar({
   inputRef: React.RefObject<HTMLInputElement | null>;
   reducedMotion: boolean;
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <motion.div
       initial={reducedMotion ? {} : { opacity: 0, y: -10 }}
@@ -44,10 +46,39 @@ const ToolSearchBar = memo(function ToolSearchBar({
     >
       <div className="relative mx-auto max-w-2xl">
         {/* Glass morphism search container */}
-        <div className="relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm sm:rounded-2xl">
+        <div
+          className={cn(
+            "relative rounded-2xl border bg-card/50 backdrop-blur-md transition-all duration-300",
+            isFocused
+              ? "border-primary/50 bg-card/70"
+              : "border-border/50 hover:border-border"
+          )}
+          style={{
+            boxShadow: isFocused
+              ? "0 0 40px -10px rgba(139, 92, 246, 0.3), 0 8px 30px -10px rgba(0, 0, 0, 0.3)"
+              : "0 4px 20px -5px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          {/* Focus glow ring */}
+          <div
+            className={cn(
+              "pointer-events-none absolute -inset-px rounded-2xl transition-opacity duration-300",
+              isFocused ? "opacity-100" : "opacity-0"
+            )}
+            style={{
+              background: "linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.2), transparent)",
+            }}
+          />
+
           {/* Search icon */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
-            <Search className="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" aria-hidden="true" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 sm:pl-5">
+            <Search
+              className={cn(
+                "h-5 w-5 transition-colors duration-200",
+                isFocused ? "text-primary" : "text-muted-foreground"
+              )}
+              aria-hidden="true"
+            />
           </div>
 
           {/* Input field */}
@@ -56,23 +87,30 @@ const ToolSearchBar = memo(function ToolSearchBar({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search tools..."
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder="Search tools by name, feature, or technology..."
             aria-label="Search flywheel tools"
-            className="w-full rounded-xl bg-transparent py-3 pl-10 pr-16 text-sm text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 sm:rounded-2xl sm:py-4 sm:pl-12 sm:pr-20"
+            className="w-full rounded-2xl bg-transparent py-4 pl-12 pr-20 text-sm text-white placeholder-muted-foreground focus:outline-none sm:py-5 sm:pl-14 sm:pr-24 sm:text-base"
           />
 
           {/* Clear button and keyboard hint */}
-          <div className="absolute inset-y-0 right-0 flex items-center gap-1.5 pr-3 sm:gap-2 sm:pr-4">
-            {query && (
-              <button
-                onClick={() => onQueryChange("")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            <kbd className="hidden rounded-md border border-border bg-card/50 px-2 py-1 text-xs font-medium text-muted-foreground sm:inline-block">
+          <div className="absolute inset-y-0 right-0 flex items-center gap-2 pr-4 sm:gap-3 sm:pr-5">
+            <AnimatePresence>
+              {query && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => onQueryChange("")}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground ring-1 ring-white/10 transition-all duration-200 hover:bg-white/10 hover:text-white hover:ring-white/20"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <kbd className="hidden rounded-lg border border-border bg-card/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm sm:inline-block">
               /
             </kbd>
           </div>
@@ -85,15 +123,19 @@ const ToolSearchBar = memo(function ToolSearchBar({
               initial={reducedMotion ? {} : { opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reducedMotion ? {} : { opacity: 0, y: -5 }}
-              className="mt-2 text-center sm:mt-3"
+              className="mt-3 text-center sm:mt-4"
               role="status"
               aria-live="polite"
             >
-              <span className="text-xs text-muted-foreground sm:text-sm">
+              <span className="inline-flex items-center gap-2 rounded-full bg-card/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border/50 backdrop-blur-sm sm:text-sm">
                 {resultCount === 0 ? (
-                  "No tools match your search"
+                  <>
+                    <X className="h-3.5 w-3.5 text-destructive" />
+                    No tools match your search
+                  </>
                 ) : (
                   <>
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
                     Showing{" "}
                     <span className="font-semibold text-white">
                       {resultCount}
@@ -134,10 +176,15 @@ const EmptySearchState = memo(function EmptySearchState({
       transition={{ duration: reducedMotion ? 0 : 0.3 }}
       className="py-16 text-center"
     >
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <Search className="h-8 w-8 text-primary" />
+      <div
+        className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20"
+        style={{
+          boxShadow: "0 0 40px -10px rgba(139, 92, 246, 0.3)",
+        }}
+      >
+        <Search className="h-10 w-10 text-primary" />
       </div>
-      <h3 className="mt-6 text-lg font-semibold text-white">
+      <h3 className="mt-6 text-xl font-bold text-white">
         No tools match &quot;{query}&quot;
       </h3>
       <p className="mt-2 text-sm text-muted-foreground">
@@ -146,7 +193,7 @@ const EmptySearchState = memo(function EmptySearchState({
       </p>
       <button
         onClick={onClear}
-        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary/10 px-5 py-2.5 text-sm font-medium text-primary ring-1 ring-primary/20 transition-all duration-200 hover:bg-primary/20 hover:ring-primary/30"
       >
         <X className="h-4 w-4" />
         Clear search
@@ -156,7 +203,7 @@ const EmptySearchState = memo(function EmptySearchState({
 });
 
 // =============================================================================
-// SECTION HEADER COMPONENT
+// SECTION HEADER COMPONENT - Enhanced with better visual hierarchy
 // =============================================================================
 
 const SectionHeader = memo(function SectionHeader({
@@ -165,37 +212,85 @@ const SectionHeader = memo(function SectionHeader({
   icon: Icon,
   count,
   reducedMotion,
+  accentColor = "primary",
 }: {
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   count: number;
   reducedMotion: boolean;
+  accentColor?: "primary" | "accent" | "success";
 }) {
+  const colorClasses = {
+    primary: "from-primary to-primary/60 text-primary bg-primary/20 ring-primary/30",
+    accent: "from-accent to-accent/60 text-accent bg-accent/20 ring-accent/30",
+    success: "from-success to-success/60 text-success bg-success/20 ring-success/30",
+  };
+
+  const colors = colorClasses[accentColor];
+  const [iconBg] = colors.split(" ").slice(0, 2);
+
   return (
     <motion.div
       initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: reducedMotion ? 0 : 0.5 }}
-      className="mb-6 sm:mb-8"
+      className="mb-8 sm:mb-10"
     >
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-primary sm:h-10 sm:w-10 sm:rounded-xl">
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Icon container with gradient and glow */}
+        <div
+          className={cn(
+            "relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg sm:h-14 sm:w-14",
+            iconBg
+          )}
+          style={{
+            boxShadow: accentColor === "primary"
+              ? "0 0 30px -5px rgba(139, 92, 246, 0.4)"
+              : accentColor === "accent"
+              ? "0 0 30px -5px rgba(251, 191, 36, 0.4)"
+              : "0 0 30px -5px rgba(34, 197, 94, 0.4)",
+          }}
+        >
+          <Icon className={cn("h-6 w-6 text-white drop-shadow sm:h-7 sm:w-7")} />
+          {/* Inner glow */}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-transparent to-white/20" />
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-white sm:text-xl md:text-2xl">
-            {title}
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground sm:ml-2 sm:text-sm">
-              ({count})
+
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h2 className="text-xl font-bold text-white sm:text-2xl md:text-3xl">
+              {title}
+            </h2>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-bold ring-1 sm:px-3 sm:text-sm",
+                colors.split(" ").slice(2).join(" ")
+              )}
+            >
+              {count}
             </span>
-          </h2>
+          </div>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:mt-2 sm:text-base">
+            {description}
+          </p>
         </div>
       </div>
-      <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:mt-3 sm:text-sm">
-        {description}
-      </p>
+
+      {/* Decorative line */}
+      <div className="mt-6 flex items-center gap-4">
+        <div
+          className="h-px flex-1"
+          style={{
+            background: accentColor === "primary"
+              ? "linear-gradient(90deg, rgba(139, 92, 246, 0.5), transparent)"
+              : accentColor === "accent"
+              ? "linear-gradient(90deg, rgba(251, 191, 36, 0.5), transparent)"
+              : "linear-gradient(90deg, rgba(34, 197, 94, 0.5), transparent)",
+          }}
+        />
+      </div>
     </motion.div>
   );
 });
@@ -275,7 +370,7 @@ export function TldrToolGrid({ tools, className }: TldrToolGridProps) {
   const isSearching = searchQuery.trim().length > 0;
 
   return (
-    <div className={cn("space-y-16", className)}>
+    <div className={cn("space-y-16 sm:space-y-20", className)}>
       {/* Search Bar */}
       <ToolSearchBar
         query={searchQuery}
@@ -304,6 +399,7 @@ export function TldrToolGrid({ tools, className }: TldrToolGridProps) {
             icon={Layers}
             count={coreTools.length}
             reducedMotion={reducedMotion}
+            accentColor="primary"
           />
           <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence mode="popLayout">
@@ -340,6 +436,7 @@ export function TldrToolGrid({ tools, className }: TldrToolGridProps) {
             icon={Wrench}
             count={supportingTools.length}
             reducedMotion={reducedMotion}
+            accentColor="accent"
           />
           <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence mode="popLayout">

@@ -115,6 +115,50 @@ shellcheck install.sh scripts/lib/*.sh
 
 ---
 
+## Defensive Engineering Standard
+
+All long-running workflows (installer, upgrade, migration) MUST follow this standard:
+
+### Stage Contract
+
+Every phase declares preconditions and postconditions in `scripts/lib/stage_contract.sh`.
+- Preconditions are checked **before** execution in `_run_phase_with_report()`
+- Postconditions are verified **after** execution AND on resume (before skipping)
+- Postcondition drift triggers automatic phase re-run via `state_unmark_phase()`
+
+### Observability
+
+- Every install run gets an `ACFS_RUN_ID` (generated in `observability.sh`)
+- JSONL events are written to `~/.acfs/logs/install/<run_id>.jsonl`
+- Event types: `install_start`, `stage_start`, `stage_end`, `check_failed`, `cmd_failed`, `resume`
+- On failure, a structured summary box is printed with run ID, error class, and remediation
+
+### Error Taxonomy
+
+Errors are classified by `classify_error()` in `error_tracking.sh`:
+
+| Class | Examples | Action |
+|-------|----------|--------|
+| `transient_network` | DNS, timeout, connection refused | Retry with backoff |
+| `permission` | Permission denied, EACCES | Stop, print fix command |
+| `dependency_conflict` | APT lock, broken packages | Stop, print dpkg fix |
+| `corrupt_state` | Invalid JSON, interrupted dpkg | Stop, suggest --force-reinstall |
+| `unsupported_env` | Wrong arch, unsupported OS | Stop, run preflight |
+| `unknown` | Unclassified | Stop, point to logs |
+
+### Resumability
+
+- `--resume` (default when state exists)
+- `--resume-from <stage>` — skip all phases before the target
+- `--stop-after <stage>` — exit cleanly after the target completes
+- `--force-reinstall` — start fresh
+
+### Fault Injection Tests
+
+Run with `./tests/vm/fault_injection.sh`. Tests cover network loss, apt lock, low disk, permission errors, interrupted runs, and postcondition drift.
+
+---
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.

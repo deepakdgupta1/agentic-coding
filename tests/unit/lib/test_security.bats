@@ -33,7 +33,7 @@ teardown() {
     else
         sha=$(echo -n "$content" | shasum -a 256 | cut -d' ' -f1)
     fi
-    
+
     # Stub curl to return content (handles -o flag)
     stub_curl "$content" 0
 

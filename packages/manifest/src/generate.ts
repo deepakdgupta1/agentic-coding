@@ -142,6 +142,38 @@ const MANIFEST_INDEX_HEADER = `#!/usr/bin/env bash
 # Data-only manifest index. Safe to source.
 `;
 
+const INTERNAL_CHECKSUMS_HEADER = `#!/usr/bin/env bash
+# shellcheck disable=SC2034
+# ============================================================
+# AUTO-GENERATED internal script checksums - DO NOT EDIT
+# Regenerate: bun run generate (from packages/manifest)
+# ============================================================
+# SHA256 checksums for critical internal scripts (bd-3tpl).
+# Used by check-manifest-drift.sh to detect unauthorized changes.
+`;
+
+/**
+ * Critical internal scripts that should be checksummed.
+ * Paths are relative to PROJECT_ROOT.
+ */
+const INTERNAL_SCRIPTS_TO_CHECKSUM = [
+  'scripts/lib/security.sh',
+  'scripts/lib/agents.sh',
+  'scripts/lib/update.sh',
+  'scripts/lib/doctor.sh',
+  'scripts/lib/install_helpers.sh',
+  'scripts/lib/logging.sh',
+  'scripts/lib/state.sh',
+  'scripts/lib/session.sh',
+  'scripts/lib/os_detect.sh',
+  'scripts/lib/errors.sh',
+  'scripts/lib/user.sh',
+  'scripts/lib/tools.sh',
+  'scripts/lib/export-config.sh',
+  'scripts/acfs-global',
+  'scripts/acfs-update',
+] as const;
+
 // ============================================================
 // Security Constants
 // ============================================================
@@ -912,8 +944,64 @@ function generateManifestIndex(manifest: Manifest, manifestSha256: string): stri
   lines.push(')');
   lines.push('');
 
+  // Module descriptions for progress display (bd-21kh)
+  lines.push('declare -gA ACFS_MODULE_DESC=(');
+  for (const module of orderedModules) {
+    lines.push(`  [${module.id}]="${escapeBash(module.description || module.id)}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  // Installed check commands for skip-if-present logic (bd-1eop)
+  lines.push('declare -gA ACFS_MODULE_INSTALLED_CHECK=(');
+  for (const module of orderedModules) {
+    if (module.installed_check?.command) {
+      lines.push(`  [${module.id}]="${escapeBash(module.installed_check.command)}"`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
+  // Installed check run_as context (bd-1eop)
+  lines.push('declare -gA ACFS_MODULE_INSTALLED_CHECK_RUN_AS=(');
+  for (const module of orderedModules) {
+    if (module.installed_check?.run_as) {
+      lines.push(`  [${module.id}]="${escapeBash(module.installed_check.run_as)}"`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
   // Mark that the index is fully loaded (used by acfs_resolve_selection)
   lines.push('ACFS_MANIFEST_INDEX_LOADED=true');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate internal script checksums file (bd-3tpl).
+ * Computes SHA256 for critical internal scripts and emits a bash associative array.
+ */
+function generateInternalChecksums(): string {
+  const lines: string[] = [INTERNAL_CHECKSUMS_HEADER];
+
+  lines.push('declare -gA ACFS_INTERNAL_CHECKSUMS=(');
+  for (const relPath of INTERNAL_SCRIPTS_TO_CHECKSUM) {
+    const absPath = join(PROJECT_ROOT, relPath);
+    if (existsSync(absPath)) {
+      const content = readFileSync(absPath);
+      const hash = createHash('sha256').update(content).digest('hex');
+      lines.push(`  [${relPath}]="${hash}"`);
+    } else {
+      lines.push(`  # MISSING: ${relPath}`);
+    }
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push(`ACFS_INTERNAL_CHECKSUMS_COUNT=${INTERNAL_SCRIPTS_TO_CHECKSUM.length}`);
+  lines.push(`ACFS_INTERNAL_CHECKSUMS_GENERATED="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)"`);
   lines.push('');
 
   return lines.join('\n');
@@ -1009,7 +1097,8 @@ function generateDoctorChecks(manifest: Manifest): string {
 
     for (let i = 0; i < module.verify.length; i++) {
       const verify = module.verify[i];
-      const isOptional = /\|\|\s*true\s*$/.test(verify);
+      // Module is optional if: the module itself is marked optional OR the command ends with || true
+      const isOptional = module.optional || /\|\|\s*true\s*$/.test(verify);
       const cleanCmd = verify.replace(/\s*\|\|\s*true\s*$/, '').trim();
       const suffix = module.verify.length > 1 ? `.${i + 1}` : '';
       const description = escapeBash(module.description);
@@ -1040,14 +1129,15 @@ function generateDoctorChecks(manifest: Manifest): string {
   // Run the command string in a fresh bash so quoted commands remain intact.
   // Use `bash -o pipefail -c "$cmd"` (NOT `bash -c "… $cmd"`) to avoid breaking
   // when `$cmd` itself contains quotes.
+  // Use ${ACFS_*-default} to respect NO_COLOR (empty preserves empty). Related: bd-39ye
   lines.push('        if bash -o pipefail -c "$cmd" &>/dev/null; then');
-  lines.push('            echo -e "\\033[0;32m[ok]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_GREEN-\\033[0;32m}[ok]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((passed += 1))');
   lines.push('        elif [[ "$optional" = "optional" ]]; then');
-  lines.push('            echo -e "\\033[0;33m[skip]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_YELLOW-\\033[0;33m}[skip]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((skipped += 1))');
   lines.push('        else');
-  lines.push('            echo -e "\\033[0;31m[fail]\\033[0m $id - $desc"');
+  lines.push('            echo -e "${ACFS_RED-\\033[0;31m}[fail]${ACFS_NC-\\033[0m} $id - $desc"');
   lines.push('            ((failed += 1))');
   lines.push('        fi');
   lines.push('    done');
@@ -1589,6 +1679,13 @@ async function main(): Promise<void> {
   {
     const filepath = join(OUTPUT_DIR, 'manifest_index.sh');
     const content = generateManifestIndex(manifest, manifestSha256);
+    filesToGenerate.set(filepath, { content, mode: 0o644 });
+  }
+
+  // Internal script checksums (bd-3tpl)
+  {
+    const filepath = join(OUTPUT_DIR, 'internal_checksums.sh');
+    const content = generateInternalChecksums();
     filesToGenerate.set(filepath, { content, mode: 0o644 });
   }
 

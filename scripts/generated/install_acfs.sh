@@ -93,7 +93,7 @@ acfs_security_init() {
 }
 
 # Category: acfs
-# Modules: 4
+# Modules: 5
 
 # Agent workspace with tmux session and project folder
 install_acfs_workspace() {
@@ -253,7 +253,7 @@ if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/packages/o
 elif [[ -f "packages/onboard/onboard.sh" ]]; then
   cp "packages/onboard/onboard.sh" ~/.local/bin/onboard
 else
-  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
   CURL_ARGS=(-fsSL)
   if curl --help all 2>/dev/null | grep -q -- '--proto'; then
     CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
@@ -311,7 +311,7 @@ if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/scripts/ac
 elif [[ -f "scripts/acfs-update" ]]; then
   cp "scripts/acfs-update" ~/.local/bin/acfs-update
 else
-  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
   CURL_ARGS=(-fsSL)
   if curl --help all 2>/dev/null | grep -q -- '--proto'; then
     CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
@@ -342,6 +342,153 @@ INSTALL_ACFS_UPDATE
     log_success "acfs.update installed"
 }
 
+# Nightly auto-update timer (systemd)
+install_acfs_nightly() {
+    local module_id="acfs.nightly"
+    acfs_require_contract "module:${module_id}" || return 1
+    log_step "Installing acfs.nightly"
+
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: mkdir -p ~/.acfs/scripts ~/.config/systemd/user (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+mkdir -p ~/.acfs/scripts ~/.config/systemd/user
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: install command failed: mkdir -p ~/.acfs/scripts ~/.config/systemd/user"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "install command failed: mkdir -p ~/.acfs/scripts ~/.config/systemd/user"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: # Install nightly update wrapper script (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+# Install nightly update wrapper script
+if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/scripts/lib/nightly_update.sh" ]]; then
+  cp "${ACFS_BOOTSTRAP_DIR}/scripts/lib/nightly_update.sh" ~/.acfs/scripts/nightly-update.sh
+elif [[ -f "scripts/lib/nightly_update.sh" ]]; then
+  cp "scripts/lib/nightly_update.sh" ~/.acfs/scripts/nightly-update.sh
+else
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  CURL_ARGS=(-fsSL)
+  if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+    CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+  fi
+  curl "${CURL_ARGS[@]}" "${ACFS_RAW}/scripts/lib/nightly_update.sh" -o ~/.acfs/scripts/nightly-update.sh
+fi
+chmod +x ~/.acfs/scripts/nightly-update.sh
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: install command failed: # Install nightly update wrapper script"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "install command failed: # Install nightly update wrapper script"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: # Install systemd timer unit (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+# Install systemd timer unit
+if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/scripts/templates/acfs-nightly-update.timer" ]]; then
+  cp "${ACFS_BOOTSTRAP_DIR}/scripts/templates/acfs-nightly-update.timer" ~/.config/systemd/user/acfs-nightly-update.timer
+elif [[ -f "scripts/templates/acfs-nightly-update.timer" ]]; then
+  cp "scripts/templates/acfs-nightly-update.timer" ~/.config/systemd/user/acfs-nightly-update.timer
+else
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  CURL_ARGS=(-fsSL)
+  if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+    CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+  fi
+  curl "${CURL_ARGS[@]}" "${ACFS_RAW}/scripts/templates/acfs-nightly-update.timer" -o ~/.config/systemd/user/acfs-nightly-update.timer
+fi
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: install command failed: # Install systemd timer unit"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "install command failed: # Install systemd timer unit"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: # Install systemd service unit (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+# Install systemd service unit
+if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/scripts/templates/acfs-nightly-update.service" ]]; then
+  cp "${ACFS_BOOTSTRAP_DIR}/scripts/templates/acfs-nightly-update.service" ~/.config/systemd/user/acfs-nightly-update.service
+elif [[ -f "scripts/templates/acfs-nightly-update.service" ]]; then
+  cp "scripts/templates/acfs-nightly-update.service" ~/.config/systemd/user/acfs-nightly-update.service
+else
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  CURL_ARGS=(-fsSL)
+  if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+    CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+  fi
+  curl "${CURL_ARGS[@]}" "${ACFS_RAW}/scripts/templates/acfs-nightly-update.service" -o ~/.config/systemd/user/acfs-nightly-update.service
+fi
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: install command failed: # Install systemd service unit"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "install command failed: # Install systemd service unit"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: # Reload systemd and enable the timer (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+# Reload systemd and enable the timer
+systemctl --user daemon-reload
+systemctl --user enable --now acfs-nightly-update.timer
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: install command failed: # Reload systemd and enable the timer"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "install command failed: # Reload systemd and enable the timer"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+
+    # Verify
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: verify: systemctl --user is-enabled acfs-nightly-update.timer (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_ACFS_NIGHTLY'
+systemctl --user is-enabled acfs-nightly-update.timer
+INSTALL_ACFS_NIGHTLY
+        then
+            log_warn "acfs.nightly: verify failed: systemctl --user is-enabled acfs-nightly-update.timer"
+            if type -t record_skipped_tool >/dev/null 2>&1; then
+              record_skipped_tool "acfs.nightly" "verify failed: systemctl --user is-enabled acfs-nightly-update.timer"
+            elif type -t state_tool_skip >/dev/null 2>&1; then
+              state_tool_skip "acfs.nightly"
+            fi
+            return 0
+        fi
+    fi
+
+    log_success "acfs.nightly installed"
+}
+
 # ACFS doctor command for health checks
 install_acfs_doctor() {
     local module_id="acfs.doctor"
@@ -369,7 +516,7 @@ if [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -f "${ACFS_BOOTSTRAP_DIR}/scripts/li
 elif [[ -f "scripts/lib/doctor.sh" ]]; then
   cp "scripts/lib/doctor.sh" ~/.local/bin/acfs
 else
-  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+  ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
   CURL_ARGS=(-fsSL)
   if curl --help all 2>/dev/null | grep -q -- '--proto'; then
     CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
@@ -406,6 +553,7 @@ install_acfs() {
     install_acfs_workspace
     install_acfs_onboard
     install_acfs_update
+    install_acfs_nightly
     install_acfs_doctor
 }
 

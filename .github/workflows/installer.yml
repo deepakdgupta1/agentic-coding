@@ -89,6 +89,9 @@ jobs:
       - name: Run library globals integration test
         run: bash tests/unit/test_lib_globals.sh
 
+      - name: Run macOS bootstrap mock test
+        run: bash tests/vm/test_macos_bootstrap.sh
+
   manifest-drift:
     name: Manifest Drift Check
     runs-on: ubuntu-latest
@@ -309,6 +312,18 @@ jobs:
           su - ubuntu -c "zsh -ic 'dcg doctor'"
           su - ubuntu -c "zsh -ic 'ru --version'"
           su - ubuntu -c "zsh -ic 'onboard --help'"
+          # beads_rust (required) - issue tracking
+          su - ubuntu -c "zsh -ic 'br --version'"
+          # New stack tools (bd-1ega)
+          su - ubuntu -c "zsh -ic 'ms --version'"
+          su - ubuntu -c "zsh -ic 'apr --help || true'"
+          su - ubuntu -c "zsh -ic 'jfp --version || true'"
+          su - ubuntu -c "zsh -ic 'pt --help || true'"
+          su - ubuntu -c "zsh -ic 'brenner --version || brenner --help || true'"
+          su - ubuntu -c "zsh -ic 'rch --version || rch --help || true'"
+          su - ubuntu -c "zsh -ic 'wa --version || wa --help || true'"
+          su - ubuntu -c "zsh -ic 'sysmoni --version || sysmoni --help || true'"
+          # Agents
           su - ubuntu -c "zsh -ic 'claude --version'"
           su - ubuntu -c "zsh -ic 'codex --version'"
           su - ubuntu -c "zsh -ic 'gemini --version'"

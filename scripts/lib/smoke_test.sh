@@ -30,18 +30,20 @@ TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
 # Output Helpers
 # ============================================================
 
+# Use ${var-default} (not ${var:-default}) to preserve empty strings for NO_COLOR.
+# Related: bd-39ye
 _smoke_pass() {
     local label="$1"
-    echo -e "  ${ACFS_GREEN:-\033[0;32m}✅${ACFS_NC:-\033[0m} $label"
+    echo -e "  ${ACFS_GREEN-\033[0;32m}✅${ACFS_NC-\033[0m} $label"
     ((CRITICAL_PASS += 1))
 }
 
 _smoke_fail() {
     local label="$1"
     local fix="${2:-}"
-    echo -e "  ${ACFS_RED:-\033[0;31m}❌${ACFS_NC:-\033[0m} $label"
+    echo -e "  ${ACFS_RED-\033[0;31m}❌${ACFS_NC-\033[0m} $label"
     if [[ -n "$fix" ]]; then
-        echo -e "     ${ACFS_GRAY:-\033[0;90m}Fix: $fix${ACFS_NC:-\033[0m}"
+        echo -e "     ${ACFS_GRAY-\033[0;90m}Fix: $fix${ACFS_NC-\033[0m}"
     fi
     ((CRITICAL_FAIL += 1))
 }
@@ -49,9 +51,9 @@ _smoke_fail() {
 _smoke_warn() {
     local label="$1"
     local note="${2:-}"
-    echo -e "  ${ACFS_YELLOW:-\033[0;33m}⚠️${ACFS_NC:-\033[0m} $label"
+    echo -e "  ${ACFS_YELLOW-\033[0;33m}⚠️${ACFS_NC-\033[0m} $label"
     if [[ -n "$note" ]]; then
-        echo -e "     ${ACFS_GRAY:-\033[0;90m}$note${ACFS_NC:-\033[0m}"
+        echo -e "     ${ACFS_GRAY-\033[0;90m}$note${ACFS_NC-\033[0m}"
     fi
     ((WARNING_COUNT += 1))
 }
@@ -59,13 +61,13 @@ _smoke_warn() {
 # Non-critical pass (doesn't affect critical count)
 _smoke_info() {
     local label="$1"
-    echo -e "  ${ACFS_GREEN:-\033[0;32m}✅${ACFS_NC:-\033[0m} $label"
+    echo -e "  ${ACFS_GREEN-\033[0;32m}✅${ACFS_NC-\033[0m} $label"
     ((NONCRITICAL_PASS += 1))
 }
 
 _smoke_header() {
     echo ""
-    echo -e "${ACFS_BLUE:-\033[0;34m}[Smoke Test]${ACFS_NC:-\033[0m}"
+    echo -e "${ACFS_BLUE-\033[0;34m}[Smoke Test]${ACFS_NC-\033[0m}"
     echo ""
 }
 
@@ -314,25 +316,25 @@ run_smoke_test() {
     local total_critical=$((CRITICAL_PASS + CRITICAL_FAIL))
 
     if [[ $CRITICAL_FAIL -eq 0 ]]; then
-        echo -e "${ACFS_GREEN:-\033[0;32m}Smoke test: $CRITICAL_PASS/$total_critical critical passed${ACFS_NC:-\033[0m}"
+        echo -e "${ACFS_GREEN-\033[0;32m}Smoke test: $CRITICAL_PASS/$total_critical critical passed${ACFS_NC-\033[0m}"
     else
-        echo -e "${ACFS_RED:-\033[0;31m}Smoke test: $CRITICAL_PASS/$total_critical critical passed, $CRITICAL_FAIL failed${ACFS_NC:-\033[0m}"
+        echo -e "${ACFS_RED-\033[0;31m}Smoke test: $CRITICAL_PASS/$total_critical critical passed, $CRITICAL_FAIL failed${ACFS_NC-\033[0m}"
     fi
 
     if [[ $WARNING_COUNT -gt 0 ]]; then
-        echo -e "${ACFS_YELLOW:-\033[0;33m}$WARNING_COUNT warning(s)${ACFS_NC:-\033[0m}"
+        echo -e "${ACFS_YELLOW-\033[0;33m}$WARNING_COUNT warning(s)${ACFS_NC-\033[0m}"
     fi
 
-    echo -e "${ACFS_GRAY:-\033[0;90m}Completed in ${duration}s${ACFS_NC:-\033[0m}"
+    echo -e "${ACFS_GRAY-\033[0;90m}Completed in ${duration}s${ACFS_NC-\033[0m}"
     echo ""
 
     # Return exit code based on critical failures
     if [[ $CRITICAL_FAIL -gt 0 ]]; then
-        echo -e "${ACFS_YELLOW:-\033[0;33m}Some critical checks failed. Run 'acfs doctor' for detailed diagnostics.${ACFS_NC:-\033[0m}"
+        echo -e "${ACFS_YELLOW-\033[0;33m}Some critical checks failed. Run 'acfs doctor' for detailed diagnostics.${ACFS_NC-\033[0m}"
         return 1
     fi
 
-    echo -e "${ACFS_GREEN:-\033[0;32m}Installation successful! Run 'onboard' to start the tutorial.${ACFS_NC:-\033[0m}"
+    echo -e "${ACFS_GREEN-\033[0;32m}Installation successful! Run 'onboard' to start the tutorial.${ACFS_NC-\033[0m}"
     return 0
 }
 

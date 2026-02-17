@@ -33,6 +33,7 @@ import { WaLesson } from "./wa-lesson";
 import { BrennerLesson } from "./brenner-lesson";
 import { GiilLesson } from "./giil-lesson";
 import { S2pLesson } from "./s2p-lesson";
+import { LocalDesktopLesson } from "./local-desktop-lesson";
 
 // Render the lesson content for a given slug.
 // This intentionally uses a static switch so ESLint can guarantee components are not created during render.
@@ -104,6 +105,8 @@ export function renderLessonComponent(slug: string): React.ReactNode | null {
       return <GiilLesson />;
     case "s2p":
       return <S2pLesson />;
+    case "local-desktop":
+      return <LocalDesktopLesson />;
     default:
       return null;
   }
@@ -144,4 +147,5 @@ export {
   BrennerLesson,
   GiilLesson,
   S2pLesson,
+  LocalDesktopLesson,
 };

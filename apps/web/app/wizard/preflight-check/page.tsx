@@ -10,7 +10,7 @@ import { AlertCard, OutputPreview, DetailsSection } from "@/components/alert-car
 import { ConnectionCheck } from "@/components/connection-check";
 import { markStepComplete } from "@/lib/wizardSteps";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
-import { useVPSIP } from "@/lib/userPreferences";
+import { useInstallTarget, useVPSIP } from "@/lib/userPreferences";
 import { withCurrentSearch } from "@/lib/utils";
 import {
   SimplerGuide,
@@ -21,10 +21,12 @@ import {
 } from "@/components/simpler-guide";
 import { Jargon } from "@/components/jargon";
 
-const PREFLIGHT_COMMAND =
-  "curl -fsSL \"https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/scripts/preflight.sh?$(date +%s)\" | bash";
+const VPS_PREFLIGHT_COMMAND =
+  "curl -fsSL \"https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh?$(date +%s)\" | bash";
+const LOCAL_PREFLIGHT_COMMAND =
+  "./scripts/local/lxd_bootstrap.sh --check";
 
-const TROUBLESHOOTING = [
+const VPS_TROUBLESHOOTING = [
   {
     title: "'bash' is not recognized / Get-Date error (Windows)",
     fixes: [
@@ -67,27 +69,69 @@ const TROUBLESHOOTING = [
   },
 ];
 
+const LOCAL_TROUBLESHOOTING = [
+  {
+    title: "LXD not installed or not initialized",
+    fixes: [
+      "Run: ./scripts/local/lxd_bootstrap.sh",
+      "This installs LXD (via snap) and initializes it for you",
+    ],
+  },
+  {
+    title: "You are not in the lxd group",
+    fixes: [
+      "Log out and back in, or run: newgrp lxd",
+      "Then re-run the preflight check",
+    ],
+  },
+  {
+    title: "snap not installed",
+    fixes: [
+      "Install snapd: sudo apt install snapd",
+      "Then re-run ./scripts/local/lxd_bootstrap.sh",
+    ],
+  },
+  {
+    title: "Insufficient disk space",
+    fixes: [
+      "Ensure ~10GB free on your Ubuntu machine",
+      "The container lives under your home directory by default",
+    ],
+  },
+  {
+    title: "Low memory",
+    fixes: [
+      "4GB+ RAM recommended for a smooth local experience",
+      "Close heavy apps before running the installer",
+    ],
+  },
+];
+
 export default function PreflightCheckPage() {
   const router = useRouter();
+  const [installTarget] = useInstallTarget();
   const [vpsIP] = useVPSIP();
   const [ackPassed, setAckPassed] = useState(false);
   const [ackFailed, setAckFailed] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const isLocal = installTarget === "local";
 
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "preflight_check",
-    stepNumber: 8,
+    stepNumber: 9,
     stepTitle: "Pre-Flight Check",
   });
 
   const displayIP = vpsIP || "YOUR_VPS_IP";
+  const preflightCommand = isLocal ? LOCAL_PREFLIGHT_COMMAND : VPS_PREFLIGHT_COMMAND;
+  const troubleshooting = isLocal ? LOCAL_TROUBLESHOOTING : VPS_TROUBLESHOOTING;
 
   const canContinue = ackPassed || ackFailed;
 
   const goNext = useCallback(() => {
     markComplete();
-    markStepComplete(8);
+    markStepComplete(9);
     setIsNavigating(true);
     router.push(withCurrentSearch("/wizard/run-installer"));
   }, [router, markComplete]);
@@ -111,7 +155,7 @@ export default function PreflightCheckPage() {
           </div>
           <div>
             <h1 className="bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl">
-              Pre-flight check your VPS
+              {isLocal ? "Pre-flight check your local sandbox" : "Pre-flight check your VPS"}
             </h1>
             <p className="text-sm text-muted-foreground">
               ~1 min
@@ -119,12 +163,14 @@ export default function PreflightCheckPage() {
           </div>
         </div>
         <p className="text-muted-foreground">
-          Before installing, let&apos;s confirm your <Jargon term="vps">VPS</Jargon> is ready.
+          {isLocal
+            ? "Before installing, let's confirm your Ubuntu machine can run the ACFS sandbox."
+            : <>Before installing, let&apos;s confirm your <Jargon term="vps">VPS</Jargon> is ready.</>}
         </p>
       </div>
 
       {/* CRITICAL: Connection check */}
-      <ConnectionCheck vpsIP={displayIP} showExplainer showWhereAmI />
+      {!isLocal && <ConnectionCheck vpsIP={displayIP} showExplainer showWhereAmI />}
 
       {/* Why this matters */}
       <AlertCard variant="info" icon={ShieldCheck} title="Fast safety check">
@@ -133,46 +179,78 @@ export default function PreflightCheckPage() {
       </AlertCard>
 
       {/* Windows-specific warning - CRITICAL for confused users */}
-      <AlertCard variant="error" icon={AlertTriangle} title="Windows users: Common mistake!">
-        <div className="space-y-2">
-          <p>
-            If you paste this command and see errors like <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">&apos;bash&apos; is not recognized</code> or
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">Get-Date : Cannot bind parameter</code>:
-          </p>
-          <p className="font-semibold">
-            You&apos;re running this on your Windows computer, NOT on the VPS!
-          </p>
-          <p>
-            Go back to your terminal, type <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">ssh root@{displayIP}</code>,
-            enter your VPS password, and THEN paste the preflight command.
-          </p>
-        </div>
-      </AlertCard>
+      {!isLocal && (
+        <AlertCard variant="error" icon={AlertTriangle} title="Windows users: Common mistake!">
+          <div className="space-y-2">
+            <p>
+              If you paste this command and see errors like <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">&apos;bash&apos; is not recognized</code> or
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">Get-Date : Cannot bind parameter</code>:
+            </p>
+            <p className="font-semibold">
+              You&apos;re running this on your Windows computer, NOT on the VPS!
+            </p>
+            <p>
+              Go back to your terminal, type <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">ssh root@{displayIP}</code>,
+              enter your VPS password, and THEN paste the preflight command.
+            </p>
+          </div>
+        </AlertCard>
+      )}
 
       {/* Command */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Run this command</h2>
+        {isLocal && (
+          <AlertCard variant="info" title="Local mode requires the repo on your machine">
+            <p className="text-sm text-muted-foreground">
+              Run the check from the ACFS repo root. If you haven&apos;t cloned it yet, do that first.
+            </p>
+          </AlertCard>
+        )}
+        {isLocal && (
+          <CommandCard
+            command="git clone https://github.com/deepakdgupta1/agentic-coding.git"
+            description="Clone the ACFS repo (one-time)"
+            runLocation="local"
+            showCheckbox
+            persistKey="local-clone-repo"
+          />
+        )}
         <CommandCard
-          command={PREFLIGHT_COMMAND}
-          description="ACFS pre-flight validation"
-          runLocation="vps"
+          command={preflightCommand}
+          description={isLocal ? "Local pre-flight check (run from repo root)" : "ACFS pre-flight validation"}
+          runLocation={isLocal ? "local" : "vps"}
           showCheckbox
           persistKey="preflight-check"
         />
       </div>
 
       {/* Expected output */}
-      <OutputPreview title="Expected output (example)">
-        <div className="space-y-1 font-mono text-xs">
-          <p className="text-muted-foreground">ACFS Pre-Flight Check</p>
-          <p className="text-muted-foreground">=====================</p>
-          <p className="text-[oklch(0.72_0.19_145)]">[✓] Operating System: Ubuntu 25.10 (or 24.04 before upgrade)</p>
-          <p className="text-[oklch(0.72_0.19_145)]">[✓] Architecture: x86_64</p>
-          <p className="text-[oklch(0.72_0.19_145)]">[✓] Disk Space: 45GB free</p>
-          <p className="text-[oklch(0.78_0.16_75)]">[!] Warning: Cannot reach https://claude.ai</p>
-          <p className="text-muted-foreground">Result: 0 errors, 1 warning</p>
-        </div>
-      </OutputPreview>
+      {isLocal ? (
+        <OutputPreview title="Expected output (example)">
+          <div className="space-y-1 font-mono text-xs">
+            <p className="text-muted-foreground">ACFS Local Prerequisites Check</p>
+            <p className="text-muted-foreground">==============================</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✓ Ubuntu 22.04+ detected</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✓ snap available</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✓ LXD installed and initialized</p>
+            <p className="text-[oklch(0.72_0.19_145)]">✓ Disk space: 20GB free</p>
+            <p className="text-muted-foreground">All prerequisites met!</p>
+          </div>
+        </OutputPreview>
+      ) : (
+        <OutputPreview title="Expected output (example)">
+          <div className="space-y-1 font-mono text-xs">
+            <p className="text-muted-foreground">ACFS Pre-Flight Check</p>
+            <p className="text-muted-foreground">=====================</p>
+            <p className="text-[oklch(0.72_0.19_145)]">[✓] Operating System: Ubuntu 25.10 (or 24.04 before upgrade)</p>
+            <p className="text-[oklch(0.72_0.19_145)]">[✓] Architecture: x86_64</p>
+            <p className="text-[oklch(0.72_0.19_145)]">[✓] Disk Space: 45GB free</p>
+            <p className="text-[oklch(0.78_0.16_75)]">[!] Warning: Cannot reach https://claude.ai</p>
+            <p className="text-muted-foreground">Result: 0 errors, 1 warning</p>
+          </div>
+        </OutputPreview>
+      )}
 
       {/* Proceed acknowledgement */}
       <div className="rounded-xl border border-border/50 bg-card/50 p-4">
@@ -211,7 +289,7 @@ export default function PreflightCheckPage() {
       <div className="space-y-3">
         <h2 className="text-xl font-semibold">Troubleshooting common failures</h2>
         <div className="space-y-3">
-          {TROUBLESHOOTING.map((item) => (
+          {troubleshooting.map((item) => (
             <DetailsSection key={item.title} summary={item.title}>
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 {item.fixes.map((fix, i) => (
@@ -246,7 +324,9 @@ export default function PreflightCheckPage() {
       <SimplerGuide>
         <div className="space-y-6">
           <GuideExplain term="What is a pre-flight check?">
-            A quick diagnostic that confirms your VPS meets the requirements before the full install.
+            {isLocal
+              ? "A quick diagnostic that confirms your machine can run the ACFS sandbox before the full install."
+              : "A quick diagnostic that confirms your VPS meets the requirements before the full install."}
           </GuideExplain>
 
           <GuideSection title="Step-by-Step">
@@ -255,7 +335,9 @@ export default function PreflightCheckPage() {
                 Click the copy button in the command box above.
               </GuideStep>
               <GuideStep number={2} title="Paste and run">
-                Paste into your terminal (make sure you&apos;re connected to your VPS).
+                {isLocal
+                  ? "Run it from the ACFS repo root on your Ubuntu machine."
+                  : "Paste into your terminal (make sure you&apos;re connected to your VPS)."}
               </GuideStep>
               <GuideStep number={3} title="Read the results">
                 Green lines are good. Yellow warnings are okay. Red errors should be fixed.
@@ -265,7 +347,7 @@ export default function PreflightCheckPage() {
 
           <GuideCaution>
             <strong>Warnings are okay:</strong> Warnings mean something might be imperfect but not
-            critical. If you see errors, fix those first or use a larger VPS plan.
+            critical. If you see errors, fix those first or adjust your system resources.
           </GuideCaution>
         </div>
       </SimplerGuide>

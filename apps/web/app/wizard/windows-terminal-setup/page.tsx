@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertCard, OutputPreview } from "@/components/alert-card";
+import { CodeBlock } from "@/components/ui/code-block";
 import { useVPSIP } from "@/lib/userPreferences";
 import { withCurrentSearch } from "@/lib/utils";
 import {
@@ -174,9 +175,7 @@ export default function WindowsTerminalSetupPage() {
           <div className="pl-11 space-y-4">
             <div>
               <p className="text-sm font-medium mb-2">Name:</p>
-              <code className="block rounded bg-muted px-3 py-2 font-mono text-sm">
-                My VPS
-              </code>
+              <CodeBlock code="My VPS" variant="compact" />
               <p className="text-xs text-muted-foreground mt-1">
                 (or whatever name you prefer, like &quot;ACFS Server&quot; or &quot;Ubuntu VPS&quot;)
               </p>
@@ -206,9 +205,7 @@ export default function WindowsTerminalSetupPage() {
             </div>
             <div>
               <p className="text-sm font-medium mb-2">Starting directory (optional):</p>
-              <code className="block rounded bg-muted px-3 py-2 font-mono text-sm">
-                %USERPROFILE%
-              </code>
+              <CodeBlock code="%USERPROFILE%" variant="compact" />
             </div>
             <div>
               <p className="text-sm font-medium mb-2">Icon (optional):</p>

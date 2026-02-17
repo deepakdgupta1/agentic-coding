@@ -23,6 +23,26 @@ fi
 _ACFS_STATE_SH_LOADED=1
 
 # ============================================================
+# Color Constants - respect NO_COLOR standard (https://no-color.org/)
+# Related: bd-39ye
+# ============================================================
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 2 ]]; then
+    _STATE_BLUE='\033[0;34m'
+    _STATE_GREEN='\033[0;32m'
+    _STATE_YELLOW='\033[0;33m'
+    _STATE_RED='\033[0;31m'
+    _STATE_GRAY='\033[0;90m'
+    _STATE_NC='\033[0m'
+else
+    _STATE_BLUE=''
+    _STATE_GREEN=''
+    _STATE_YELLOW=''
+    _STATE_RED=''
+    _STATE_GRAY=''
+    _STATE_NC=''
+fi
+
+# ============================================================
 # State File Schema v3 Documentation
 # ============================================================
 #
@@ -142,7 +162,17 @@ state_init() {
 
     # Ensure directory exists
     if [[ ! -d "$state_dir" ]]; then
-        mkdir -p "$state_dir" || return 1
+        # Try without sudo first (works for user directories like ~/.acfs)
+        # Fall back to sudo for system directories like /var/lib/acfs
+        if ! mkdir -p "$state_dir" 2>/dev/null; then
+            if [[ $EUID -ne 0 ]] && command -v sudo &>/dev/null; then
+                sudo mkdir -p "$state_dir" || return 1
+                # Fix ownership so current user can write to it
+                sudo chown "$(id -u):$(id -g)" "$state_dir" 2>/dev/null || true
+            else
+                return 1
+            fi
+        fi
 
         # If running as root but targeting a non-root user, ensure the directory
         # is owned by the target user so they can access the state file later.
@@ -273,8 +303,9 @@ state_write_atomic() {
     fi
 
     # Create temp file in same directory (ensures same filesystem for atomic rename).
+    # Keep XXXXXX at the end for BSD/GNU mktemp portability.
     # SECURITY: Never fall back to predictable temp paths (symlink/clobber risk under sudo/root).
-    temp_file="$(mktemp "${target_dir}/.state.XXXXXX.tmp" 2>/dev/null)" || {
+    temp_file="$(mktemp "${target_dir}/.state.XXXXXX" 2>/dev/null)" || {
         if [[ ! -w "$target_dir" ]]; then
             declare -f log_error &>/dev/null && log_error "state_write_atomic: permission denied creating temp file in $target_dir"
             return 2
@@ -374,6 +405,17 @@ _state_acquire_lock() {
     state_file="$(state_get_file)" || return 1
     local lock_file="${state_file}.lock"
 
+    # Local desktop mode (macOS) may not have flock installed.
+    # Proceed without locking rather than failing all state operations.
+    if ! command -v flock &>/dev/null; then
+        if [[ -z "${ACFS_STATE_WARNED_NO_FLOCK:-}" ]]; then
+            declare -f log_warn &>/dev/null && log_warn "flock not found; continuing state operations without file locking"
+            ACFS_STATE_WARNED_NO_FLOCK=1
+        fi
+        ACFS_LOCK_FD=""
+        return 0
+    fi
+
     # Ensure parent directory exists
     if ! mkdir -p "$(dirname "$state_file")" 2>/dev/null; then
         # If we can't create the directory, warn but don't fail
@@ -382,23 +424,27 @@ _state_acquire_lock() {
     fi
 
     # Open lock file on FD 200 (same FD convention as autofix.sh)
-    # NOTE: On some bash versions (5.3+), exec with high FDs can fail.
-    # We use eval to work around potential issues with direct exec.
-    # The 2>/dev/null suppresses errors from the redirection itself.
-    if ! eval 'exec 200>"$lock_file"' 2>/dev/null; then
-        # Try alternate FD if 200 fails
-        if ! eval 'exec 199>"$lock_file"' 2>/dev/null; then
-            # Lock acquisition not possible, return failure
-            return 1
-        fi
-        # Use FD 199 instead
+    # NOTE: On bash 5.3+, `exec N>file` under set -e exits the script
+    # before `if` can catch the failure. We test in a subshell first,
+    # then only exec in the main shell if the subshell succeeded.
+    if (exec 200>"$lock_file") 2>/dev/null; then
+        exec 200>"$lock_file"
+        ACFS_LOCK_FD=200
+    elif (exec 199>"$lock_file") 2>/dev/null; then
+        exec 199>"$lock_file"
         ACFS_LOCK_FD=199
     else
-        ACFS_LOCK_FD=200
+        # Lock acquisition not possible, return failure
+        return 1
     fi
 
     # Try to acquire lock with a 5-second timeout
     if ! flock -w 5 "${ACFS_LOCK_FD:-200}" 2>/dev/null; then
+        case "${ACFS_LOCK_FD:-}" in
+            200) exec 200>&- ;;
+            199) exec 199>&- ;;
+        esac
+        ACFS_LOCK_FD=""
         return 1
     fi
     return 0
@@ -407,7 +453,18 @@ _state_acquire_lock() {
 # Release the lock
 # Usage: _state_release_lock
 _state_release_lock() {
-    flock -u "${ACFS_LOCK_FD:-200}" 2>/dev/null || true
+    local lock_fd="${ACFS_LOCK_FD:-}"
+    [[ -n "$lock_fd" ]] || return 0
+
+    if command -v flock &>/dev/null; then
+        flock -u "$lock_fd" 2>/dev/null || true
+    fi
+
+    case "$lock_fd" in
+        200) exec 200>&- ;;
+        199) exec 199>&- ;;
+    esac
+    ACFS_LOCK_FD=""
 }
 
 # Mark state as interrupted by a signal (SIGTERM, SIGINT, SIGHUP).
@@ -653,27 +710,26 @@ confirm_resume() {
         return 1
     fi
 
-    # Check for completed phases
-    local completed_count
+    # Extract all resume info in a single jq call (5→1 subprocess spawns)
+    # Note: Uses ASCII Unit Separator (0x1f) as delimiter since bash strips null bytes
+    local completed_count=0 last_phase="" started_at="" failed_phase="" mode=""
     if command -v jq &>/dev/null; then
-        completed_count=$(echo "$state" | jq -r '.completed_phases | length')
-    else
-        completed_count=0
+        local extracted
+        extracted=$(echo "$state" | jq -r '
+            [
+                (.completed_phases | length | tostring),
+                (.completed_phases[-1] // "unknown"),
+                (.started_at // "unknown"),
+                (.failed_phase // ""),
+                (.mode // "unknown")
+            ] | join("\u001f")
+        ')
+        IFS=$'\x1f' read -r completed_count last_phase started_at failed_phase mode <<< "$extracted"
     fi
 
     # If no phases completed, nothing to resume
     if [[ "$completed_count" -eq 0 ]]; then
         return 1
-    fi
-
-    # Extract resume info
-    local last_phase="" started_at="" failed_phase="" mode=""
-    if command -v jq &>/dev/null; then
-        # Get the last completed phase
-        last_phase=$(echo "$state" | jq -r '.completed_phases[-1] // "unknown"')
-        started_at=$(echo "$state" | jq -r '.started_at // "unknown"')
-        failed_phase=$(echo "$state" | jq -r '.failed_phase // empty')
-        mode=$(echo "$state" | jq -r '.mode // "unknown"')
     fi
 
     local last_phase_name="${ACFS_PHASE_NAMES[$last_phase]:-$last_phase}"
@@ -714,9 +770,7 @@ confirm_resume() {
                     .completed_phases = (.completed_phases | map(select(. != "finalize"))) |
                     .version = $ver
                 ')
-                local state_file_path
-                state_file_path="$(state_get_file)"
-                printf '%s\n' "$updated_state" > "$state_file_path"
+                state_save "$updated_state"
             fi
         fi
     fi
@@ -807,7 +861,7 @@ _confirm_resume_log_info() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" "$msg" >&2
     else
-        echo -e "\033[0;34m$msg\033[0m" >&2
+        echo -e "${_STATE_BLUE}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -817,7 +871,7 @@ _confirm_resume_log_warn() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f9e2af" "$msg" >&2
     else
-        echo -e "\033[0;33m$msg\033[0m" >&2
+        echo -e "${_STATE_YELLOW}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -1204,6 +1258,7 @@ state_upgrade_get_progress() {
 
 # Print upgrade status for user display
 # Usage: state_upgrade_print_status
+# Optimized: Single jq call extracts all fields (was 11 subprocess spawns, now 1)
 state_upgrade_print_status() {
     if ! command -v jq &>/dev/null; then
         echo "Upgrade status unavailable (jq required)"
@@ -1216,19 +1271,33 @@ state_upgrade_print_status() {
         return 0
     fi
 
-    local enabled
-    enabled=$(echo "$state" | jq -r '.ubuntu_upgrade.enabled // false')
+    # Extract all fields in a single jq call (11→1 subprocess spawns)
+    # Note: Uses ASCII Unit Separator (0x1f) as delimiter since bash strips null bytes
+    local extracted
+    extracted=$(echo "$state" | jq -r '
+        .ubuntu_upgrade as $u |
+        [
+            ($u.enabled // false | tostring),
+            ($u.original_version // ""),
+            ($u.target_version // ""),
+            ($u.current_stage // ""),
+            ($u.completed_upgrades | length | tostring),
+            ($u.upgrade_path | length | tostring),
+            ($u.completed_upgrades // [] | map("  ✓ \(.from) → \(.to)") | join("\n")),
+            ($u.current_upgrade.from // ""),
+            ($u.current_upgrade.to // ""),
+            ($u.last_error // "")
+        ] | join("\u001f")
+    ')
+
+    # Parse unit-separator-delimited fields
+    local enabled original target stage completed_count total_count completed_list current_from current_to error
+    IFS=$'\x1f' read -r enabled original target stage completed_count total_count completed_list current_from current_to error <<< "$extracted"
+
     if [[ "$enabled" != "true" ]]; then
         echo "No upgrade in progress"
         return 0
     fi
-
-    local original target stage completed_count total_count
-    original=$(echo "$state" | jq -r '.ubuntu_upgrade.original_version')
-    target=$(echo "$state" | jq -r '.ubuntu_upgrade.target_version')
-    stage=$(echo "$state" | jq -r '.ubuntu_upgrade.current_stage')
-    completed_count=$(echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades | length')
-    total_count=$(echo "$state" | jq -r '.ubuntu_upgrade.upgrade_path | length')
 
     echo "=== Ubuntu Upgrade Status ==="
     echo "Original: $original → Target: $target"
@@ -1236,26 +1305,19 @@ state_upgrade_print_status() {
     echo "Stage: $stage"
 
     # Show completed upgrades
-    if [[ "$completed_count" -gt 0 ]]; then
+    if [[ "$completed_count" -gt 0 ]] && [[ -n "$completed_list" ]]; then
         echo ""
         echo "Completed upgrades:"
-        echo "$state" | jq -r '.ubuntu_upgrade.completed_upgrades[] | "  ✓ \(.from) → \(.to)"'
+        echo "$completed_list"
     fi
 
     # Show current upgrade if any
-    local current
-    current=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade // empty')
-    if [[ -n "$current" ]]; then
-        local from to
-        from=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.from')
-        to=$(echo "$state" | jq -r '.ubuntu_upgrade.current_upgrade.to')
+    if [[ -n "$current_from" ]]; then
         echo ""
-        echo "Current upgrade: $from → $to"
+        echo "Current upgrade: $current_from → $current_to"
     fi
 
     # Show error if any
-    local error
-    error=$(echo "$state" | jq -r '.ubuntu_upgrade.last_error // empty')
     if [[ -n "$error" ]]; then
         echo ""
         echo "Last error: $error"
@@ -1316,6 +1378,9 @@ state_update() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_start" || true
+    fi
     return $save_result
 }
 
@@ -1371,6 +1436,9 @@ state_phase_start() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "step_update" || true
+    fi
     return $save_result
 }
 
@@ -1403,6 +1471,9 @@ state_step_update() {
     local save_result=0
     state_save "$new_state" || save_result=$?
     _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_complete" || true
+    fi
     return $save_result
 }
 
@@ -1452,6 +1523,42 @@ state_phase_complete() {
         .current_phase = null |
         .current_step = null |
         del(.phase_start_time)
+    '); then
+        _state_release_lock
+        return 1
+    fi
+
+    local save_result=0
+    state_save "$new_state" || save_result=$?
+    _state_release_lock
+    if [[ $save_result -eq 0 ]]; then
+        state_print_checklist "phase_fail" || true
+    fi
+    return $save_result
+}
+
+# Remove a phase from the completed list (for re-running after drift detection)
+# Usage: state_unmark_phase <phase_id>
+state_unmark_phase() {
+    local phase_id="$1"
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    if ! _state_acquire_lock; then
+        return 1
+    fi
+
+    local state
+    if ! state=$(state_load); then
+        _state_release_lock
+        return 1
+    fi
+
+    local new_state
+    if ! new_state=$(echo "$state" | jq --arg phase "$phase_id" '
+        .completed_phases = ((.completed_phases // []) | map(select(. != $phase)))
     '); then
         _state_release_lock
         return 1
@@ -1532,6 +1639,7 @@ state_phase_skip() {
 
     state_save "$new_state" 2>/dev/null || true
     _state_release_lock
+    state_print_checklist "phase_skip" || true
     return 0
 }
 
@@ -2146,6 +2254,71 @@ state_print_summary() {
     done
 }
 
+_state_list_contains() {
+    local list="$1"
+    local target="$2"
+
+    while IFS= read -r item; do
+        if [[ "$item" == "$target" ]]; then
+            return 0
+        fi
+    done <<< "$list"
+
+    return 1
+}
+
+state_print_checklist() {
+    local trigger="${1:-update}"
+
+    if [[ "${ACFS_CHECKLIST_PROGRESS:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        return 0
+    fi
+
+    local state
+    if ! state=$(state_load); then
+        return 1
+    fi
+
+    local completed_list skipped_list current_phase current_step failed_phase failed_step
+    completed_list=$(echo "$state" | jq -r '.completed_phases[]?' 2>/dev/null)
+    skipped_list=$(echo "$state" | jq -r '.skipped_phases[]?' 2>/dev/null)
+    current_phase=$(echo "$state" | jq -r '.current_phase // empty' 2>/dev/null)
+    current_step=$(echo "$state" | jq -r '.current_step // empty' 2>/dev/null)
+    failed_phase=$(echo "$state" | jq -r '.failed_phase // empty' 2>/dev/null)
+    failed_step=$(echo "$state" | jq -r '.failed_step // empty' 2>/dev/null)
+
+    echo "" >&2
+    echo "Installation checklist (${trigger}):" >&2
+
+    for phase_id in "${ACFS_PHASE_IDS[@]}"; do
+        local name="${ACFS_PHASE_NAMES[$phase_id]:-$phase_id}"
+        local status="⏳"
+        local extra=""
+
+        if [[ -n "$failed_phase" && "$phase_id" == "$failed_phase" ]]; then
+            status="❌"
+            if [[ -n "$failed_step" && "$failed_step" != "null" ]]; then
+                extra=" — $failed_step"
+            fi
+        elif _state_list_contains "$completed_list" "$phase_id"; then
+            status="✅"
+        elif _state_list_contains "$skipped_list" "$phase_id"; then
+            status="⏭️"
+        elif [[ -n "$current_phase" && "$phase_id" == "$current_phase" ]]; then
+            status="🔄"
+            if [[ -n "$current_step" && "$current_step" != "null" ]]; then
+                extra=" — $current_step"
+            fi
+        fi
+
+        printf "  %s %s%s\n" "$status" "$name" "$extra" >&2
+    done
+}
+
 # ============================================================
 # Phase Execution Wrapper
 # ============================================================
@@ -2181,14 +2354,57 @@ run_phase() {
     # Get human-readable name for logging
     local human_name="${ACFS_PHASE_NAMES[$phase_id]:-$phase_id}"
 
+    # Handle --resume-from: skip phases before the target
+    if [[ -n "${ACFS_RESUME_FROM:-}" ]] && [[ "${_ACFS_RESUME_FROM_REACHED:-}" != "true" ]]; then
+        if [[ "$phase_id" == "$ACFS_RESUME_FROM" ]]; then
+            _ACFS_RESUME_FROM_REACHED=true
+        else
+            _run_phase_log_skip "$display_name" "before --resume-from target ($ACFS_RESUME_FROM)"
+            return 0
+        fi
+    fi
+
+    # Handle --stop-after: skip phases after the target completed
+    if [[ -n "${ACFS_STOP_AFTER:-}" ]] && [[ "${_ACFS_STOP_AFTER_REACHED:-}" == "true" ]]; then
+        _run_phase_log_skip "$display_name" "after --stop-after target ($ACFS_STOP_AFTER)"
+        return 0
+    fi
+
     # Check if phase should be skipped (already completed or user-skipped)
     if state_should_skip_phase "$phase_id"; then
         if state_is_phase_completed "$phase_id"; then
-            _run_phase_log_skip "$display_name" "already completed"
+            # Verify postconditions before trusting the skip.
+            # Catches drift (e.g. binary was deleted after a previous run).
+            if type -t _run_phase_postconditions &>/dev/null; then
+                if ! _run_phase_postconditions "$phase_id"; then
+                    _run_phase_log_skip "$display_name" "postcondition drift — re-running"
+                    state_unmark_phase "$phase_id"
+                    # Fall through to execute the phase
+                else
+                    _run_phase_log_skip "$display_name" "already completed"
+                    return 0
+                fi
+            else
+                _run_phase_log_skip "$display_name" "already completed"
+                return 0
+            fi
         else
             _run_phase_log_skip "$display_name" "user skipped"
+            return 0
         fi
-        return 0
+    fi
+
+    # Assert preconditions only when this phase is about to execute.
+    if type -t _run_phase_preconditions &>/dev/null; then
+        if ! _run_phase_preconditions "$phase_id"; then
+            local error_msg="Phase '$human_name' blocked by failed preconditions"
+            if type -t _emit_event &>/dev/null; then
+                _emit_event "check_failed" "$phase_id" "type=precondition"
+            fi
+            state_phase_fail "$phase_id" "Precondition check" "$error_msg"
+            _run_phase_log_failure "$display_name" "precondition"
+            return 1
+        fi
     fi
 
     # Record phase start
@@ -2198,6 +2414,17 @@ run_phase() {
     _run_phase_log_start "$display_name"
     local start_time
     start_time=$(date +%s)
+    local phase_timeout=""
+
+    if type -t _get_phase_timeout &>/dev/null; then
+        phase_timeout="$(_get_phase_timeout "$phase_id" 2>/dev/null || true)"
+    fi
+    if [[ "$phase_timeout" =~ ^[0-9]+$ ]] && [[ "$phase_timeout" -gt 0 ]]; then
+        export ACFS_PHASE_TIMEOUT_SECONDS="$phase_timeout"
+        export ACFS_PHASE_DEADLINE_EPOCH="$((start_time + phase_timeout))"
+    else
+        unset ACFS_PHASE_TIMEOUT_SECONDS ACFS_PHASE_DEADLINE_EPOCH
+    fi
 
     # Execute and capture exit code correctly
     # (can't use "if ! cmd; then exit_code=$?" because $? would be 0 from the negation)
@@ -2207,11 +2434,16 @@ run_phase() {
     local end_time
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
+    unset ACFS_PHASE_TIMEOUT_SECONDS ACFS_PHASE_DEADLINE_EPOCH
 
     if [[ $exit_code -eq 0 ]]; then
         # Success - mark phase as completed
         state_phase_complete "$phase_id"
         _run_phase_log_success "$display_name" "$duration"
+        # Mark --stop-after target as reached
+        if [[ -n "${ACFS_STOP_AFTER:-}" && "$phase_id" == "$ACFS_STOP_AFTER" ]]; then
+            _ACFS_STOP_AFTER_REACHED=true
+        fi
         return 0
     else
         # Failure - record failure state
@@ -2230,7 +2462,7 @@ _run_phase_log_skip() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#6c7086" "[$display_name] Skipped ($reason)" >&2
     else
-        echo -e "\033[0;90m[$display_name] Skipped ($reason)\033[0m" >&2
+        echo -e "${_STATE_GRAY}[$display_name] Skipped ($reason)${_STATE_NC}" >&2
     fi
 }
 
@@ -2241,7 +2473,7 @@ _run_phase_log_start() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#89b4fa" --bold "[$display_name] Starting..." >&2
     else
-        echo -e "\033[0;34m[$display_name] Starting...\033[0m" >&2
+        echo -e "${_STATE_BLUE}[$display_name] Starting...${_STATE_NC}" >&2
     fi
 }
 
@@ -2258,7 +2490,7 @@ _run_phase_log_success() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#a6e3a1" --bold "$msg" >&2
     else
-        echo -e "\033[0;32m$msg\033[0m" >&2
+        echo -e "${_STATE_GREEN}$msg${_STATE_NC}" >&2
     fi
 }
 
@@ -2270,6 +2502,6 @@ _run_phase_log_failure() {
     if [[ "${HAS_GUM:-false}" == "true" ]] && command -v gum &>/dev/null; then
         gum style --foreground "#f38ba8" --bold "[$display_name] FAILED (exit code: $exit_code)" >&2
     else
-        echo -e "\033[0;31m[$display_name] FAILED (exit code: $exit_code)\033[0m" >&2
+        echo -e "${_STATE_RED}[$display_name] FAILED (exit code: $exit_code)${_STATE_NC}" >&2
     fi
 }

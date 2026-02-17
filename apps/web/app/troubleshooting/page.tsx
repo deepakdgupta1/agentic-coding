@@ -736,6 +736,7 @@ export default function TroubleshootingPage() {
             placeholder="Search issues (e.g., 'connection refused', 'permission denied')..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search troubleshooting issues"
             className="w-full rounded-xl border border-border/50 bg-card/50 py-3 pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -836,7 +837,7 @@ export default function TroubleshootingPage() {
                 <span>
                   Visit the{" "}
                   <a
-                    href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/issues"
+                    href="https://github.com/deepakdgupta1/agentic-coding/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"

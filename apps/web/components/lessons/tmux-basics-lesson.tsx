@@ -279,7 +279,7 @@ function CommandSection({
                 {key}
               </kbd>
               {i < keyCombo.length - 1 && (
-                <span className="text-white/30">then</span>
+                <span className="text-white/50">then</span>
               )}
             </span>
           ))}
@@ -320,7 +320,7 @@ function KeyboardShortcutGrid({ shortcuts }: { shortcuts: ShortcutItem[] }) {
                     {key}
                   </kbd>
                   {j < shortcut.keys.length - 1 && (
-                    <span className="text-white/30 text-xs">+</span>
+                    <span className="text-white/50 text-xs">+</span>
                   )}
                 </span>
               ))}
@@ -355,9 +355,11 @@ function WhyItMattersCard() {
             Your Agents Run in tmux
           </h4>
           <p className="text-white/60">
-            Your coding agents (Claude, Codex, Gemini) run in tmux panes. If SSH
-            drops, they keep running. When you reconnect and reattach,
-            they&apos;re still there!
+            Your coding agents (Claude primary, plus Codex, Gemini, Amp) run in
+            tmux panes. If SSH drops, they keep running. When you reconnect and
+            reattach, they&apos;re still there! In local desktop mode, tmux keeps
+            everything alive inside the sandbox even if you close your host
+            terminal.
           </p>
         </div>
       </div>

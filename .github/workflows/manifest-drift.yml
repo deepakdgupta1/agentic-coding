@@ -1,0 +1,72 @@
+name: Internal Checksums Drift Check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check-drift:
+    name: Verify internal script checksums
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run manifest drift check
+        id: drift
+        run: |
+          chmod +x ./scripts/check-manifest-drift.sh
+          set +e
+          ./scripts/check-manifest-drift.sh --json > drift-result.json 2>drift.log
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Internal Checksums Drift Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ -f drift-result.json ]] && jq empty drift-result.json 2>/dev/null; then
+            drift=$(jq -r '.drift_detected' drift-result.json)
+            checked=$(jq -r '.internal_scripts.checked' drift-result.json)
+            drifted=$(jq -r '.internal_scripts.drifted' drift-result.json)
+
+            echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Scripts checked | ${checked} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Scripts drifted | ${drifted} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Manifest match | $(jq -r 'if .manifest.actual_sha256 == .manifest.recorded_sha256 then "✅" else "❌" end' drift-result.json) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            if [[ "$drift" == "true" ]]; then
+              echo "❌ **Drift detected.** Run \`cd packages/manifest && bun run generate\` and commit the result." >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "### Drifted files" >> "$GITHUB_STEP_SUMMARY"
+              jq -r '.internal_scripts.drift_files[]? // .reasons[]?' drift-result.json | while IFS= read -r line; do
+                echo "- \`${line}\`" >> "$GITHUB_STEP_SUMMARY"
+              done
+            else
+              echo "✅ **No drift — all internal checksums match.**" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "⚠️ Drift check did not produce valid JSON. See logs." >> "$GITHUB_STEP_SUMMARY"
+            if [[ -f drift.log ]]; then
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              cat drift.log >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - name: Fail on drift
+        if: steps.drift.outputs.exit_code != '0'
+        run: |
+          echo "::error::Internal script checksums have drifted. Run: cd packages/manifest && bun run generate"
+          if [[ -f drift.log ]]; then
+            cat drift.log
+          fi
+          exit 1

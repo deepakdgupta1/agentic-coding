@@ -19,9 +19,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CommandCard } from "@/components/command-card";
 import { AlertCard, OutputPreview, DetailsSection } from "@/components/alert-card";
 import { TrackedLink } from "@/components/tracked-link";
-import { markStepComplete } from "@/lib/wizardSteps";
+import { getCompletedSteps, markStepComplete, setCompletedSteps } from "@/lib/wizardSteps";
 import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
 import { withCurrentSearch } from "@/lib/utils";
+import { useInstallTarget } from "@/lib/userPreferences";
 import {
   SimplerGuide,
   GuideSection,
@@ -33,7 +34,8 @@ import {
 import { Jargon } from "@/components/jargon";
 
 // Base URL for raw GitHub content
-const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup";
+const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding";
+const GITHUB_REPO = "https://github.com/deepakdgupta1/agentic-coding.git";
 
 // Build install command based on options
 function buildInstallCommand(usePinnedRef: boolean, pinnedRef: string): string {
@@ -63,7 +65,7 @@ const WHAT_IT_INSTALLS = [
   },
   {
     category: "Coding Agents",
-    items: ["Claude Code", "Codex CLI", "Gemini CLI"],
+    items: ["Claude Code (primary)", "Codex CLI", "Gemini CLI", "Amp CLI (optional)"],
   },
   {
     category: "Cloud & Database",
@@ -77,7 +79,9 @@ const WHAT_IT_INSTALLS = [
 
 export default function RunInstallerPage() {
   const router = useRouter();
+  const [installTarget] = useInstallTarget();
   const [isNavigating, setIsNavigating] = useState(false);
+  const isLocal = installTarget === "local";
 
   // Pinned ref state (bd-31ps.8.2)
   const [usePinnedRef, setUsePinnedRef] = useState(false);
@@ -88,20 +92,29 @@ export default function RunInstallerPage() {
     () => buildInstallCommand(usePinnedRef, pinnedRef),
     [usePinnedRef, pinnedRef]
   );
+  const localCloneCommand = `git clone ${GITHUB_REPO}`;
+  const localInstallCommand = "cd agentic-coding && ./install.sh --local --yes";
 
   // Analytics tracking for this wizard step
   const { markComplete } = useWizardAnalytics({
     step: "run_installer",
-    stepNumber: 9,
+    stepNumber: 10,
     stepTitle: "Run Installer",
   });
 
   const handleContinue = useCallback(() => {
     markComplete();
-    markStepComplete(9);
+    markStepComplete(10);
     setIsNavigating(true);
+    if (isLocal) {
+      const completed = getCompletedSteps();
+      const nextSteps = Array.from(new Set([...completed, 11, 12])).sort((a, b) => a - b);
+      setCompletedSteps(nextSteps);
+      router.push(withCurrentSearch("/wizard/status-check"));
+      return;
+    }
     router.push(withCurrentSearch("/wizard/reconnect-ubuntu"));
-  }, [router, markComplete]);
+  }, [router, markComplete, isLocal]);
 
   return (
     <div className="space-y-8">
@@ -113,8 +126,8 @@ export default function RunInstallerPage() {
             <Sparkles className="absolute -right-1 -top-1 h-4 w-4 text-[oklch(0.78_0.16_75)] animate-pulse" />
           </div>
           <div>
-            <h1 className="bg-gradient-to-r from-primary via-foreground to-[oklch(0.7_0.2_330)] bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl">
-              Run the Agent Flywheel installer
+          <h1 className="bg-gradient-to-r from-primary via-foreground to-[oklch(0.7_0.2_330)] bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl">
+              {isLocal ? "Run the ACFS local desktop installer" : "Run the Agent Flywheel installer"}
             </h1>
             <p className="text-sm text-muted-foreground">
               ~15 min
@@ -122,18 +135,23 @@ export default function RunInstallerPage() {
           </div>
         </div>
         <p className="text-lg text-muted-foreground">
-          This is the magic moment. One command sets everything up.
+          {isLocal
+            ? "This provisions your sandboxed container and installs ACFS inside it."
+            : "This is the magic moment. One command sets everything up."}
         </p>
       </div>
 
       {/* Warning */}
       <AlertCard variant="warning" title="Don't close the terminal">
-        Stay connected during installation. If disconnected, <Jargon term="ssh">SSH</Jargon> back in
-        and check if it&apos;s still running.
+        {isLocal
+          ? "Keep this terminal open while the sandbox is being created and ACFS installs."
+          : <>Stay connected during installation. If disconnected, <Jargon term="ssh">SSH</Jargon> back in
+            and check if it&apos;s still running.</>}
       </AlertCard>
 
       {/* CRITICAL: SSH Key Prompt Warning */}
-      <AlertCard variant="error" title="WATCH FOR: SSH Key Prompt">
+      {!isLocal && (
+        <AlertCard variant="error" title="WATCH FOR: SSH Key Prompt">
         <div className="space-y-3">
           <p>
             <strong>Early in the installation</strong>, you&apos;ll see a prompt asking for your SSH public key:
@@ -155,86 +173,111 @@ export default function RunInstallerPage() {
           </p>
         </div>
       </AlertCard>
+      )}
 
       {/* The command */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">
-          Paste this command in your SSH session
+          {isLocal ? "Run these commands in your terminal" : "Paste this command in your SSH session"}
         </h2>
 
         {/* Pinned ref toggle (bd-31ps.8.2) */}
-        <div className="rounded-lg border border-border/50 bg-card/50 p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="pin-ref"
-              checked={usePinnedRef}
-              onCheckedChange={(checked) => setUsePinnedRef(checked === true)}
-              className="mt-0.5"
-            />
-            <div className="flex-1 space-y-1">
-              <label
-                htmlFor="pin-ref"
-                className="flex items-center gap-2 text-sm font-medium cursor-pointer"
-              >
-                <Pin className="h-4 w-4 text-muted-foreground" />
-                Pin to specific version
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Use a specific commit or tag for reproducible installs across multiple machines.
-              </p>
+        {!isLocal && (
+          <div className="rounded-lg border border-border/50 bg-card/50 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="pin-ref"
+                checked={usePinnedRef}
+                onCheckedChange={(checked) => setUsePinnedRef(checked === true)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 space-y-1">
+                <label
+                  htmlFor="pin-ref"
+                  className="flex items-center gap-2 text-sm font-medium cursor-pointer"
+                >
+                  <Pin className="h-4 w-4 text-muted-foreground" />
+                  Pin to specific version
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Use a specific commit or tag for reproducible installs across multiple machines.
+                </p>
+              </div>
             </div>
+
+            {usePinnedRef && (
+              <div className="ml-7 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={pinnedRef}
+                    onChange={(e) => setPinnedRef(e.target.value)}
+                    placeholder="main, v1.0.0, or commit SHA"
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    Use <code className="rounded bg-muted px-1 py-0.5">main</code> for latest,
+                    a tag like <code className="rounded bg-muted px-1 py-0.5">v1.0.0</code> for stable releases,
+                    or a full SHA for exact reproducibility.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
+        )}
 
-          {usePinnedRef && (
-            <div className="ml-7 space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={pinnedRef}
-                  onChange={(e) => setPinnedRef(e.target.value)}
-                  placeholder="main, v1.0.0, or commit SHA"
-                  className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  Use <code className="rounded bg-muted px-1 py-0.5">main</code> for latest,
-                  a tag like <code className="rounded bg-muted px-1 py-0.5">v1.0.0</code> for stable releases,
-                  or a full SHA for exact reproducibility.
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <CommandCard
-          command={installCommand}
-          description="Agent Flywheel installer one-liner"
-          runLocation="vps"
-          showCheckbox
-          persistKey="run-flywheel-installer"
-          className="border-2 border-primary/20"
-        />
+        {isLocal ? (
+          <div className="space-y-3">
+            <CommandCard
+              command={localCloneCommand}
+              description="Clone the ACFS repo (one-time)"
+              runLocation="local"
+              showCheckbox
+              persistKey="run-flywheel-local-clone"
+            />
+            <CommandCard
+              command={localInstallCommand}
+              description="Install ACFS in a sandboxed LXD container"
+              runLocation="local"
+              showCheckbox
+              persistKey="run-flywheel-installer"
+              className="border-2 border-primary/20"
+            />
+          </div>
+        ) : (
+          <CommandCard
+            command={installCommand}
+            description="Agent Flywheel installer one-liner"
+            runLocation="vps"
+            showCheckbox
+            persistKey="run-flywheel-installer"
+            className="border-2 border-primary/20"
+          />
+        )}
       </div>
 
       {/* Connection drop reassurance */}
-      <AlertCard variant="info" icon={Wifi} title="What if my connection drops?">
-        <div className="space-y-2">
-          <p>
-            <strong>Don&apos;t panic!</strong> If your SSH connection drops during installation:
-          </p>
-          <ol className="list-decimal list-inside space-y-1 text-sm">
-            <li>The installer keeps running on the VPS</li>
-            <li>Just SSH back in using the same command</li>
-            <li>Run the installer command again — it will resume where it left off</li>
-          </ol>
-          <p className="text-sm text-muted-foreground">
-            The installer is designed to be run multiple times safely. If anything fails,
-            you can always re-run it.
-          </p>
-        </div>
-      </AlertCard>
+      {!isLocal && (
+        <AlertCard variant="info" icon={Wifi} title="What if my connection drops?">
+          <div className="space-y-2">
+            <p>
+              <strong>Don&apos;t panic!</strong> If your SSH connection drops during installation:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 text-sm">
+              <li>The installer keeps running on the VPS</li>
+              <li>Just SSH back in using the same command</li>
+              <li>Run the installer command again — it will resume where it left off</li>
+            </ol>
+            <p className="text-sm text-muted-foreground">
+              The installer is designed to be run multiple times safely. If anything fails,
+              you can always re-run it.
+            </p>
+          </div>
+        </AlertCard>
+      )}
 
       {/* Transparency & trust */}
       <div className="flex gap-3 rounded-xl border border-[oklch(0.72_0.19_145/0.25)] bg-[oklch(0.72_0.19_145/0.05)] p-3 sm:p-4">
@@ -246,23 +289,25 @@ export default function RunInstallerPage() {
             Fully transparent &amp; open source
           </p>
           <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
-            This script only runs on <strong className="text-foreground/80">your VPS</strong>, not your local computer.
-            You can inspect every line before running it:
+            {isLocal
+              ? <>This installer runs on your computer but applies changes inside an isolated LXD container.</>
+              : <>This script only runs on <strong className="text-foreground/80">your VPS</strong>, not your local computer.</>}
+            {" "}You can inspect every line before running it:
           </p>
           <div className="flex flex-wrap gap-2">
             <TrackedLink
-              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/blob/main/install.sh"
+              href="https://github.com/deepakdgupta1/agentic-coding/blob/main/install.sh"
               trackingId="install-sh-source"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[oklch(0.75_0.18_195/0.3)] bg-[oklch(0.75_0.18_195/0.1)] px-2.5 py-1.5 text-[11px] font-medium text-[oklch(0.75_0.18_195)] transition-colors hover:bg-[oklch(0.75_0.18_195/0.2)] sm:text-xs"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[oklch(0.75_0.18_195/0.3)] bg-[oklch(0.75_0.18_195/0.1)] px-2.5 py-1.5 text-xs font-medium text-[oklch(0.75_0.18_195)] transition-colors hover:bg-[oklch(0.75_0.18_195/0.2)]"
             >
               <Code className="h-3 w-3" />
               View install.sh source
               <ExternalLink className="h-2.5 w-2.5" />
             </TrackedLink>
             <TrackedLink
-              href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup"
+              href="https://github.com/deepakdgupta1/agentic-coding"
               trackingId="github-repo"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground sm:text-xs"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
             >
               Full repository
               <ExternalLink className="h-2.5 w-2.5" />
@@ -274,11 +319,16 @@ export default function RunInstallerPage() {
       {/* Time estimate */}
       <div className="flex items-center gap-2 text-muted-foreground">
         <Clock className="h-5 w-5" />
-        <span>Takes about 10-15 minutes depending on your VPS speed</span>
+        <span>
+          {isLocal
+            ? "Takes about 10-15 minutes depending on your machine speed"
+            : "Takes about 10-15 minutes depending on your VPS speed"}
+        </span>
       </div>
 
       {/* Command breakdown for curious users */}
-      <DetailsSection summary="What does this command actually do? (technical breakdown)">
+      {!isLocal && (
+        <DetailsSection summary="What does this command actually do? (technical breakdown)">
         <div className="space-y-3 text-sm">
           <p className="text-muted-foreground">
             Here&apos;s what each part of the command means:
@@ -329,6 +379,7 @@ export default function RunInstallerPage() {
           </AlertCard>
         </div>
       </DetailsSection>
+      )}
 
       {/* What it installs - collapsible */}
       <DetailsSection summary="What this command installs">
@@ -355,7 +406,7 @@ export default function RunInstallerPage() {
           Want to see exactly what it does?
         </span>
         <TrackedLink
-          href="https://github.com/Dicklesworthstone/agentic_coding_flywheel_setup/blob/main/install.sh"
+          href="https://github.com/deepakdgupta1/agentic-coding/blob/main/install.sh"
           trackingId="install-sh-source-inline"
           className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
         >
@@ -383,128 +434,163 @@ export default function RunInstallerPage() {
       {/* Success signs */}
       <OutputPreview title="You'll know it's done when you see:">
         <p className="text-[oklch(0.72_0.19_145)]">✔ Agent Flywheel installation complete!</p>
-        <p className="text-muted-foreground">
-          Please reconnect as: ssh ubuntu@YOUR_IP
-        </p>
+        {isLocal ? (
+          <p className="text-muted-foreground">
+            Next: run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">acfs-local shell</code>
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            Please reconnect as: ssh ubuntu@YOUR_IP
+          </p>
+        )}
       </OutputPreview>
 
       {/* Beginner Guide */}
-      <SimplerGuide>
-        <div className="space-y-6">
-          <GuideExplain term="What is this command doing?">
-            This command downloads and runs a setup script that automatically installs
-            everything you need on your VPS. Think of it like running an installer
-            on your computer, but this one installs dozens of tools at once!
-            <br /><br />
-            The script is <Jargon term="idempotent">&quot;idempotent&quot;</Jargon> which means it&apos;s safe to run multiple times.
-            If something fails, you can just run it again.
-          </GuideExplain>
+      {isLocal ? (
+        <SimplerGuide>
+          <div className="space-y-6">
+            <GuideExplain term="What is this command doing?">
+              This runs ACFS in <strong>local desktop mode</strong>, which creates an LXD container and installs
+              the full ACFS environment inside it. It&apos;s safe to re-run if something fails.
+            </GuideExplain>
 
-          <GuideSection title="Step-by-Step">
-            <div className="space-y-4">
-              <GuideStep number={1} title="Make sure you're connected to your VPS">
-                Your <Jargon term="terminal">terminal</Jargon> should show something like{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ubuntu@vps:~$</code>
-                or <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">root@vps:~#</code>.
-                <br /><br />
-                If it shows your regular computer name, you need to SSH in first!
-              </GuideStep>
+            <GuideSection title="Step-by-Step">
+              <div className="space-y-4">
+                <GuideStep number={1} title="Clone the repo (one time)">
+                  Run the <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">git clone</code> command above.
+                </GuideStep>
+                <GuideStep number={2} title="Run the installer">
+                  From the repo root, run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">./install.sh --local --yes</code>.
+                </GuideStep>
+                <GuideStep number={3} title="Enter the sandbox">
+                  After install, run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">acfs-local shell</code>.
+                </GuideStep>
+              </div>
+            </GuideSection>
 
-              <GuideStep number={2} title="Copy the install command">
-                Click the copy button on the purple command box above. The command
-                is quite long, so make sure you copy the whole thing!
-              </GuideStep>
-
-              <GuideStep number={3} title="Paste and run">
-                In your SSH terminal (where you&apos;re connected to the VPS), paste
-                the command and press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Enter</kbd>.
-                <br /><br />
-                You&apos;ll see lots of text scrolling by. This is normal!
-              </GuideStep>
-
-              <GuideStep number={4} title="Wait patiently (10-15 minutes)">
-                The installation takes time because it&apos;s downloading and installing
-                many tools. You&apos;ll see progress messages scroll by:
-                <OutputPreview title="What you'll see" className="mt-3">
-                  <p className="text-[oklch(0.72_0.19_145)]">[1/8] Installing zsh + oh-my-zsh...</p>
-                  <p className="text-[oklch(0.72_0.19_145)]">[2/8] Installing bun...</p>
-                  <p className="text-[oklch(0.72_0.19_145)]">[3/8] Installing development tools...</p>
-                  <p className="text-muted-foreground">... lots of download output ...</p>
-                  <p className="text-[oklch(0.72_0.19_145)]">[8/8] Installing AI coding agents...</p>
-                  <p className="text-[oklch(0.72_0.19_145)] font-medium mt-1">✔ Agent Flywheel installation complete!</p>
-                </OutputPreview>
-                <p className="mt-3">
-                  <strong>Don&apos;t close the terminal!</strong> Let it run until you see
-                  the green &quot;Installation complete&quot; message.
-                </p>
-              </GuideStep>
-            </div>
-          </GuideSection>
-
-          <GuideSection title="What gets installed?">
-            <p className="mb-3">
-              The installer sets up a complete development environment including:
-            </p>
-            <ul className="space-y-2">
-              <li>
-                <strong>Modern shell (zsh):</strong> A better terminal experience with
-                colors and suggestions
-              </li>
-              <li>
-                <strong>Programming languages:</strong> JavaScript/TypeScript, Python,
-                Rust, and Go
-              </li>
-              <li>
-                <strong>AI coding assistants:</strong> Claude Code, Codex, and Gemini CLI
-              </li>
-              <li>
-                <strong>Developer tools:</strong> Git interface, file searchers, and more
-              </li>
-            </ul>
-          </GuideSection>
-
-          <GuideTip>
-            If your internet connection drops during installation, just SSH back in
-            and run the command again. The installer will pick up where it left off!
-          </GuideTip>
-
-          <GuideCaution>
-            <strong>Don&apos;t close the terminal window</strong> while the installation
-            is running. If you accidentally close it, SSH back in and run the
-            command again. It will resume from where it stopped.
-          </GuideCaution>
-
-          <GuideSection title="If Installation Seems Stuck">
-            <p className="mb-3">
-              Installation can look &quot;stuck&quot; at certain points. Here&apos;s what&apos;s actually happening:
-            </p>
-            <ul className="space-y-3">
-              <li>
-                <strong>Stuck on &quot;Installing Rust...&quot;</strong> — Rust is a large download (~300MB).
-                This step can take 2-5 minutes depending on your VPS speed. Just wait.
-              </li>
-              <li>
-                <strong>Stuck on &quot;Setting up oh-my-zsh...&quot;</strong> — This step downloads
-                plugins from GitHub. If GitHub is slow, it can take a minute. Wait it out.
-              </li>
-              <li>
-                <strong>No output for 2+ minutes</strong> — Some steps don&apos;t show progress.
-                If the terminal cursor is still blinking, it&apos;s still running. Wait.
-              </li>
-              <li>
-                <strong>Actual error message appears</strong> — If you see red error text or
-                &quot;Failed&quot;, SSH back in and run the install command again. The installer
-                will skip completed steps and retry the failed one.
-              </li>
-            </ul>
-            <GuideTip className="mt-4">
-              The entire installation rarely takes more than 20 minutes. If it&apos;s been
-              30+ minutes with no progress at all, SSH back in and check if the script
-              is still running. If not, just run the install command again.
+            <GuideTip>
+              If you hit LXD errors, run <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">./scripts/local/lxd_bootstrap.sh</code> and retry.
             </GuideTip>
-          </GuideSection>
-        </div>
-      </SimplerGuide>
+          </div>
+        </SimplerGuide>
+      ) : (
+        <SimplerGuide>
+          <div className="space-y-6">
+            <GuideExplain term="What is this command doing?">
+              This command downloads and runs a setup script that automatically installs
+              everything you need on your VPS. Think of it like running an installer
+              on your computer, but this one installs dozens of tools at once!
+              <br /><br />
+              The script is <Jargon term="idempotent">&quot;idempotent&quot;</Jargon> which means it&apos;s safe to run multiple times.
+              If something fails, you can just run it again.
+            </GuideExplain>
+
+            <GuideSection title="Step-by-Step">
+              <div className="space-y-4">
+                <GuideStep number={1} title="Make sure you're connected to your VPS">
+                  Your <Jargon term="terminal">terminal</Jargon> should show something like{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ubuntu@vps:~$</code>
+                  or <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">root@vps:~#</code>.
+                  <br /><br />
+                  If it shows your regular computer name, you need to SSH in first!
+                </GuideStep>
+
+                <GuideStep number={2} title="Copy the install command">
+                  Click the copy button on the purple command box above. The command
+                  is quite long, so make sure you copy the whole thing!
+                </GuideStep>
+
+                <GuideStep number={3} title="Paste and run">
+                  In your SSH terminal (where you&apos;re connected to the VPS), paste
+                  the command and press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Enter</kbd>.
+                  <br /><br />
+                  You&apos;ll see lots of text scrolling by. This is normal!
+                </GuideStep>
+
+                <GuideStep number={4} title="Wait patiently (10-15 minutes)">
+                  The installation takes time because it&apos;s downloading and installing
+                  many tools. You&apos;ll see progress messages scroll by:
+                  <OutputPreview title="What you'll see" className="mt-3">
+                    <p className="text-[oklch(0.72_0.19_145)]">[1/8] Installing zsh + oh-my-zsh...</p>
+                    <p className="text-[oklch(0.72_0.19_145)]">[2/8] Installing bun...</p>
+                    <p className="text-[oklch(0.72_0.19_145)]">[3/8] Installing development tools...</p>
+                    <p className="text-muted-foreground">... lots of download output ...</p>
+                    <p className="text-[oklch(0.72_0.19_145)]">[8/8] Installing AI coding agents...</p>
+                    <p className="text-[oklch(0.72_0.19_145)] font-medium mt-1">✔ Agent Flywheel installation complete!</p>
+                  </OutputPreview>
+                  <p className="mt-3">
+                    <strong>Don&apos;t close the terminal!</strong> Let it run until you see
+                    the green &quot;Installation complete&quot; message.
+                  </p>
+                </GuideStep>
+              </div>
+            </GuideSection>
+
+            <GuideSection title="What gets installed?">
+              <p className="mb-3">
+                The installer sets up a complete development environment including:
+              </p>
+              <ul className="space-y-2">
+                <li>
+                  <strong>Modern shell (zsh):</strong> A better terminal experience with
+                  colors and suggestions
+                </li>
+                <li>
+                  <strong>Programming languages:</strong> JavaScript/TypeScript, Python,
+                  Rust, and Go
+                </li>
+                <li>
+                  <strong>AI coding assistants:</strong> Claude Code (primary), Codex, Gemini, Amp
+                </li>
+                <li>
+                  <strong>Developer tools:</strong> Git interface, file searchers, and more
+                </li>
+              </ul>
+            </GuideSection>
+
+            <GuideTip>
+              If your internet connection drops during installation, just SSH back in
+              and run the command again. The installer will pick up where it left off!
+            </GuideTip>
+
+            <GuideCaution>
+              <strong>Don&apos;t close the terminal window</strong> while the installation
+              is running. If you accidentally close it, SSH back in and run the
+              command again. It will resume from where it stopped.
+            </GuideCaution>
+
+            <GuideSection title="If Installation Seems Stuck">
+              <p className="mb-3">
+                Installation can look &quot;stuck&quot; at certain points. Here&apos;s what&apos;s actually happening:
+              </p>
+              <ul className="space-y-3">
+                <li>
+                  <strong>Stuck on &quot;Installing Rust...&quot;</strong> — Rust is a large download (~300MB).
+                  This step can take 2-5 minutes depending on your VPS speed. Just wait.
+                </li>
+                <li>
+                  <strong>Stuck on &quot;Setting up oh-my-zsh...&quot;</strong> — This step downloads
+                  plugins from GitHub. If GitHub is slow, it can take a minute. Wait it out.
+                </li>
+                <li>
+                  <strong>No output for 2+ minutes</strong> — Some steps don&apos;t show progress.
+                  If the terminal cursor is still blinking, it&apos;s still running. Wait.
+                </li>
+                <li>
+                  <strong>Actual error message appears</strong> — If you see red error text or
+                  &quot;Failed&quot;, SSH back in and run the install command again. The installer
+                  will skip completed steps and retry the failed one.
+                </li>
+              </ul>
+              <GuideTip className="mt-4">
+                The entire installation rarely takes more than 20 minutes. If it&apos;s been
+                30+ minutes with no progress at all, SSH back in and check if the script
+                is still running. If not, just run the install command again.
+              </GuideTip>
+            </GuideSection>
+          </div>
+        </SimplerGuide>
+      )}
 
       {/* Continue button */}
       <div className="flex justify-end pt-4">

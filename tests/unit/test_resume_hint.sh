@@ -87,7 +87,7 @@ setup_test_env() {
     SKIP_PREFLIGHT=false
     SKIP_UBUNTU_UPGRADE=false
     YES_MODE=false
-    STRICT_MODE=false
+    ACFS_STRICT_MODE=false
 }
 
 # Source the generate_resume_hint function
@@ -252,10 +252,10 @@ test_yes_mode() {
     return 0
 }
 
-# Test: STRICT_MODE flag
+# Test: ACFS_STRICT_MODE flag
 test_strict_mode() {
     setup_test_env
-    STRICT_MODE=true
+    ACFS_STRICT_MODE=true
 
     local result
     result=$(generate_resume_hint "" "")

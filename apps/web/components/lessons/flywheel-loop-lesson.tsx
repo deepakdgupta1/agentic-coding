@@ -257,10 +257,10 @@ dcg doctor                     # Check status`,
             {...{
               code: `# 1. Plan your work
 bv --robot-triage                # Check tasks
-bd ready                        # See what's ready to work on
+br ready                        # See what's ready to work on
 
 # 2. Start your agents
-ntm spawn myproject --cc=2 --cod=1
+ntm spawn myproject --cc=2 --cod=1 --gmi=1 --amp=1
 
 # 3. Set context
 cm context "Implementing user authentication" --json
@@ -279,7 +279,7 @@ ubs .                           # Check for bugs
 cm reflect                      # Distill learnings
 
 # 8. Close the task
-bd close <task-id>`,
+br close <task-id>`,
               showLineNumbers: true,
             }}
           />
@@ -334,17 +334,17 @@ mkcd /data/projects/my-first-project
 git init
 
 # 3. Initialize beads for task tracking
-bd init
+br init
 
 # (Recommended) Create a dedicated Beads sync branch
 # Beads uses git worktrees for syncing; syncing to your current branch (often \`main\`)
 # can cause worktree conflicts. Once you have a \`main\` branch and a remote, run:
 git branch beads-sync main
 git push -u origin beads-sync
-bd config set sync.branch=beads-sync
+br config set sync.branch=beads-sync
 
 # 4. Spawn your agents
-ntm spawn my-first-project --cc=2 --cod=1 --gmi=1
+ntm spawn my-first-project --cc=2 --cod=1 --gmi=1 --amp=1
 
 # 5. Start building!
 ntm send my-first-project "Let's build something awesome.
@@ -415,7 +415,7 @@ function FlywheelDiagram() {
               delay: 0.1,
             }}
           />
-          <ArrowRight className="h-5 w-5 text-white/30 hidden md:block" />
+          <ArrowRight className="h-5 w-5 text-white/50 hidden md:block" />
           <FlywheelNode
             {...{
               label: "Coordinate",
@@ -425,7 +425,7 @@ function FlywheelDiagram() {
               delay: 0.2,
             }}
           />
-          <ArrowRight className="h-5 w-5 text-white/30 hidden md:block" />
+          <ArrowRight className="h-5 w-5 text-white/50 hidden md:block" />
           <FlywheelNode
             {...{
               label: "Execute",
@@ -448,7 +448,7 @@ function FlywheelDiagram() {
               delay: 0.4,
             }}
           />
-          <ArrowRight className="h-5 w-5 text-white/30 rotate-180 hidden md:block" />
+          <ArrowRight className="h-5 w-5 text-white/50 rotate-180 hidden md:block" />
           <FlywheelNode
             {...{
               label: "Scan",
@@ -550,7 +550,7 @@ function ToolCard({
             <h4 className="font-bold text-white">
               {number}. {name}
             </h4>
-            <span className="text-xs text-white/40">- {subtitle}</span>
+            <span className="text-xs text-white/60">- {subtitle}</span>
           </div>
           <code className="inline-block px-2 py-1 rounded bg-black/30 border border-white/[0.08] text-xs font-mono text-primary mb-3">
             {command}

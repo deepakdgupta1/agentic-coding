@@ -237,7 +237,7 @@ INSTALL_SHELL_OMZ
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
 # Install ACFS zshrc
-ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
 mkdir -p ~/.acfs/zsh
 CURL_ARGS=(-fsSL)
 if curl --help all 2>/dev/null | grep -q -- '--proto'; then
@@ -251,11 +251,31 @@ INSTALL_SHELL_OMZ
         fi
     fi
     if [[ "${DRY_RUN:-false}" = "true" ]]; then
+        log_info "dry-run: install: # Install ACFS shell completions (zsh) (target_user)"
+    else
+        if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
+# Install ACFS shell completions (zsh)
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+mkdir -p ~/.acfs/completions
+CURL_ARGS=(-fsSL)
+if curl --help all 2>/dev/null | grep -q -- '--proto'; then
+  CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)
+fi
+curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/_acfs "${ACFS_RAW}/scripts/completions/_acfs"
+# Also install bash completions for users who switch shells
+curl "${CURL_ARGS[@]}" -o ~/.acfs/completions/acfs.bash "${ACFS_RAW}/scripts/completions/acfs.bash"
+INSTALL_SHELL_OMZ
+        then
+            log_error "shell.omz: install command failed: # Install ACFS shell completions (zsh)"
+            return 1
+        fi
+    fi
+    if [[ "${DRY_RUN:-false}" = "true" ]]; then
         log_info "dry-run: install: # Install pre-configured Powerlevel10k settings (prevents config wizard on first login) (target_user)"
     else
         if ! run_as_target_shell <<'INSTALL_SHELL_OMZ'
 # Install pre-configured Powerlevel10k settings (prevents config wizard on first login)
-ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main}"
+ACFS_RAW="${ACFS_RAW:-https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main}"
 CURL_ARGS=(-fsSL)
 if curl --help all 2>/dev/null | grep -q -- '--proto'; then
   CURL_ARGS=(--proto '=https' --proto-redir '=https' -fsSL)

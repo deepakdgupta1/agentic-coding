@@ -97,6 +97,26 @@ clear_phase() {
 # Step Execution with Error Capture
 # ============================================================
 
+_acfs_event_value_sanitize() {
+    local value="$1"
+    value="${value//$'\n'/ }"
+    value="${value//$'\r'/ }"
+    if [[ ${#value} -gt 500 ]]; then
+        value="${value:0:500}... [truncated]"
+    fi
+    printf '%s' "$value"
+}
+
+_acfs_try_step_remaining_timeout() {
+    if [[ -z "${ACFS_PHASE_DEADLINE_EPOCH:-}" ]] || [[ ! "${ACFS_PHASE_DEADLINE_EPOCH:-}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    local now_epoch
+    now_epoch=$(date +%s)
+    echo $((ACFS_PHASE_DEADLINE_EPOCH - now_epoch))
+    return 0
+}
+
 # Execute a command with error tracking
 # Usage: try_step "description" command [args...]
 # Returns: Command exit code
@@ -115,6 +135,11 @@ try_step() {
     # Update step context
     CURRENT_STEP="$description"
 
+    # Update terminal title if function is available
+    if type -t set_terminal_title &>/dev/null; then
+        set_terminal_title "ACFS: $description..."
+    fi
+
     # Update state file if available
     if type -t state_step_update &>/dev/null; then
         # Best-effort: state writes can fail early (no state file yet) or if jq is missing.
@@ -131,37 +156,80 @@ try_step() {
     output_file=$(mktemp "${TMPDIR:-/tmp}/acfs_step.XXXXXX" 2>/dev/null) || output_file=""
 
     local exit_code=0
+    local step_timeout_seconds=""
+    local has_timeout_command="false"
+    if command -v timeout &>/dev/null; then
+        has_timeout_command="true"
+    fi
+
+    # Check if the command is a shell function
+    if declare -f "$1" >/dev/null; then
+        # timeout command cannot execute shell functions directly
+        has_timeout_command="false"
+    fi
+    step_timeout_seconds="$(_acfs_try_step_remaining_timeout 2>/dev/null || true)"
 
     # Execute command with output capture
     # We use process substitution to capture both stdout and stderr
-    if [[ -n "$output_file" ]]; then
+    if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -le 0 ]]; then
+        exit_code=124
+    elif [[ -n "$output_file" ]]; then
         if [[ "$ERROR_VERBOSE" == "true" ]]; then
             # Verbose mode: show output in real-time AND capture it
-            if (
-                set -o pipefail
-                "$@" 2>&1 | tee "$output_file"
-                # Prefer the command's exit code over tee's (output capture is best-effort).
-                exit "${PIPESTATUS[0]}"
-            ); then
-                exit_code=0
+            if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+                if (
+                    set -o pipefail
+                    timeout --foreground "$step_timeout_seconds" "$@" 2>&1 | tee "$output_file"
+                    # Prefer the command's exit code over tee's (output capture is best-effort).
+                    exit "${PIPESTATUS[0]}"
+                ); then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             else
-                exit_code=$?
+                if (
+                    set -o pipefail
+                    "$@" 2>&1 | tee "$output_file"
+                    # Prefer the command's exit code over tee's (output capture is best-effort).
+                    exit "${PIPESTATUS[0]}"
+                ); then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             fi
         else
             # Normal mode: capture silently, show on error
-            if "$@" > "$output_file" 2>&1; then
-                exit_code=0
+            if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+                if timeout --foreground "$step_timeout_seconds" "$@" > "$output_file" 2>&1; then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             else
-                exit_code=$?
+                if "$@" > "$output_file" 2>&1; then
+                    exit_code=0
+                else
+                    exit_code=$?
+                fi
             fi
         fi
     else
         # If we cannot safely create a temp file, run without capture rather than
         # falling back to predictable /tmp paths (symlink attack risk under sudo/root).
-        if "$@"; then
-            exit_code=0
+        if [[ -n "$step_timeout_seconds" ]] && [[ "$step_timeout_seconds" -gt 0 ]] && [[ "$has_timeout_command" == "true" ]]; then
+            if timeout --foreground "$step_timeout_seconds" "$@"; then
+                exit_code=0
+            else
+                exit_code=$?
+            fi
         else
-            exit_code=$?
+            if "$@"; then
+                exit_code=0
+            else
+                exit_code=$?
+            fi
         fi
     fi
 
@@ -177,7 +245,18 @@ try_step() {
     fi
 
     # Failure - capture error context
-    LAST_ERROR="$description failed with exit code $exit_code"
+    if [[ $exit_code -eq 124 ]]; then
+        local timeout_hint="${step_timeout_seconds:-${ACFS_PHASE_TIMEOUT_SECONDS:-0}}"
+        if [[ ! "$timeout_hint" =~ ^-?[0-9]+$ ]]; then
+            timeout_hint="${ACFS_PHASE_TIMEOUT_SECONDS:-0}"
+        fi
+        if [[ "$timeout_hint" =~ ^-?[0-9]+$ ]] && [[ "$timeout_hint" -lt 0 ]]; then
+            timeout_hint="${ACFS_PHASE_TIMEOUT_SECONDS:-0}"
+        fi
+        LAST_ERROR="$description timed out after ${timeout_hint}s"
+    else
+        LAST_ERROR="$description failed with exit code $exit_code"
+    fi
     LAST_ERROR_CODE=$exit_code
     LAST_ERROR_TIME=$(date -Iseconds)
 
@@ -210,13 +289,25 @@ try_step() {
         state_phase_fail "$CURRENT_PHASE" "$description" "$LAST_ERROR" || true
     fi
 
+    # Emit structured command-failure event for observability.
+    if type -t _emit_event &>/dev/null; then
+        local failed_cmd failed_output
+        failed_cmd="$(_acfs_event_value_sanitize "$*")"
+        failed_output="$(_acfs_event_value_sanitize "${LAST_ERROR_OUTPUT:-}")"
+        _emit_event "cmd_failed" "${CURRENT_PHASE:-}" \
+            "step=$description" \
+            "cmd=$failed_cmd" \
+            "exit_code=$exit_code" \
+            "stderr=$failed_output"
+    fi
+
     # Log error if logging available
     if type -t log_error &>/dev/null; then
         log_error "$description failed (exit $exit_code)"
         # Print captured output to help debug failures
         if [[ -n "$LAST_ERROR_OUTPUT" ]]; then
             echo "  Error output:" >&2
-            echo "$LAST_ERROR_OUTPUT" | head -50 | sed 's/^/    /' >&2
+            echo "$LAST_ERROR_OUTPUT" | head -50 | sed 's/^/  /' >&2
         fi
     fi
 
@@ -501,7 +592,8 @@ should_skip_phase() {
 # - 5s wait: Enough for most CDN/routing issues
 # - 15s wait: Handles rate limiting, brief outages
 RETRY_DELAYS=(0 5 15)
-
+# User Request: one-time attempt
+# RETRY_DELAYS=(0)
 # Check if an error is a retryable network error
 # Usage: is_retryable_error <exit_code> [stderr_output]
 # Returns: 0 if retryable (should retry), 1 if not retryable
@@ -533,10 +625,17 @@ is_retryable_error() {
         56) return 0 ;;  # Network receive error
     esac
 
-    # Check stderr for common transient messages
+    # Check stderr for message patterns.
     if [[ -n "$stderr" ]]; then
         # Lowercase comparison
         local stderr_lower="${stderr,,}"
+
+        # Dependency conflicts are never transient-network retries, even when
+        # package-manager messages include phrases like "temporarily unavailable".
+        if [[ "$stderr_lower" =~ (dpkg.was.interrupted|dpkg.*configure|unmet.dependencies|broken.packages|held.broken|could.not.get.lock|lock-frontend|lock[^[:alnum:]]+is[^[:alnum:]]+held|resource[[:space:]]+temporarily[[:space:]]+unavailable) ]]; then
+            return 1
+        fi
+
         if [[ "$stderr_lower" =~ (timeout|timed.out|connection.refused|temporarily.unavailable|network.unreachable|no.route.to.host|reset.by.peer) ]]; then
             return 0
         fi
@@ -545,7 +644,118 @@ is_retryable_error() {
     return 1  # Not retryable
 }
 
-# Execute a command with exponential backoff retry for transient errors
+# ============================================================
+# Error Taxonomy & Remediation
+# ============================================================
+# Classifies errors into known categories and maps each to
+# actionable recovery guidance. Used by observability.sh for
+# the failure summary box.
+
+# Remediation hints per error class (variable placeholders expanded at runtime)
+declare -gA ERROR_REMEDIATION=(
+    [transient_network]="Check network connectivity and re-run: ./install.sh --resume"
+    [permission]="Fix ownership: sudo chown -R \$TARGET_USER:\$TARGET_USER \$ACFS_HOME"
+    [dependency_conflict]="Clear apt state: sudo dpkg --configure -a && sudo apt-get install -f"
+    [corrupt_state]="Reset state: ./install.sh --force-reinstall"
+    [unsupported_env]="Check system requirements: bash scripts/preflight.sh"
+    [unknown]="Review logs and retry: ./install.sh --resume"
+)
+
+# Retry policy per error class: "retry:<max>:backoff" or "stop"
+declare -gA ERROR_RETRY_POLICY=(
+    [transient_network]="retry:3:backoff"
+    [permission]="stop"
+    [dependency_conflict]="stop"
+    [corrupt_state]="stop"
+    [unsupported_env]="stop"
+    [unknown]="stop"
+)
+
+# Classify an error into a known category
+# Usage: classify_error <exit_code> [stderr_output]
+# Outputs: error class name (one of the ERROR_REMEDIATION keys)
+#
+# Error classes:
+#   transient_network  — DNS, timeout, connection refused
+#   permission         — Permission denied, access errors
+#   dependency_conflict — apt/dpkg conflicts
+#   corrupt_state      — Interrupted dpkg, corrupted state files
+#   unsupported_env    — OS/arch not supported
+#   unknown            — Unclassified errors
+#
+classify_error() {
+    local exit_code="${1:-0}"
+    local stderr="${2:-}"
+
+    # Check curl transient exit codes first
+    case "$exit_code" in
+        6|7|28|35|52|56)
+            echo "transient_network"
+            return 0
+            ;;
+    esac
+
+    # Pattern-match stderr content (case-insensitive)
+    if [[ -n "$stderr" ]]; then
+        local stderr_lower="${stderr,,}"
+
+        # Permission errors
+        if [[ "$stderr_lower" =~ (permission.denied|operation.not.permitted|eacces|cannot.open|read-only.file.system) ]]; then
+            echo "permission"
+            return 0
+        fi
+
+        # APT/dpkg conflicts
+        if [[ "$stderr_lower" =~ (dpkg.was.interrupted|dpkg.*configure|unmet.dependencies|broken.packages|held.broken|could.not.get.lock) ]]; then
+            echo "dependency_conflict"
+            return 0
+        fi
+
+        # Corrupt state
+        if [[ "$stderr_lower" =~ (corrupt|invalid.json|parse.error|unexpected.end|malformed) ]]; then
+            echo "corrupt_state"
+            return 0
+        fi
+
+        # Unsupported environment
+        if [[ "$stderr_lower" =~ (not.supported|unsupported|unknown.architecture|incompatible) ]]; then
+            echo "unsupported_env"
+            return 0
+        fi
+
+        # Network transient patterns
+        if [[ "$stderr_lower" =~ (timeout|timed.out|connection.refused|temporarily.unavailable|network.unreachable|no.route.to.host|reset.by.peer) ]]; then
+            echo "transient_network"
+            return 0
+        fi
+    fi
+
+    echo "unknown"
+}
+
+# Get remediation hint for an error class
+# Usage: get_remediation <error_class>
+# Outputs: Human-readable remediation string
+get_remediation() {
+    local class="${1:-unknown}"
+    local hint="${ERROR_REMEDIATION[$class]:-Review logs and retry}"
+
+    # Expand variable placeholders
+    hint="${hint//\$TARGET_USER/${TARGET_USER:-<user>}}"
+    hint="${hint//\$ACFS_HOME/${ACFS_HOME:-~/.acfs}}"
+    hint="${hint//\$ACFS_EVENT_LOG/${ACFS_EVENT_LOG:-~/.acfs/logs/install/*.jsonl}}"
+    echo "$hint"
+}
+
+# Check if an error class should be retried
+# Usage: should_retry_error_class <error_class>
+# Returns: 0 if retryable, 1 if should stop
+should_retry_error_class() {
+    local class="${1:-unknown}"
+    local policy="${ERROR_RETRY_POLICY[$class]:-stop}"
+    [[ "$policy" == retry* ]]
+}
+
 # Usage: retry_with_backoff "description" command [args...]
 # Returns: 0 on success, last exit code on failure after all retries
 #
@@ -745,12 +955,24 @@ try_step_with_backoff() {
         LAST_ERROR_CODE=0
         LAST_ERROR_OUTPUT=""
         return 0
+    else
+        exit_code=$?
     fi
-    exit_code=$?
 
     # Failure - error context already set by retry_with_backoff
     if type -t state_phase_fail &>/dev/null; then
         state_phase_fail "$CURRENT_PHASE" "$description" "$LAST_ERROR" || true
+    fi
+
+    if type -t _emit_event &>/dev/null; then
+        local failed_cmd failed_output
+        failed_cmd="$(_acfs_event_value_sanitize "$*")"
+        failed_output="$(_acfs_event_value_sanitize "${LAST_ERROR_OUTPUT:-}")"
+        _emit_event "cmd_failed" "${CURRENT_PHASE:-}" \
+            "step=$description" \
+            "cmd=$failed_cmd" \
+            "exit_code=$exit_code" \
+            "stderr=$failed_output"
     fi
 
     return "$exit_code"
@@ -834,8 +1056,9 @@ install_tool_tracked() {
             log_success "$tool_name installed successfully"
         fi
         return 0
+    else
+        exit_code=$?
     fi
-    exit_code=$?
 
     track_failed_tool "$tool_name" "Exit code $exit_code"
     return 1

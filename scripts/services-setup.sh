@@ -641,7 +641,7 @@ setup_codex() {
         fi
     fi
 
-    gum_box "Codex CLI Setup" "Codex CLI uses OAuth login with your ChatGPT account.
+    gum_box "Codex CLI Setup" "Codex CLI uses OAuth login with your Codex Plus/Pro account.
 We'll launch the login flow in your terminal/browser."
 
     gum_detail "Launching Codex OAuth login..."
@@ -1141,6 +1141,12 @@ $(gum style --foreground "$ACFS_PINK" --bold "Setting up $label...")"
         gum style --foreground "$ACFS_MUTED" "Checking PostgreSQL status..."
     fi
     setup_postgres
+
+    # Generate /AGENTS.md with current tool versions
+    local agents_script="$SCRIPT_DIR/generate-root-agents-md.sh"
+    if [[ -x "$agents_script" ]]; then
+        "$agents_script" 2>/dev/null || true
+    fi
 
     echo ""
     if [[ "$HAS_GUM" == "true" ]]; then

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const scriptUrl =
-    "https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh";
+    "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh";
 
   // Create redirect response with cache-control headers to prevent caching
   const response = NextResponse.redirect(scriptUrl, 302);
