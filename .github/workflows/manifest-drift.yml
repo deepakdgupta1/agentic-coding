@@ -2,9 +2,9 @@ name: Internal Checksums Drift Check
 
 on:
   push:
-    branches: [main, master]
+    branches: [local-desktop-installation-support]
   pull_request:
-    branches: [main, master]
+    branches: [local-desktop-installation-support]
 
 jobs:
   check-drift:

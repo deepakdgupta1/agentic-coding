@@ -24,7 +24,7 @@ jobs:
 
       - name: Run installer canary
         env:
-          ACFS_CHECKSUMS_REF: main
+          ACFS_CHECKSUMS_REF: local-desktop-installation-support
         run: |
           chmod +x ./tests/vm/test_install_ubuntu.sh
 
