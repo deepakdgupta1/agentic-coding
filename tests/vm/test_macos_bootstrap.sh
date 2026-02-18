@@ -240,7 +240,7 @@ run_case_one() {
     fi
 
     local event_log
-    event_log="$(ls -1 "$home_dir/.acfs/logs/install/"*.jsonl 2>/dev/null | head -n1 || true)"
+    event_log="$(find "$home_dir/.acfs/logs/install" -maxdepth 1 -type f -name '*.jsonl' 2>/dev/null | sort | head -n1 || true)"
     if [[ -n "$event_log" ]] && grep -q '"event":"install_start"' "$event_log" && grep -q '"event":"install_end"' "$event_log"; then
         pass "writes host observability install_start/install_end events"
     else
@@ -312,7 +312,7 @@ EOF
     bash -s -- --macos --yes < "$REPO_ROOT/install.sh"
 
     local event_log
-    event_log="$(ls -1 "$home_dir/.acfs/logs/install/"*.jsonl 2>/dev/null | head -n1 || true)"
+    event_log="$(find "$home_dir/.acfs/logs/install" -maxdepth 1 -type f -name '*.jsonl' 2>/dev/null | sort | head -n1 || true)"
     if [[ -n "$event_log" ]] && grep -q '"event":"resume"' "$event_log"; then
         pass "emits resume event when prior host bootstrap state is incomplete"
     else

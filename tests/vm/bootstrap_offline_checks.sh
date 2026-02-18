@@ -49,6 +49,8 @@ create_archive() {
   cp -R "$REPO_ROOT/scripts/lib" "$stage_dir/acfs-offline/scripts/"
   cp -R "$REPO_ROOT/scripts/generated" "$stage_dir/acfs-offline/scripts/"
   cp "$REPO_ROOT/scripts/preflight.sh" "$stage_dir/acfs-offline/scripts/preflight.sh"
+  cp "$REPO_ROOT/scripts/acfs-global" "$stage_dir/acfs-offline/scripts/acfs-global"
+  cp "$REPO_ROOT/scripts/acfs-update" "$stage_dir/acfs-offline/scripts/acfs-update"
 
   cp -R "$REPO_ROOT/acfs" "$stage_dir/acfs-offline/acfs"
   cp "$REPO_ROOT/checksums.yaml" "$stage_dir/acfs-offline/checksums.yaml"

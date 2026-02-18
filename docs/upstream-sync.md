@@ -12,14 +12,23 @@ A GitHub Action (`.github/workflows/upstream-sync.yml`) automatically syncs chan
 
 ## Workflow Logic
 1.  **Daily Trigger**: Runs at 00:00 UTC.
-2.  **Sync**: Merges `upstream/main` into a branch named `upstream-sync`.
-3.  **Conflict Handling**:
-    - **Clean Merge**: Creates a PR with merged changes.
-    - **Conflict**: Commits files *with conflict markers* to the PR so you can see them in the diff.
-4.  **AI Analysis**: If conflicts exist AND `OPENAI_API_KEY` is set in repository secrets, an AI suggestion is posted as a comment on the PR.
+2.  **Mirror Main**: Hard-resets fork `main` to `upstream/main` and force-pushes.
+3.  **Integrate**: Merges fork `main` into `local-desktop-installation-support` through `upstream-sync`.
+4.  **Conflict Handling**:
+    - **Clean Merge**: Automatically pushes the updates to your target branch (`local-desktop-installation-support`). No PR is created.
+    - **Conflict**: Commits files *with conflict markers* to a new branch and creates a PR so you can resolve them.
+5.  **AI Analysis**: If conflicts exist AND `OPENAI_API_KEY` is set in repository secrets, an AI suggestion is posted as a comment on the PR.
 
-## Configuration: Setting up the API Key
-To enable AI conflict analysis, you must securely add your OpenAI API Key to the repository secrets.
+## Configuration: Required Secrets
+
+### 1) `UPSTREAM_SYNC_TOKEN` (required for reliable mirror pushes)
+Use a token that can push repository contents and workflow files, then store it as:
+- **Name**: `UPSTREAM_SYNC_TOKEN`
+
+Without this secret, pushes that include `.github/workflows/*` changes can be rejected by GitHub.
+
+### 2) `OPENAI_API_KEY` (optional for AI conflict analysis)
+To enable AI conflict analysis, securely add your OpenAI API Key to repository secrets.
 
 1.  **Go to Settings**: Navigate to your GitHub repository page and click on the **Settings** tab.
 2.  **Access Secrets**: In the left sidebar, click on **Secrets and variables**, then select **Actions**.
@@ -66,3 +75,5 @@ To run the sync manually:
 2.  Select **Upstream Sync** from the left sidebar.
 3.  Click **Run workflow**.
 4.  Select the branch and click **Run workflow**.
+
+For consistency with the integration-branch strategy, run it from `main`.

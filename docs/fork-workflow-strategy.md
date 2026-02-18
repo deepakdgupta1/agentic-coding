@@ -28,7 +28,7 @@ graph TD
     U -->|Action: Daily Sync| I
     F1 -->|PR: Merge| I
     F2 -->|PR: Merge| I
-    
+
     style I fill:#d4edda,stroke:#28a745,stroke-width:2px
     style U fill:#cce5ff,stroke:#004085,stroke-width:2px
 ```
@@ -39,6 +39,13 @@ Your GitHub Action `upstream-sync.yml` runs daily.
 -   It attempts to merge into `local-desktop-installation-support`.
 -   **If Clean**: It pushes automatically. You wake up to a fresh, up-to-date repo.
 -   **If Conflict**: It opens a PR with conflict markers. You must resolve it (see [Upstream Sync Guide](./upstream-sync.md)).
+-   **Token Requirement**: Configure `UPSTREAM_SYNC_TOKEN` so mirror pushes can update `.github/workflows/*` when upstream changes those files.
+
+### 1.5 CI Branch Alignment
+`Installer CI` should run on `local-desktop-installation-support` (and PRs targeting it), because that is the deployment/integration branch.
+
+-   Keep `main` as an upstream mirror branch.
+-   Use CI on `local-desktop-installation-support` to validate what actually lands on your machine.
 ### 2. Developing a New Feature (The "Right Way")
 **NEVER** work directly on `local-desktop-installation-support`. Always use a feature branch.
 #### Step 1: Start Fresh
