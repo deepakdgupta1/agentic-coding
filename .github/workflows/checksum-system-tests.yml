@@ -2,14 +2,14 @@ name: Checksum System E2E Tests
 
 on:
   push:
-    branches: [main]
+    branches: [local-desktop-installation-support]
     paths:
       - '.github/workflows/checksum-*.yml'
       - 'scripts/lib/security.sh'
       - 'checksums.yaml'
       - 'scripts/lib/test_security.sh'
   pull_request:
-    branches: [main]
+    branches: [local-desktop-installation-support]
     paths:
       - '.github/workflows/checksum-*.yml'
       - 'scripts/lib/security.sh'
