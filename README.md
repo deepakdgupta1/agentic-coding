@@ -32,6 +32,7 @@ curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/
 The installer is **idempotent**—if interrupted, simply re-run it. It will automatically resume from the last completed phase without prompts.
 
 > **Production environments:** For stable, reproducible installs, pin to a tagged release or specific commit:
+>
 > ```bash
 > # Preferred: use a tagged release (e.g., v0.5.0)
 > ACFS_REF=v0.5.0 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.5.0/install.sh" | bash -s -- --yes --mode vibe
@@ -39,6 +40,7 @@ The installer is **idempotent**—if interrupted, simply re-run it. It will auto
 > # Alternative: pin to a specific commit SHA
 > ACFS_REF=abc1234 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/abc1234/install.sh" | bash -s -- --yes --mode vibe
 > ```
+>
 > Tagged releases are tested and stable. Setting `ACFS_REF` ensures all fetched scripts use the same version.
 
 ### Local Desktop Installation (Sandboxed)
@@ -51,20 +53,24 @@ curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/
 ```
 
 This provisions an isolated environment that:
+
 - Contains all invasive operations (passwordless sudo, SSH config, etc.)
 - Shares a workspace directory between your host and the sandbox
 - Forwards the dashboard to `localhost:38080`
 
 **Requirements:**
+
 - **macOS**: [Multipass](https://multipass.run/) (installed automatically via `brew` if missing)
 - **Ubuntu**: Ubuntu 22.04+ desktop with `snap` installed
 - ~40GB disk space recommended
 
 **Options:**
+
 - **macOS**: Choose "macOS Local" during setup to launch a Multipass VM.
 - **Ubuntu Desktop**: Choose "Ubuntu Local" and optionally specify a ZFS device for high-performance storage.
 
 **macOS host tuning (optional):**
+
 - `ACFS_MACOS_VM_NAME` (default: `acfs-host`)
 - `ACFS_MACOS_VM_CPUS` (default: `4`)
 - `ACFS_MACOS_VM_MEM` (default: `8G`)
@@ -73,10 +79,12 @@ This provisions an isolated environment that:
 Advanced installer controls passed with `--macos` (for example `--resume`, `--resume-from`, `--stop-after`, `--only`, `--skip`, `--strict`, `--checksums-ref`) are forwarded into the in-VM `install.sh --local ...` execution.
 
 Host bootstrap observability/resume artifacts:
+
 - State: `~/.acfs/state/macos_bootstrap.env`
 - Events: `~/.acfs/logs/install/<run_id>.jsonl`
 
 **Access your ACFS environment:**
+
 ```bash
 acfs-local shell       # Enter sandbox shell
 acfs-local dashboard   # Open dashboard in browser
@@ -85,6 +93,7 @@ acfs-local status      # View container info
 
 **Note:** `acfs-local` is installed to `~/.local/bin`. If the command isn't found,
 open a new terminal or add it to your PATH:
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
@@ -98,12 +107,14 @@ export PATH="$HOME/.local/bin:$PATH"
 **ACFS** is a complete system for bootstrapping agentic coding environments:
 
 **Why you'd care:**
+
 - **Zero to Hero:** Takes complete beginners from "I have a laptop" to "I have Claude/Codex/Gemini/Amp agents writing code for me on a VPS (or local sandbox)"
 - **One-Liner Magic:** A single `curl | bash` command installs 30+ tools, configures everything, and sets up four AI coding agents (Claude primary; Codex/Gemini/Amp optional)
 - **Vibe Mode:** Pre-configured for maximum velocity—passwordless sudo, dangerous agent flags enabled, optimized shell environment
 - **Battle-Tested Stack:** Includes the complete Dicklesworthstone stack (10 tools + utilities) for agent orchestration, coordination, and safety
 
 **What you get:**
+
 - Modern shell (zsh + oh-my-zsh + powerlevel10k)
 - All language runtimes (bun, uv/Python, Rust, Go)
 - Four AI coding agents (Claude Code primary, Codex CLI, Gemini CLI, Amp CLI optional)
@@ -116,54 +127,78 @@ export PATH="$HOME/.local/bin:$PATH"
 ## The ACFS Experience
 
 ```mermaid
-graph LR
-    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'lineColor': '#90a4ae'}}}%%
+graph TD
+    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1a1a2e', 'lineColor': '#7c8db5', 'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif'}}}%%
 
-    subgraph user ["User's Machine"]
-        LAPTOP["Laptop"]
-        BROWSER["Browser"]
+    subgraph user [" 🖥️  User's Starting Point "]
+        direction LR
+        LAPTOP["💻 Laptop / Desktop"]
+        WIZARD["🌐 Interactive Wizard\nagent-flywheel.com"]
     end
 
-    subgraph wizard ["Wizard Website"]
-        STEPS["14-Step Guide"]
+    subgraph choice [" 🔀  Setup Selection "]
+        direction LR
+        VPS["☁️ VPS Mode\nFresh Ubuntu Server"]
+        LOCAL["🏠 Local Mode\nIsolated LXD / Multipass"]
     end
 
-    subgraph vps ["Fresh VPS"]
-        UBUNTU["Ubuntu 25.10"]
-        INSTALLER["install.sh"]
-        CONFIGURED["Configured VPS"]
+    subgraph engine [" ⚙️  The Engine — install.sh "]
+        UPGRADE["🔄 Ubuntu 25.10 Auto-Upgrade"]
+        PHASES["📦 10-Phase Idempotent Install"]
+        SECURITY["🔒 SHA256 Security Verification"]
     end
 
-    subgraph agents ["AI Agents"]
-        CLAUDE["Claude Code"]
-        CODEX["Codex CLI"]
-        GEMINI["Gemini CLI"]
-        AMP["Amp CLI"]
+    subgraph results [" ✨  The Environment "]
+        direction LR
+        SHELL["🐚 Modern Shell\nZsh + Tmux + P10k"]
+        RUNTIMES["🔧 All Runtimes\nBun, UV, Rust, Go"]
+        AGENTS["🤖 4 AI Coding Agents\nClaude, Codex, Gemini, Amp"]
+        STACK["📡 Coordination Stack\nNTM, Mail, UBS, etc."]
     end
 
-    LAPTOP --> BROWSER
-    BROWSER --> STEPS
-    STEPS -->|SSH| UBUNTU
-    UBUNTU --> INSTALLER
-    INSTALLER --> CONFIGURED
-    CONFIGURED --> CLAUDE
-    CONFIGURED --> CODEX
-    CONFIGURED --> GEMINI
-    CONFIGURED --> AMP
+    subgraph proficiency [" 🎓  Day 1 Excellence "]
+        ONBOARD["📖 onboard command\nInteractive TUI Lessons"]
+    end
 
-    classDef user fill:#e3f2fd,stroke:#90caf9,stroke-width:2px
-    classDef wizard fill:#fff8e1,stroke:#ffcc80,stroke-width:2px
-    classDef vps fill:#f3e5f5,stroke:#ce93d8,stroke-width:2px
-    classDef agent fill:#e8f5e9,stroke:#a5d6a7,stroke-width:2px
+    LAPTOP --> WIZARD
+    WIZARD --> VPS
+    WIZARD --> LOCAL
 
-    class LAPTOP,BROWSER user
-    class STEPS wizard
-    class UBUNTU,INSTALLER,CONFIGURED vps
-    class CLAUDE,CODEX,GEMINI,AMP agent
+    VPS -- "SSH" --> UPGRADE
+    LOCAL -- "acfs-local" --> UPGRADE
+
+    UPGRADE --> PHASES
+    PHASES --> SECURITY
+    SECURITY --> SHELL
+    SECURITY --> RUNTIMES
+    SECURITY --> AGENTS
+    SECURITY --> STACK
+
+    SHELL --> ONBOARD
+
+    classDef user fill:#0d1b2a,stroke:#48bfe3,stroke-width:2px,color:#caf0f8
+    classDef path fill:#1b2838,stroke:#f4a261,stroke-width:2px,color:#fefae0
+    classDef installer fill:#1a1333,stroke:#b388ff,stroke-width:2px,color:#e8daf5
+    classDef env fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
+    classDef mastery fill:#2a1800,stroke:#ffb74d,stroke-width:2px,color:#fff3e0
+
+    class LAPTOP,WIZARD user
+    class VPS,LOCAL path
+    class UPGRADE,PHASES,SECURITY installer
+    class SHELL,RUNTIMES,AGENTS,STACK env
+    class ONBOARD mastery
+
+    style user fill:#0d1b2a,stroke:#48bfe3,stroke-width:2px,color:#caf0f8
+    style choice fill:#1b2838,stroke:#f4a261,stroke-width:2px,color:#fefae0
+    style engine fill:#1a1333,stroke:#b388ff,stroke-width:2px,color:#e8daf5
+    style results fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
+    style proficiency fill:#2a1800,stroke:#ffb74d,stroke-width:2px,color:#fff3e0
 ```
 
 ### For Beginners
+
 ACFS includes a **step-by-step wizard website** at [agent-flywheel.com](https://agent-flywheel.com) that guides complete beginners through:
+
 1. Installing a terminal on their local machine
 2. Choosing VPS vs local desktop mode (Linux-only option)
 3. Generating SSH keys (for secure access later)
@@ -174,9 +209,11 @@ ACFS includes a **step-by-step wizard website** at [agent-flywheel.com](https://
 8. Starting to code with AI agents
 
 ### For Developers
+
 ACFS is a **one-liner** that transforms any fresh Ubuntu VPS into a fully-configured development environment with modern tooling and four AI coding agents ready to go.
 
 ### For Teams
+
 ACFS provides a **reproducible, idempotent** setup that ensures every team member's VPS environment is identical—eliminating "works on my machine" for agentic workflows.
 
 ---
@@ -189,68 +226,80 @@ ACFS is built around a **single source of truth**: the manifest file. Everything
 
 ```mermaid
 flowchart TB
-  %% User and website
-  subgraph U["User (local machine)"]
-    Browser["Browser"]
-    Terminal["Terminal / SSH client"]
+  %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1a1a2e', 'lineColor': '#7c8db5', 'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif'}}}%%
+
+  subgraph U [" 👤  User — local machine "]
+    direction LR
+    Browser["🌐 Browser"]
+    Terminal["💻 Terminal / SSH / acfs-local"]
   end
 
-  subgraph W["Wizard Website (Next.js 16) — apps/web"]
-    Wizard["Wizard UI (/wizard/*)"]
-    InstallRoute["GET /install (302 redirect to raw install.sh)"]
-    WebState["State: URL params + localStorage"]
+  subgraph W [" 🧙  Wizard Website — Next.js 16 — apps/web "]
+    Wizard["🎯 Wizard UI\n/wizard/*"]
+    InstallRoute["🔗 GET /install\n302 → raw install.sh"]
+    WebState["💾 State\nURL params + localStorage"]
   end
 
-  %% Repo sources
-  subgraph R["Repo (source)"]
-    Manifest["acfs.manifest.yaml<br/>Modules + install + verify + deps"]
-    Generator["packages/manifest<br/>Parser (Zod) + generate.ts"]
-    Generated["scripts/generated/* (reference)<br/>category installers + doctor_checks.sh"]
-    Installer["install.sh (production one-liner)"]
-    Lib["scripts/lib/*<br/>security / doctor / update / services-setup"]
-    Configs["acfs/*<br/>zshrc + tmux.conf + onboard lessons"]
-    Checksums["checksums.yaml<br/>sha256 for upstream installers"]
-    Tests["tests/vm/test_install_ubuntu.sh<br/>Docker integration test"]
+  subgraph R [" 📂  Repo — source "]
+    Manifest["📋 acfs.manifest.yaml\nModules + install + verify + deps"]
+    Generator["⚙️ packages/manifest\nParser — Zod + generate.ts"]
+    Generated["📄 scripts/generated/*\ncategory installers + doctor_checks.sh"]
+    Installer["🚀 install.sh\nproduction one-liner"]
+    Lib["📚 scripts/lib/*\nsecurity / doctor / update"]
+    Configs["🔧 acfs/*\nzshrc + tmux.conf + lessons"]
+    Checksums["🔐 checksums.yaml\nSHA256 hashes"]
+    Tests["🧪 tests/vm/\nDocker integration test"]
   end
 
-  %% Target VPS
-  subgraph V["Target VPS (Ubuntu 25.10, auto-upgraded)"]
-    Run["Run install.sh"]
-    Verify["Verified upstream installers<br/>(security.sh + checksums.yaml)"]
-    AcfsHome["~/.acfs/<br/>configs + scripts + state.json"]
-    Commands["Commands<br/>acfs doctor / acfs update / acfs services-setup / onboard"]
-    Tools["Installed tools<br/>bun/uv/rust/go + tmux/rg/gh + vault + ..."]
-    Agents["Agent CLIs<br/>claude / codex / gemini / amp"]
-    Stack["Stack tools<br/>ntm / mcp_agent_mail / ubs / bv / cass / cm / caam / slb / dcg / ru"]
+  subgraph V [" 🖥️  Target Environment — VPS or Local Sandbox "]
+    Run["▶️ Run install.sh"]
+    System["🐧 Ubuntu 25.10\nAuto-upgraded"]
+    Verify["✅ Verified upstream installers\nsecurity.sh + checksums.yaml"]
+    AcfsHome["🏠 ~/.acfs/\nconfigs + scripts + state.json"]
+    Commands["⌨️ Commands\nacfs doctor / acfs-update / onboard"]
+    Tools["🔧 Installed tools\nbun / uv / rust / go / tmux / rg / gh / vault"]
+    Agents["🤖 Agent CLIs\nclaude / codex / gemini / amp"]
+    Stack["📡 Stack tools\nntm / mail / ubs / bv / cass / cm / slb / dcg / ru"]
   end
 
-  %% Website guidance flow
   Browser --> Wizard
   Wizard --> WebState
   Wizard --> InstallRoute
-  InstallRoute -->|redirects to| Installer
+  InstallRoute -- "redirects to" --> Installer
 
-  %% How users fetch/run the installer
-  Terminal -->|curl / bash| Installer
-  Terminal -->|SSH| Run
+  Terminal -- "curl | bash" --> Installer
+  Terminal -- "SSH / Local Mode" --> Run
 
-  %% Manifest-driven generation (reference today)
   Manifest --> Generator --> Generated
-  Generated -.->|planned: install.sh calls generated install_all.sh| Installer
+  Generated -. "planned: calls install_all.sh" .-> Installer
 
-  %% Installer composition
   Lib --> Installer
   Configs --> Installer
   Checksums --> Installer
-  Tests -->|validates| Installer
+  Tests -- "validates" --> Installer
 
-  %% VPS install results
   Installer --> Run
-  Run --> Verify
+  Run --> System
+  System --> Verify
   Verify --> Tools
   Verify --> Agents
   Verify --> Stack
   Run --> AcfsHome --> Commands
+
+  classDef userCls fill:#0d1b2a,stroke:#48bfe3,stroke-width:2px,color:#caf0f8
+  classDef wizardCls fill:#1a1333,stroke:#b388ff,stroke-width:2px,color:#e8daf5
+  classDef repoCls fill:#1b2838,stroke:#f4a261,stroke-width:2px,color:#fefae0
+  classDef targetCls fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
+
+  class Browser,Terminal userCls
+  class Wizard,InstallRoute,WebState wizardCls
+  class Manifest,Generator,Generated,Installer,Lib,Configs,Checksums,Tests repoCls
+  class Run,System,Verify,AcfsHome,Commands,Tools,Agents,Stack targetCls
+
+  style U fill:#0d1b2a,stroke:#48bfe3,stroke-width:2px,color:#caf0f8
+  style W fill:#1a1333,stroke:#b388ff,stroke-width:2px,color:#e8daf5
+  style R fill:#1b2838,stroke:#f4a261,stroke-width:2px,color:#fefae0
+  style V fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
 ```
 
 ```
@@ -305,23 +354,24 @@ flowchart TB
 **TypeScript + Zod Validation**: The manifest parser uses Zod schemas to validate the YAML at parse time. Typos, missing fields, and structural errors are caught immediately during generation—not at runtime on a user's VPS when the installer fails halfway through.
 
 **Generated Scripts**: Rather than hand-maintaining 11 category installer scripts and keeping them synchronized, the generator produces them from the manifest. This means:
+
 - A consistent, auditable view of manifest-defined install logic (some modules intentionally emit TODOs)
 - Consistent error handling and logging across all modules
 - A clear path toward future installer integration
 
 ### Components
 
-| Component | Path | Technology | Purpose |
-|-----------|------|------------|---------|
-| **Manifest** | `acfs.manifest.yaml` | YAML | Single source of truth for all tools |
-| **Generator** | `packages/manifest/src/generate.ts` | TypeScript/Bun | Produces installer scripts from manifest |
-| **Website** | `apps/web/` | Next.js 16 + Tailwind 4 | Step-by-step wizard for beginners |
-| **Installer** | `install.sh` | Bash | One-liner bootstrap script |
-| **Lib Scripts** | `scripts/lib/` | Bash | Modular installer functions |
-| **Generated Scripts** | `scripts/generated/` | Bash | Auto-generated category installers (sourced by `install.sh`; execution is feature-flagged) |
-| **Configs** | `acfs/` | Shell/Tmux configs | Files deployed to `~/.acfs/` |
-| **Onboarding** | `acfs/onboard/` | Bash + Markdown | Interactive tutorial system |
-| **Checksums** | `checksums.yaml` | YAML | SHA256 hashes for upstream installers |
+| Component             | Path                                | Technology              | Purpose                                                                                    |
+| --------------------- | ----------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------ |
+| **Manifest**          | `acfs.manifest.yaml`                | YAML                    | Single source of truth for all tools                                                       |
+| **Generator**         | `packages/manifest/src/generate.ts` | TypeScript/Bun          | Produces installer scripts from manifest                                                   |
+| **Website**           | `apps/web/`                         | Next.js 16 + Tailwind 4 | Step-by-step wizard for beginners                                                          |
+| **Installer**         | `install.sh`                        | Bash                    | One-liner bootstrap script                                                                 |
+| **Lib Scripts**       | `scripts/lib/`                      | Bash                    | Modular installer functions                                                                |
+| **Generated Scripts** | `scripts/generated/`                | Bash                    | Auto-generated category installers (sourced by `install.sh`; execution is feature-flagged) |
+| **Configs**           | `acfs/`                             | Shell/Tmux configs      | Files deployed to `~/.acfs/`                                                               |
+| **Onboarding**        | `acfs/onboard/`                     | Bash + Markdown         | Interactive tutorial system                                                                |
+| **Checksums**         | `checksums.yaml`                    | YAML                    | SHA256 hashes for upstream installers                                                      |
 
 ---
 
@@ -360,6 +410,7 @@ modules:
 ```
 
 Each module specifies:
+
 - **description**: Human-readable name
 - **category**: Grouping for installer organization (base, shell, cli, lang, tools, db, cloud, agents, stack, acfs)
 - **install**: Commands to run (or descriptions that become TODOs)
@@ -397,6 +448,7 @@ bun run generate:dry    # Preview without writing
 ### Why TypeScript for Code Generation?
 
 Shell can parse YAML with `yq`, but TypeScript + Zod offers:
+
 - **Type safety**: The parser knows the exact shape of a manifest
 - **Validation**: Zod catches malformed YAML with descriptive errors
 - **Transformation**: Complex logic (sorting by dependencies, escaping) is natural in TypeScript
@@ -447,14 +499,17 @@ The security library (`scripts/lib/security.sh`) provides:
 ### When Checksums Fail
 
 A checksum mismatch can mean:
+
 1. **Normal update**: The upstream maintainer released a new version
 2. **Potential compromise**: Someone modified the script maliciously
 
 The verification report distinguishes these cases:
+
 - If multiple checksums fail simultaneously, investigate before updating
 - If a single checksum fails after a known release, update is likely safe
 
 To update after verifying a legitimate upstream change:
+
 ```bash
 ./scripts/lib/security.sh --update-checksums > checksums.yaml
 git diff checksums.yaml  # Review what changed
@@ -464,6 +519,7 @@ git commit -m "chore: update upstream checksums"
 ### Why This Approach?
 
 The `curl | bash` pattern is controversial but practical. ACFS makes it safer by:
+
 - Verifying content before execution (not just transport via HTTPS)
 - Making checksums auditable in version control
 - Providing tools to detect and investigate changes
@@ -499,52 +555,71 @@ curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/
 
 ### Installer Modes
 
-| Mode | Passwordless Sudo | Agent Flags | Best For |
-|------|-------------------|-------------|----------|
-| **vibe** | Yes | `--dangerously-skip-permissions` | Throwaway VPS, maximum velocity |
-| **safe** | No | Standard confirmations | Production-like environments |
+| Mode     | Passwordless Sudo | Agent Flags                      | Best For                        |
+| -------- | ----------------- | -------------------------------- | ------------------------------- |
+| **vibe** | Yes               | `--dangerously-skip-permissions` | Throwaway VPS, maximum velocity |
+| **safe** | No                | Standard confirmations           | Production-like environments    |
 
 ### Installation Phases
 
 ```mermaid
-graph TD
-    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'lineColor': '#90a4ae'}}}%%
+graph LR
+    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1a1a2e', 'lineColor': '#7c8db5', 'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif'}}}%%
 
-    A["Phase 1: User Normalization<br/><small>Create ubuntu user, migrate SSH keys</small>"]
-    B["Phase 2: APT Packages<br/><small>Essential system packages</small>"]
-    C["Phase 3: Shell Setup<br/><small>zsh, oh-my-zsh, powerlevel10k</small>"]
-    D["Phase 4: CLI Tools<br/><small>ripgrep, fzf, lazygit, etc.</small>"]
-    E["Phase 5: Language Runtimes<br/><small>bun, uv, rust, go</small>"]
-    F["Phase 6: AI Agents<br/><small>claude, codex, gemini, amp</small>"]
-    G["Phase 7: Cloud Tools<br/><small>vault, wrangler, supabase, vercel</small>"]
-    H["Phase 8: Dicklesworthstone Stack<br/><small>ntm, dcg, ru, ubs, mcp_agent_mail, etc.</small>"]
-    I["Phase 9: Configuration<br/><small>Deploy acfs.zshrc, tmux.conf</small>"]
-    J["Phase 10: Verification<br/><small>acfs doctor</small>"]
+    A["1️⃣ Base Dependencies\ngit, curl, jq, etc."]
+    B["2️⃣ User Normalization\nCreate user, migrate SSH keys"]
+    C["3️⃣ Filesystem Setup\nPermissions, swap, ZFS"]
+    D["4️⃣ Shell Setup\nzsh, oh-my-zsh, powerlevel10k"]
+    E["5️⃣ CLI Tools\nripgrep, fzf, lazygit, gum"]
+    F["6️⃣ Language Runtimes\nbun, uv, rust, go"]
+    G["7️⃣ AI Agents\nclaude, codex, gemini, amp"]
+    H["8️⃣ Cloud & DB Tools\nPostgres 18, Vault, Wrangler"]
+    I["9️⃣ Dicklesworthstone Stack\nntm, mail, ubs, bv, cass, cm"]
+    J["🔟 Finalization\nWiring configs, acfs doctor"]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I --> J
 
-    classDef phase fill:#e8f5e9,stroke:#81c784,stroke-width:2px,color:#2e7d32
-    class A,B,C,D,E,F,G,H,I,J phase
+    classDef base fill:#0d1b2a,stroke:#48bfe3,stroke-width:2px,color:#caf0f8
+    classDef sys fill:#1b2838,stroke:#78909c,stroke-width:2px,color:#eceff1
+    classDef shell fill:#1a1333,stroke:#b388ff,stroke-width:2px,color:#e8daf5
+    classDef tools fill:#1b2838,stroke:#f4a261,stroke-width:2px,color:#fefae0
+    classDef lang fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
+    classDef agent fill:#2a0a1e,stroke:#ff80ab,stroke-width:2px,color:#fce4ec
+    classDef cloud fill:#1a2636,stroke:#4fc3f7,stroke-width:2px,color:#e1f5fe
+    classDef stack fill:#2a1800,stroke:#ffb74d,stroke-width:2px,color:#fff3e0
+    classDef final fill:#0b2e1a,stroke:#69f0ae,stroke-width:2px,color:#e0f2e9
+
+    class A base
+    class B,C sys
+    class D shell
+    class E tools
+    class F lang
+    class G agent
+    class H cloud
+    class I stack
+    class J final
 ```
 
 ### Key Properties
 
-| Property | Description |
-|----------|-------------|
-| **Idempotent** | Safe to re-run; skips already-installed tools |
-| **Checkpointed** | Phases resume automatically from `~/.acfs/state.json` |
+| Property                 | Description                                               |
+| ------------------------ | --------------------------------------------------------- |
+| **Idempotent**           | Safe to re-run; skips already-installed tools             |
+| **Checkpointed**         | Phases resume automatically from `~/.acfs/state.json`     |
 | **Pre-flight validated** | Run `scripts/preflight.sh` to catch issues before install |
-| **Logged** | Colored output with progress indicators |
-| **Modular** | Each category is a separate sourceable script |
+| **Logged**               | Colored output with progress indicators                   |
+| **Modular**              | Each category is a separate sourceable script             |
 
 ### Resume Capability
 
 The installer tracks progress in `~/.acfs/state.json`. If interrupted:
+
 - Re-run the same command—it resumes from the last completed phase
 - No prompts or confirmations needed (with `--yes`)
 - Already-installed tools are detected and skipped
 
 To force a fresh reinstall of all tools:
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --force-reinstall
 ```
@@ -552,6 +627,7 @@ curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/
 ### Pre-Flight Check
 
 Before running the full installer, validate your system:
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh" | bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/scripts/preflight.sh" | bash -s -- --json
@@ -559,6 +635,7 @@ curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/
 ```
 
 This checks:
+
 - OS compatibility (Ubuntu 22.04+; installer upgrades to 25.10)
 - Architecture (x86_64 or ARM64)
 - Memory and disk space (minimum 4GB RAM, 10GB free disk)
@@ -576,13 +653,13 @@ This checks:
 
 **Common preflight failures:**
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Cannot resolve github.com" | DNS misconfigured | Add `nameserver 8.8.8.8` to `/etc/resolv.conf` |
-| "Cannot reach github.com" | Firewall blocking HTTPS | Allow outbound port 443 |
-| "APT mirror slow or unreachable" | Regional mirror down | Edit `/etc/apt/sources.list` to use `archive.ubuntu.com` |
-| "APT lock held" | Another apt process running | Wait for it to finish or `sudo kill <pid>` |
-| "Insufficient disk space" | Less than 10GB free | Clean up with `sudo apt autoremove` or expand disk |
+| Error                            | Cause                       | Solution                                                 |
+| -------------------------------- | --------------------------- | -------------------------------------------------------- |
+| "Cannot resolve github.com"      | DNS misconfigured           | Add `nameserver 8.8.8.8` to `/etc/resolv.conf`           |
+| "Cannot reach github.com"        | Firewall blocking HTTPS     | Allow outbound port 443                                  |
+| "APT mirror slow or unreachable" | Regional mirror down        | Edit `/etc/apt/sources.list` to use `archive.ubuntu.com` |
+| "APT lock held"                  | Another apt process running | Wait for it to finish or `sudo kill <pid>`               |
+| "Insufficient disk space"        | Less than 10GB free         | Clean up with `sudo apt autoremove` or expand disk       |
 
 ### Console Output
 
@@ -601,6 +678,7 @@ The installer uses semantic colors for progress visibility:
 ACFS automatically upgrades Ubuntu to version **25.10** before installation when running on older versions. This ensures compatibility with the latest packages and optimal performance.
 
 **How it works:**
+
 1. Detects your current Ubuntu version
 2. Calculates the upgrade path (e.g., 24.04 → 25.04 → 25.10)
 3. Performs sequential `do-release-upgrade` operations
@@ -609,21 +687,25 @@ ACFS automatically upgrades Ubuntu to version **25.10** before installation when
 6. Continues ACFS installation once at target version
 
 **Expected timeline:**
+
 - Each version hop takes 30-60 minutes
 - Full chain from 24.04 → 25.10 takes 1.5-3 hours
 - SSH sessions disconnect during reboots (reconnect to monitor)
 
 **To skip automatic upgrade:**
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --skip-ubuntu-upgrade
 ```
 
 **To specify a different target version:**
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh" | bash -s -- --yes --mode vibe --target-ubuntu=25.04
 ```
 
 **Monitoring upgrade progress:**
+
 ```bash
 # Check current status
 /var/lib/acfs/check_status.sh
@@ -636,6 +718,7 @@ tail -f /var/log/acfs/upgrade_resume.log
 ```
 
 **Important notes:**
+
 - Create a VM snapshot before upgrading (recommended but not required)
 - Upgrades cannot be undone without restoring from snapshot
 - The system will reboot multiple times automatically
@@ -661,24 +744,25 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 
 ### What Gets Updated
 
-| Category | Tools | Method |
-|----------|-------|--------|
-| **System** | apt packages | `apt update && apt upgrade` |
-| **Shell** | OMZ, P10K, plugins | `git pull` on each repo |
-| **Shell** | Atuin, Zoxide | Re-run upstream installers |
-| **Runtime** | Bun | `bun upgrade` |
-| **Runtime** | Rust | `rustup update stable` |
-| **Runtime** | uv (Python) | `uv self update` |
-| **Runtime** | Go | `apt upgrade` (if apt-managed) |
-| **Agents** | Claude Code | `claude update --channel latest` |
-| **Agents** | Codex, Gemini | `bun install -g @latest` |
-| **Cloud** | Wrangler, Vercel | `bun install -g @latest` |
-| **Cloud** | Supabase | GitHub release tarball (sha256 checksums) |
-| **Stack** | ntm, slb, ubs, dcg, ru, etc. | Re-run upstream installers |
+| Category    | Tools                        | Method                                    |
+| ----------- | ---------------------------- | ----------------------------------------- |
+| **System**  | apt packages                 | `apt update && apt upgrade`               |
+| **Shell**   | OMZ, P10K, plugins           | `git pull` on each repo                   |
+| **Shell**   | Atuin, Zoxide                | Re-run upstream installers                |
+| **Runtime** | Bun                          | `bun upgrade`                             |
+| **Runtime** | Rust                         | `rustup update stable`                    |
+| **Runtime** | uv (Python)                  | `uv self update`                          |
+| **Runtime** | Go                           | `apt upgrade` (if apt-managed)            |
+| **Agents**  | Claude Code                  | `claude update --channel latest`          |
+| **Agents**  | Codex, Gemini                | `bun install -g @latest`                  |
+| **Cloud**   | Wrangler, Vercel             | `bun install -g @latest`                  |
+| **Cloud**   | Supabase                     | GitHub release tarball (sha256 checksums) |
+| **Stack**   | ntm, slb, ubs, dcg, ru, etc. | Re-run upstream installers                |
 
 ### Options
 
 **Category Selection:**
+
 ```bash
 --apt-only       Only update system packages
 --agents-only    Only update coding agents
@@ -689,6 +773,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 ```
 
 **Skip Categories:**
+
 ```bash
 --no-apt         Skip apt updates
 --no-agents      Skip agent updates
@@ -698,6 +783,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 ```
 
 **Behavior:**
+
 ```bash
 --force            Install missing tools (not just update existing)
 --dry-run          Preview changes without making them
@@ -710,6 +796,7 @@ acfs-update --yes --quiet    # Automated/CI mode with minimal output
 ### Logs
 
 Update logs are automatically saved to `~/.acfs/logs/updates/` with timestamps:
+
 ```bash
 # View most recent log
 cat ~/.acfs/logs/updates/$(ls -1t ~/.acfs/logs/updates | head -1)
@@ -721,6 +808,7 @@ tail -f ~/.acfs/logs/updates/$(ls -1t ~/.acfs/logs/updates | head -1)
 ### Why Separate from the Installer?
 
 The installer transforms a fresh VPS. The update command maintains an existing installation. Separating them allows:
+
 - **Focused updates**: Update just agents without touching system packages
 - **Dry-run previews**: See what would change before committing
 - **Skip flags**: Temporarily exclude categories that are working fine
@@ -752,6 +840,7 @@ Create a new project directory with ACFS defaults (git init, optional br/beads, 
 The interactive wizard is recommended for beginners.
 
 Interactive wizard (recommended):
+
 ```bash
 acfs newproj --interactive
 acfs newproj -i
@@ -759,6 +848,7 @@ acfs newproj -i myapp         # Prefill project name
 ```
 
 The wizard guides you through:
+
 - Project naming and location
 - Tech stack detection/selection
 - Feature selection (br/beads, Claude settings, AGENTS.md, UBS ignore)
@@ -768,6 +858,7 @@ The wizard guides you through:
 <summary><strong>TUI Wizard Screenshots</strong></summary>
 
 **Welcome Screen:**
+
 ```
     ╔═══════════════════════════════════════════════════════╗
     ║                                                       ║
@@ -792,6 +883,7 @@ This wizard will help you set up a new project with:
 ```
 
 **Confirmation Screen:**
+
 ```
 ──────────────────── Review & Confirm ────────────────────
                                               Step 7 of 9
@@ -833,6 +925,7 @@ Options:
 </details>
 
 CLI mode (automation):
+
 ```bash
 acfs newproj myapp
 acfs newproj myapp /custom/path
@@ -840,6 +933,7 @@ acfs newproj myapp --no-br
 ```
 
 Notes:
+
 - The TUI uses gum when available (arrow keys, Space to toggle, Enter to confirm). Without gum, it falls back to numbered prompts.
 - Minimum terminal size: 60x15.
 - CLI mode skips existing AGENTS.md; the wizard overwrites it, so move it aside if you want to keep the old one.
@@ -856,6 +950,7 @@ acfs info --minimal      # Just essentials (IP, key commands)
 ```
 
 Example output:
+
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║                    ACFS System Info                           ║
@@ -874,6 +969,7 @@ Example output:
 ```
 
 **Design Philosophy:**
+
 - **Speed**: Must complete in <1 second
 - **Read-only**: Never verifies or tests (that's doctor's job)
 - **Offline**: No network calls required
@@ -892,6 +988,7 @@ acfs cheatsheet --json       # JSON output for tooling
 ```
 
 Example output:
+
 ```
 ╔═══════════════════════════════════════════════════════════════╗
 ║  ACFS Cheatsheet                                               ║
@@ -928,6 +1025,7 @@ acfs dashboard serve --public        # Bind to 0.0.0.0
 ```
 
 The dashboard provides:
+
 - System health at a glance
 - Tool versions and status
 - Quick command reference
@@ -942,6 +1040,7 @@ acfs services-setup          # Run full setup wizard
 ```
 
 Guides you through:
+
 - **Claude Code**: API key configuration
 - **Codex CLI**: Codex Plus/Pro account login
 - **Gemini CLI**: Google account authentication
@@ -959,6 +1058,7 @@ acfs continue                # Show current upgrade status
 ```
 
 Displays:
+
 - Original Ubuntu version
 - Target version
 - Current upgrade stage
@@ -974,20 +1074,21 @@ In addition to the terminal-based onboarding, ACFS provides a comprehensive web-
 
 The Learning Hub provides interactive lessons with progress tracking:
 
-| # | Lesson | Duration | Topics |
-|---|--------|----------|--------|
-| 0 | Welcome & Overview | 5 min | What's installed, mental model |
-| 1 | Linux Navigation | 8 min | Filesystem structure, essential commands |
-| 2 | SSH & Persistence | 6 min | Secure connections, staying connected |
-| 3 | tmux Basics | 7 min | Sessions, windows, panes, survival |
-| 4 | Git Essentials | 10 min | Version control, dangerous operations |
-| 5 | GitHub CLI | 8 min | Issues, PRs, releases via `gh` |
-| 6 | Agent Commands | 10 min | Claude, Codex, Gemini, Amp usage |
-| 7 | NTM Command Center | 8 min | Session orchestration |
-| 8 | NTM Prompt Palette | 6 min | Quick command access |
-| 9 | The Flywheel Loop | 8 min | How all 10 tools work together |
+| #   | Lesson             | Duration | Topics                                   |
+| --- | ------------------ | -------- | ---------------------------------------- |
+| 0   | Welcome & Overview | 5 min    | What's installed, mental model           |
+| 1   | Linux Navigation   | 8 min    | Filesystem structure, essential commands |
+| 2   | SSH & Persistence  | 6 min    | Secure connections, staying connected    |
+| 3   | tmux Basics        | 7 min    | Sessions, windows, panes, survival       |
+| 4   | Git Essentials     | 10 min   | Version control, dangerous operations    |
+| 5   | GitHub CLI         | 8 min    | Issues, PRs, releases via `gh`           |
+| 6   | Agent Commands     | 10 min   | Claude, Codex, Gemini, Amp usage         |
+| 7   | NTM Command Center | 8 min    | Session orchestration                    |
+| 8   | NTM Prompt Palette | 6 min    | Quick command access                     |
+| 9   | The Flywheel Loop  | 8 min    | How all 10 tools work together           |
 
 **Features:**
+
 - Progress tracking in localStorage
 - Code blocks with copy buttons
 - Expandable deep-dive sections
@@ -997,15 +1098,15 @@ The Learning Hub provides interactive lessons with progress tracking:
 
 The [Command Reference](https://agent-flywheel.com/learn/commands) documents every installed tool:
 
-| Category | Commands |
-|----------|----------|
-| **Agents** | `cc`, `cod`, `gmi` |
-| **Search** | `rg`, `fd`, `sg`, `fzf` |
-| **Git** | `lg`, `gh`, `git-lfs` |
-| **System** | `z`, `bat`, `lsd`, `atuin`, `tmux` |
-| **Stack** | `ntm`, `bv`, `am`, `cass`, `cm`, `ubs`, `slb`, `caam`, `dcg`, `ru` |
-| **Languages** | `bun`, `uv`, `cargo`, `go` |
-| **Cloud** | `wrangler`, `supabase`, `vercel`, `vault` |
+| Category      | Commands                                                           |
+| ------------- | ------------------------------------------------------------------ |
+| **Agents**    | `cc`, `cod`, `gmi`                                                 |
+| **Search**    | `rg`, `fd`, `sg`, `fzf`                                            |
+| **Git**       | `lg`, `gh`, `git-lfs`                                              |
+| **System**    | `z`, `bat`, `lsd`, `atuin`, `tmux`                                 |
+| **Stack**     | `ntm`, `bv`, `am`, `cass`, `cm`, `ubs`, `slb`, `caam`, `dcg`, `ru` |
+| **Languages** | `bun`, `uv`, `cargo`, `go`                                         |
+| **Cloud**     | `wrangler`, `supabase`, `vercel`, `vault`                          |
 
 ### Technical Glossary
 
@@ -1018,6 +1119,7 @@ The [Glossary](https://agent-flywheel.com/glossary) defines 100+ technical terms
 - **Related terms**: For context
 
 Example entry:
+
 ```
 RAM (Random Access Memory)
 ├── Short: Fast temporary storage your computer uses while working
@@ -1040,12 +1142,12 @@ Plan (Beads) ──> Coordinate (Agent Mail) ──> Execute (NTM + Agents)
 
 **Workflow Scenarios:**
 
-| Scenario | Description | Time |
-|----------|-------------|------|
-| Daily Parallel Progress | 3+ projects moving simultaneously | 3+ hours |
-| Agents Reviewing Agents | Cross-review before merging | 30 min |
-| Memory-Augmented Debugging | Past solutions for current bugs | 15 min |
-| Coordinated Feature Dev | Multiple agents, one feature | 2+ hours |
+| Scenario                   | Description                       | Time     |
+| -------------------------- | --------------------------------- | -------- |
+| Daily Parallel Progress    | 3+ projects moving simultaneously | 3+ hours |
+| Agents Reviewing Agents    | Cross-review before merging       | 30 min   |
+| Memory-Augmented Debugging | Past solutions for current bugs   | 15 min   |
+| Coordinated Feature Dev    | Multiple agents, one feature      | 2+ hours |
 
 ### Tool Status Page
 
@@ -1064,12 +1166,14 @@ The wizard website includes specialized components for guiding beginners:
 
 **ConnectionCheck Component:**
 A prominent visual that helps users verify they're connected to their VPS before running commands:
+
 - Side-by-side comparison: "Wrong (laptop)" vs "Right (VPS)"
 - Terminal prompt examples for Windows, Mac, and Linux
 - Clear "STOP!" warning with color-coded styling
 
 **CommandCard Component:**
 CLI instruction cards with:
+
 - Syntax-highlighted code blocks
 - One-click copy button
 - Platform-specific variations (bash/zsh/PowerShell)
@@ -1078,24 +1182,28 @@ CLI instruction cards with:
 **Jargon Component (Responsive Technical Terms):**
 A sophisticated tooltip system that adapts to device capabilities:
 
-*Desktop behavior:*
+_Desktop behavior:_
+
 - Hover reveals floating tooltip with term definition
 - Radix UI Tooltip for accessible ARIA-compliant overlays
 - Viewport-aware positioning (auto-flips when near edges)
 - 200ms hover delay prevents tooltip spam
 
-*Mobile behavior:*
+_Mobile behavior:_
+
 - Tap opens bottom sheet drawer (Vaul library)
 - Full definition visible without tiny tap targets
 - Swipe-to-dismiss gesture support
 - Snap points for partial/full expansion
 
-*Visual features:*
+_Visual features:_
+
 - Gradient underline indicates tappable term
 - Each term gets unique gradient based on slug hash
 - Consistent color scheme with OKLCH tokens
 
-*Content structure per term:*
+_Content structure per term:_
+
 ```typescript
 {
   term: "VPS",
@@ -1109,6 +1217,7 @@ A sophisticated tooltip system that adapts to device capabilities:
 
 **Confetti Celebration:**
 On lesson completion:
+
 - Burst of celebratory confetti particles
 - Randomized encouraging messages
 - Special celebration for completing all lessons
@@ -1116,6 +1225,7 @@ On lesson completion:
 
 **Stepper Component:**
 Multi-step progress indicator:
+
 - Visual step-by-step progress
 - Clickable navigation
 - Completion checkmarks
@@ -1125,18 +1235,19 @@ Multi-step progress indicator:
 
 The Learning Hub includes specialized lessons for each tool in the Dicklesworthstone stack:
 
-| Lesson | Topics |
-|--------|--------|
-| **UBS (Bug Scanner)** | Scan workflow, severity levels, CI integration |
-| **Agent Mail** | Registration, messaging, file reservations |
-| **CASS (Session Search)** | Indexing, searching, cross-agent queries |
-| **CASS Memory (cm)** | Rule extraction, playbook management |
-| **Beads** | Issue tracking, graph metrics, priorities |
-| **SLB (Safety)** | Two-person rule, dangerous command approval |
-| **Prompt Engineering** | Effective prompts, context management |
-| **Real-World Case Study** | End-to-end feature development walkthrough |
+| Lesson                    | Topics                                         |
+| ------------------------- | ---------------------------------------------- |
+| **UBS (Bug Scanner)**     | Scan workflow, severity levels, CI integration |
+| **Agent Mail**            | Registration, messaging, file reservations     |
+| **CASS (Session Search)** | Indexing, searching, cross-agent queries       |
+| **CASS Memory (cm)**      | Rule extraction, playbook management           |
+| **Beads**                 | Issue tracking, graph metrics, priorities      |
+| **SLB (Safety)**          | Two-person rule, dangerous command approval    |
+| **Prompt Engineering**    | Effective prompts, context management          |
+| **Real-World Case Study** | End-to-end feature development walkthrough     |
 
 Each lesson includes:
+
 - Conceptual introduction
 - Practical commands with examples
 - Interactive exercises
@@ -1160,19 +1271,19 @@ onboard --reset        # Reset progress and start fresh
 
 ### Lessons
 
-| # | Title | Duration | Topics |
-|---|-------|----------|--------|
-| 0 | Welcome & Overview | 2 min | What's installed, system overview |
-| 1 | Linux Navigation | 5 min | Filesystem, basic commands |
-| 2 | SSH & Persistence | 4 min | Keys, config, tunnels, screen/tmux |
-| 3 | tmux Basics | 6 min | Sessions, windows, panes, navigation |
-| 4 | Agent Commands | 5 min | `cc`, `cod`, `gmi` aliases |
-| 5 | NTM Core | 7 min | Named Tmux Manager basics |
-| 6 | NTM Prompt Palette | 5 min | Command palette features |
-| 7 | Flywheel Loop | 8 min | Complete agentic workflow |
-| 8 | Keeping Updated | 4 min | Using `acfs-update`, troubleshooting |
-| 9 | RU: Multi-Repo Mastery | 6 min | Multi-repo sync, agent-sweep, parallel workflows |
-| 10 | DCG: Destructive Command Guard | 5 min | Command safety, protection packs, allow-once workflow |
+| #   | Title                          | Duration | Topics                                                |
+| --- | ------------------------------ | -------- | ----------------------------------------------------- |
+| 0   | Welcome & Overview             | 2 min    | What's installed, system overview                     |
+| 1   | Linux Navigation               | 5 min    | Filesystem, basic commands                            |
+| 2   | SSH & Persistence              | 4 min    | Keys, config, tunnels, screen/tmux                    |
+| 3   | tmux Basics                    | 6 min    | Sessions, windows, panes, navigation                  |
+| 4   | Agent Commands                 | 5 min    | `cc`, `cod`, `gmi` aliases                            |
+| 5   | NTM Core                       | 7 min    | Named Tmux Manager basics                             |
+| 6   | NTM Prompt Palette             | 5 min    | Command palette features                              |
+| 7   | Flywheel Loop                  | 8 min    | Complete agentic workflow                             |
+| 8   | Keeping Updated                | 4 min    | Using `acfs-update`, troubleshooting                  |
+| 9   | RU: Multi-Repo Mastery         | 6 min    | Multi-repo sync, agent-sweep, parallel workflows      |
+| 10  | DCG: Destructive Command Guard | 5 min    | Command safety, protection packs, allow-once workflow |
 
 ### Progress Tracking
 
@@ -1200,49 +1311,49 @@ ACFS installs a comprehensive suite of **30+ tools** organized into categories:
 
 ### Shell & Terminal UX
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| **zsh** | `zsh` | Modern shell |
-| **oh-my-zsh** | - | zsh plugin framework |
-| **powerlevel10k** | - | Fast, customizable prompt |
-| **lsd** | `ls` (aliased) | Modern ls with icons |
-| **atuin** | `Ctrl+R` | Shell history with search |
-| **fzf** | `fzf` | Fuzzy finder |
-| **zoxide** | `z` | Smarter cd |
-| **direnv** | - | Directory-specific env vars |
+| Tool              | Command        | Description                 |
+| ----------------- | -------------- | --------------------------- |
+| **zsh**           | `zsh`          | Modern shell                |
+| **oh-my-zsh**     | -              | zsh plugin framework        |
+| **powerlevel10k** | -              | Fast, customizable prompt   |
+| **lsd**           | `ls` (aliased) | Modern ls with icons        |
+| **atuin**         | `Ctrl+R`       | Shell history with search   |
+| **fzf**           | `fzf`          | Fuzzy finder                |
+| **zoxide**        | `z`            | Smarter cd                  |
+| **direnv**        | -              | Directory-specific env vars |
 
 ### Languages & Package Managers
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| **bun** | `bun` | Fast JS/TS runtime + package manager |
-| **uv** | `uv` | Fast Python package manager |
-| **Rust** | `cargo` | Rust toolchain |
-| **Go** | `go` | Go toolchain |
+| Tool     | Command | Description                          |
+| -------- | ------- | ------------------------------------ |
+| **bun**  | `bun`   | Fast JS/TS runtime + package manager |
+| **uv**   | `uv`    | Fast Python package manager          |
+| **Rust** | `cargo` | Rust toolchain                       |
+| **Go**   | `go`    | Go toolchain                         |
 
 ### Dev Tools
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| **tmux** | `tmux` | Terminal multiplexer |
-| **ripgrep** | `rg` | Fast recursive grep |
-| **ast-grep** | `sg` | Structural code search |
-| **lazygit** | `lg` (aliased) | Git TUI |
-| **GitHub CLI** | `gh` | GitHub auth, issues, PRs |
-| **Git LFS** | `git-lfs` | Large file support for Git |
-| **bat** | `cat` (aliased) | Cat with syntax highlighting |
-| **neovim** | `nvim` | Modern vim |
-| **jq** | `jq` | JSON processor |
-| **rsync** | `rsync` | Fast file sync/copy |
-| **lsof** | `lsof` | Debug open files/ports |
-| **dnsutils** | `dig` | DNS debugging |
-| **netcat** | `nc` | Network debugging |
-| **strace** | `strace` | Syscall tracing |
+| Tool           | Command         | Description                  |
+| -------------- | --------------- | ---------------------------- |
+| **tmux**       | `tmux`          | Terminal multiplexer         |
+| **ripgrep**    | `rg`            | Fast recursive grep          |
+| **ast-grep**   | `sg`            | Structural code search       |
+| **lazygit**    | `lg` (aliased)  | Git TUI                      |
+| **GitHub CLI** | `gh`            | GitHub auth, issues, PRs     |
+| **Git LFS**    | `git-lfs`       | Large file support for Git   |
+| **bat**        | `cat` (aliased) | Cat with syntax highlighting |
+| **neovim**     | `nvim`          | Modern vim                   |
+| **jq**         | `jq`            | JSON processor               |
+| **rsync**      | `rsync`         | Fast file sync/copy          |
+| **lsof**       | `lsof`          | Debug open files/ports       |
+| **dnsutils**   | `dig`           | DNS debugging                |
+| **netcat**     | `nc`            | Network debugging            |
+| **strace**     | `strace`        | Syscall tracing              |
 
 ### Networking
 
-| Tool | Command | Description |
-|------|---------|-------------|
+| Tool          | Command     | Description          |
+| ------------- | ----------- | -------------------- |
 | **Tailscale** | `tailscale` | Zero-config mesh VPN |
 
 **Tailscale Integration:**
@@ -1264,6 +1375,7 @@ ssh ubuntu@your-vps.tailnet-name.ts.net
 ```
 
 Benefits for agentic workflows:
+
 - **Firewall-free access**: Connect even when behind NAT or restrictive firewalls
 - **MagicDNS**: Access your VPS by hostname instead of IP
 - **SSH keys over Tailscale**: Use `tailscale ssh` for key-free authentication
@@ -1271,13 +1383,14 @@ Benefits for agentic workflows:
 
 ### AI Coding Agents
 
-| Agent | Command | Alias (Vibe Mode) |
-|-------|---------|-------------------|
-| **Claude Code** | `claude` | `cc` (dangerous mode) |
-| **Codex CLI** | `codex` | `cod` (dangerous mode) |
-| **Gemini CLI** | `gemini` | `gmi` (dangerous mode) |
+| Agent           | Command  | Alias (Vibe Mode)      |
+| --------------- | -------- | ---------------------- |
+| **Claude Code** | `claude` | `cc` (dangerous mode)  |
+| **Codex CLI**   | `codex`  | `cod` (dangerous mode) |
+| **Gemini CLI**  | `gemini` | `gmi` (dangerous mode) |
 
 **Vibe Mode Aliases:**
+
 ```bash
 # Claude Code with max memory (background tasks enabled by default)
 alias cc='NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions'
@@ -1291,6 +1404,7 @@ alias gmi='gemini --yolo'
 
 **Installation & Updates:**
 Claude Code should be installed and updated using its native mechanisms:
+
 - **Install:** ACFS uses the official native installer (`claude.ai/install.sh`), checksum-verified via `checksums.yaml` (installs to `~/.local/bin/claude`)
 - **Update:** Use `claude update --channel latest` (built-in) or run `acfs update --agents-only`
 
@@ -1298,13 +1412,13 @@ This ensures proper authentication handling and avoids issues with alternative p
 
 ### Cloud & Database
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| **PostgreSQL 18** | `psql` | Database |
-| **HashiCorp Vault** | `vault` | Secrets management |
-| **Wrangler** | `wrangler` | Cloudflare CLI |
-| **Supabase CLI** | `supabase` | Supabase management |
-| **Vercel CLI** | `vercel` | Vercel deployment |
+| Tool                | Command    | Description         |
+| ------------------- | ---------- | ------------------- |
+| **PostgreSQL 18**   | `psql`     | Database            |
+| **HashiCorp Vault** | `vault`    | Secrets management  |
+| **Wrangler**        | `wrangler` | Cloudflare CLI      |
+| **Supabase CLI**    | `supabase` | Supabase management |
+| **Vercel CLI**      | `vercel`   | Vercel deployment   |
 
 Vault is installed by default (skip with `--skip-vault`). ACFS installs the Vault **CLI** so you have a real secrets tool available early; it does not automatically configure a Vault server for you.
 
@@ -1314,32 +1428,32 @@ Supabase networking note: some Supabase projects expose the **direct Postgres ho
 
 The complete suite of tools for professional agentic workflows:
 
-| # | Tool | Command | Description |
-|---|------|---------|-------------|
-| 1 | **Named Tmux Manager** | `ntm` | Agent cockpit—spawn, orchestrate, monitor tmux sessions |
-| 2 | **MCP Agent Mail** | - | Agent coordination via mail-like messaging |
-| 3 | **Meta Skill** | `ms` | Local-first skill management with MCP integration |
-| 4 | **Automated Plan Reviser** | `apr` | Iterative spec refinement with AI reasoning |
-| 5 | **JeffreysPrompts** | `jfp` | System prompt library and skill installation |
-| 6 | **Process Triage** | `pt` | Intelligent process termination with scoring |
-| 7 | **Ultimate Bug Scanner** | `ubs` | Bug scanning with guardrails |
-| 8 | **beads_rust** | `br` | Dependency-aware issue tracking |
-| 9 | **Beads Viewer** | `bv` | Task management TUI with graph analysis |
-| 10 | **Simultaneous Launch Button** | `slb` | Two-person rule for dangerous commands |
-| 11 | **Destructive Command Guard** | `dcg` | Claude Code hook blocking dangerous git/fs commands |
-| 12 | **Coding Agent Session Search** | `cass` | Unified agent history search |
-| 13 | **CASS Memory System** | `cm` | Procedural memory for agents |
-| 14 | **Coding Agent Account Manager** | `caam` | Agent auth switching |
-| 15 | **Repo Updater** | `ru` | Multi-repo sync + AI-driven commit automation |
+| #   | Tool                             | Command | Description                                             |
+| --- | -------------------------------- | ------- | ------------------------------------------------------- |
+| 1   | **Named Tmux Manager**           | `ntm`   | Agent cockpit—spawn, orchestrate, monitor tmux sessions |
+| 2   | **MCP Agent Mail**               | -       | Agent coordination via mail-like messaging              |
+| 3   | **Meta Skill**                   | `ms`    | Local-first skill management with MCP integration       |
+| 4   | **Automated Plan Reviser**       | `apr`   | Iterative spec refinement with AI reasoning             |
+| 5   | **JeffreysPrompts**              | `jfp`   | System prompt library and skill installation            |
+| 6   | **Process Triage**               | `pt`    | Intelligent process termination with scoring            |
+| 7   | **Ultimate Bug Scanner**         | `ubs`   | Bug scanning with guardrails                            |
+| 8   | **beads_rust**                   | `br`    | Dependency-aware issue tracking                         |
+| 9   | **Beads Viewer**                 | `bv`    | Task management TUI with graph analysis                 |
+| 10  | **Simultaneous Launch Button**   | `slb`   | Two-person rule for dangerous commands                  |
+| 11  | **Destructive Command Guard**    | `dcg`   | Claude Code hook blocking dangerous git/fs commands     |
+| 12  | **Coding Agent Session Search**  | `cass`  | Unified agent history search                            |
+| 13  | **CASS Memory System**           | `cm`    | Procedural memory for agents                            |
+| 14  | **Coding Agent Account Manager** | `caam`  | Agent auth switching                                    |
+| 15  | **Repo Updater**                 | `ru`    | Multi-repo sync + AI-driven commit automation           |
 
 ### Bundled Utilities
 
 Additional productivity tools installed alongside the stack:
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| **Get Image from Internet Link** | `giil` | Download images from iCloud, Dropbox, Google Photos for visual debugging |
-| **Chat Shared Conversation to File** | `csctf` | Convert AI share links (ChatGPT, Gemini, Claude) to Markdown/HTML |
+| Tool                                 | Command | Description                                                              |
+| ------------------------------------ | ------- | ------------------------------------------------------------------------ |
+| **Get Image from Internet Link**     | `giil`  | Download images from iCloud, Dropbox, Google Photos for visual debugging |
+| **Chat Shared Conversation to File** | `csctf` | Convert AI share links (ChatGPT, Gemini, Claude) to Markdown/HTML        |
 
 ---
 
@@ -1410,11 +1524,13 @@ $ acfs doctor
 Doctor checks are generated from the manifest (`scripts/generated/doctor_checks.sh`) to keep verification logic close to `acfs.manifest.yaml`. The `acfs doctor` command automatically sources these generated checks to verify all manifest-defined tools.
 
 **How it works:**
+
 1. The manifest generator creates `doctor_checks.sh` with verify commands for each module
 2. `acfs doctor` sources this file and runs each verification check
 3. Failed checks display a **fix suggestion** with the exact command to reinstall
 
 **Example output with fix suggestion:**
+
 ```
   ✗ tools.lazygit - Lazygit terminal UI not found
     Fix: acfs install --only tools.lazygit
@@ -1438,16 +1554,17 @@ acfs doctor --no-cache   # Skip cache, run all checks fresh
 
 The `--deep` flag runs functional tests beyond binary existence:
 
-| Category | Checks |
-|----------|--------|
-| **Agent Auth** | Claude config, Codex OAuth, Gemini credentials |
-| **Database** | PostgreSQL connection, ubuntu role exists |
+| Category       | Checks                                                      |
+| -------------- | ----------------------------------------------------------- |
+| **Agent Auth** | Claude config, Codex OAuth, Gemini credentials              |
+| **Database**   | PostgreSQL connection, ubuntu role exists                   |
 | **Cloud CLIs** | `gh auth status`, `wrangler whoami`, Supabase/Vercel tokens |
-| **Vault** | `VAULT_ADDR` configured |
+| **Vault**      | `VAULT_ADDR` configured                                     |
 
 Deep checks use 5-second timeouts to avoid hanging on network issues. Results are cached for 5 minutes to speed up repeated runs.
 
 Example output:
+
 ```
 Deep Checks
   ✔ Claude auth configured
@@ -1471,14 +1588,14 @@ acfs doctor --fix --dry-run   # Preview fixes without applying
 
 These fixes are applied automatically when `--fix` is used:
 
-| Fix ID | Description | Undo Strategy |
-|--------|-------------|---------------|
-| `fix.path.ordering` | Prepend ACFS directories to PATH in .zshrc | Restore backup |
-| `fix.config.copy` | Copy missing ~/.acfs config files | Remove copied file |
-| `fix.dcg.hook` | Install DCG pre-tool-use hook | Run `dcg uninstall` |
-| `fix.symlink.create` | Create missing tool symlinks | Remove symlink |
-| `fix.plugin.clone` | Clone missing zsh plugins | Remove cloned directory |
-| `fix.acfs.sourcing` | Add ACFS sourcing to .zshrc | Restore backup |
+| Fix ID               | Description                                | Undo Strategy           |
+| -------------------- | ------------------------------------------ | ----------------------- |
+| `fix.path.ordering`  | Prepend ACFS directories to PATH in .zshrc | Restore backup          |
+| `fix.config.copy`    | Copy missing ~/.acfs config files          | Remove copied file      |
+| `fix.dcg.hook`       | Install DCG pre-tool-use hook              | Run `dcg uninstall`     |
+| `fix.symlink.create` | Create missing tool symlinks               | Remove symlink          |
+| `fix.plugin.clone`   | Clone missing zsh plugins                  | Remove cloned directory |
+| `fix.acfs.sourcing`  | Add ACFS sourcing to .zshrc                | Restore backup          |
 
 #### Safety Guarantees
 
@@ -1564,22 +1681,22 @@ The wizard guides beginners through a **14-step journey** from "I have a laptop"
 
 ### Wizard Steps
 
-| Step | Title | What Happens |
-|------|-------|--------------|
-| 1 | **Choose Your OS** | Select Mac, Windows, or Linux (auto-detected) |
-| 2 | **Choose Install Target** | Pick VPS or local desktop (Linux-only) |
-| 3 | **Install Terminal** | Get a proper terminal application set up |
-| 4 | **Generate SSH Key** | Create an ed25519 key for VPS access |
-| 5 | **Rent a VPS** | Choose a VPS provider and plan |
-| 6 | **Create VPS Instance** | Launch your VPS and confirm SSH access |
-| 7 | **SSH Into Your VPS** | First connection with troubleshooting tips |
-| 8 | **Set Up Accounts** | Create accounts for the services you'll use |
-| 9 | **Pre-Flight Check** | Verify your VPS is ready before installing |
-| 10 | **Run Installer** | The `curl \| bash` one-liner |
-| 11 | **Reconnect as Ubuntu** | Post-install reconnection |
-| 12 | **Verify Key Connection** | Reconnect using your SSH key and confirm it works |
-| 13 | **Status Check** | Run `acfs doctor` to verify |
-| 14 | **Launch Onboarding** | Start the interactive tutorial |
+| Step | Title                     | What Happens                                      |
+| ---- | ------------------------- | ------------------------------------------------- |
+| 1    | **Choose Your OS**        | Select Mac, Windows, or Linux (auto-detected)     |
+| 2    | **Choose Install Target** | Pick VPS or local desktop (Linux-only)            |
+| 3    | **Install Terminal**      | Get a proper terminal application set up          |
+| 4    | **Generate SSH Key**      | Create an ed25519 key for VPS access              |
+| 5    | **Rent a VPS**            | Choose a VPS provider and plan                    |
+| 6    | **Create VPS Instance**   | Launch your VPS and confirm SSH access            |
+| 7    | **SSH Into Your VPS**     | First connection with troubleshooting tips        |
+| 8    | **Set Up Accounts**       | Create accounts for the services you'll use       |
+| 9    | **Pre-Flight Check**      | Verify your VPS is ready before installing        |
+| 10   | **Run Installer**         | The `curl \| bash` one-liner                      |
+| 11   | **Reconnect as Ubuntu**   | Post-install reconnection                         |
+| 12   | **Verify Key Connection** | Reconnect using your SSH key and confirm it works |
+| 13   | **Status Check**          | Run `acfs doctor` to verify                       |
+| 14   | **Launch Onboarding**     | Start the interactive tutorial                    |
 
 ### Key Features
 
@@ -1601,6 +1718,7 @@ Next.js 16 (App Router)
 ```
 
 **No backend required.** All state is stored in:
+
 - URL query parameters
 - localStorage (`agent-flywheel-user-os`, `agent-flywheel-vps-ip`, `agent-flywheel-wizard-completed-steps`)
 
@@ -1609,29 +1727,31 @@ Next.js 16 (App Router)
 The wizard uses **TanStack Query** for state management with optimistic updates and cross-tab synchronization:
 
 **Architecture:**
+
 ```typescript
 // Query-based state with localStorage persistence
 const { data: steps } = useQuery({
-  queryKey: ['wizardSteps', 'completed'],
-  queryFn: getCompletedSteps,  // Reads from localStorage
-  staleTime: 0,                // Always check for updates
-  gcTime: Infinity,            // Never garbage collect
+  queryKey: ["wizardSteps", "completed"],
+  queryFn: getCompletedSteps, // Reads from localStorage
+  staleTime: 0, // Always check for updates
+  gcTime: Infinity, // Never garbage collect
 });
 ```
 
 **Optimistic Updates with Rollback:**
+
 ```typescript
 const mutation = useMutation({
   mutationFn: async (stepId) => {
     const newSteps = addCompletedStep(currentSteps, stepId);
-    setCompletedSteps(newSteps);  // Persist to localStorage
+    setCompletedSteps(newSteps); // Persist to localStorage
     return newSteps;
   },
   onMutate: (stepId) => {
     // Optimistically update cache immediately
     const previousSteps = queryClient.getQueryData(queryKey);
     queryClient.setQueryData(queryKey, addCompletedStep(baseSteps, stepId));
-    return { previousSteps };  // For rollback
+    return { previousSteps }; // For rollback
   },
   onError: (_err, _stepId, context) => {
     // Rollback on failure
@@ -1642,17 +1762,20 @@ const mutation = useMutation({
 
 **Cross-Tab Synchronization:**
 The wizard maintains sync across browser tabs via two mechanisms:
+
 1. **Custom DOM events** for same-tab coordination between components
 2. **Storage events** for cross-tab updates when localStorage changes
 
 ```typescript
 // Same-tab: custom event dispatch
-window.dispatchEvent(new CustomEvent('acfs:wizard:completed-steps-changed', {
-  detail: { steps }
-}));
+window.dispatchEvent(
+  new CustomEvent("acfs:wizard:completed-steps-changed", {
+    detail: { steps },
+  }),
+);
 
 // Cross-tab: storage event listener
-window.addEventListener('storage', (event) => {
+window.addEventListener("storage", (event) => {
   if (event.key === COMPLETED_STEPS_KEY) {
     queryClient.setQueryData(queryKey, getCompletedSteps());
   }
@@ -1687,26 +1810,27 @@ A comprehensive zsh configuration that's sourced by `~/.zshrc`:
 
 **Oh-My-Zsh Plugins (14 total):**
 
-| Plugin | Category | What It Provides |
-|--------|----------|------------------|
-| `git` | VCS | 150+ git aliases (gs, gp, gl, gco, gcm, etc.) |
-| `sudo` | Shell | Double-tap Esc to prefix previous command with sudo |
-| `colored-man-pages` | Shell | Colorized man pages for better readability |
-| `command-not-found` | Shell | Suggests packages when command not found |
-| `docker` | Containers | Docker command completion and aliases |
-| `docker-compose` | Containers | docker-compose completion and aliases |
-| `python` | Lang | Python aliases (pyfind, pyclean, pygrep) |
-| `pip` | Lang | pip completion and cache management |
-| `tmux` | Terminal | tmux aliases (ta, tad, ts, tl, tkss) |
-| `tmuxinator` | Terminal | tmuxinator project completion |
-| `systemd` | System | systemctl aliases (sc-status, sc-start, sc-stop) |
-| `rsync` | Tools | rsync completion and common flag aliases |
-| `zsh-autosuggestions` | UX | Fish-like autosuggestions from history |
-| `zsh-syntax-highlighting` | UX | Real-time command syntax highlighting |
+| Plugin                    | Category   | What It Provides                                    |
+| ------------------------- | ---------- | --------------------------------------------------- |
+| `git`                     | VCS        | 150+ git aliases (gs, gp, gl, gco, gcm, etc.)       |
+| `sudo`                    | Shell      | Double-tap Esc to prefix previous command with sudo |
+| `colored-man-pages`       | Shell      | Colorized man pages for better readability          |
+| `command-not-found`       | Shell      | Suggests packages when command not found            |
+| `docker`                  | Containers | Docker command completion and aliases               |
+| `docker-compose`          | Containers | docker-compose completion and aliases               |
+| `python`                  | Lang       | Python aliases (pyfind, pyclean, pygrep)            |
+| `pip`                     | Lang       | pip completion and cache management                 |
+| `tmux`                    | Terminal   | tmux aliases (ta, tad, ts, tl, tkss)                |
+| `tmuxinator`              | Terminal   | tmuxinator project completion                       |
+| `systemd`                 | System     | systemctl aliases (sc-status, sc-start, sc-stop)    |
+| `rsync`                   | Tools      | rsync completion and common flag aliases            |
+| `zsh-autosuggestions`     | UX         | Fish-like autosuggestions from history              |
+| `zsh-syntax-highlighting` | UX         | Real-time command syntax highlighting               |
 
 > **Note**: `zsh-autosuggestions` and `zsh-syntax-highlighting` are custom plugins installed from GitHub. They must be listed last for optimal performance.
 
 **Path Configuration:**
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -1716,6 +1840,7 @@ export PATH="$HOME/.atuin/bin:$PATH"
 ```
 
 **Modern CLI Aliases:**
+
 ```bash
 alias ls='lsd --inode --long --all'
 alias ll='lsd -l'
@@ -1727,6 +1852,7 @@ alias lg='lazygit'
 ```
 
 **Tool Integrations:**
+
 ```bash
 # Atuin (better shell history)
 eval "$(atuin init zsh)"
@@ -1743,17 +1869,17 @@ source /usr/share/doc/fzf/examples/key-bindings.zsh
 
 **Shell Keybindings (Quality of Life):**
 
-| Keybind | Action | Notes |
-|---------|--------|-------|
-| `Ctrl+→` | Forward word | Navigate by word |
-| `Ctrl+←` | Backward word | Navigate by word |
-| `Alt+→` | Forward word | Alternative binding |
-| `Alt+←` | Backward word | Alternative binding |
-| `Ctrl+Backspace` | Delete word backward | Fast deletion |
-| `Ctrl+Delete` | Delete word forward | Fast deletion |
-| `Home` | Beginning of line | Works in all terminals |
-| `End` | End of line | Works in all terminals |
-| `Ctrl+R` | Atuin history search | Interactive fuzzy search |
+| Keybind          | Action               | Notes                    |
+| ---------------- | -------------------- | ------------------------ |
+| `Ctrl+→`         | Forward word         | Navigate by word         |
+| `Ctrl+←`         | Backward word        | Navigate by word         |
+| `Alt+→`          | Forward word         | Alternative binding      |
+| `Alt+←`          | Backward word        | Alternative binding      |
+| `Ctrl+Backspace` | Delete word backward | Fast deletion            |
+| `Ctrl+Delete`    | Delete word forward  | Fast deletion            |
+| `Home`           | Beginning of line    | Works in all terminals   |
+| `End`            | End of line          | Works in all terminals   |
+| `Ctrl+R`         | Atuin history search | Interactive fuzzy search |
 
 **Atuin History Bindings:**
 The config forces Atuin bindings to load last (after OMZ plugins) ensuring `Ctrl+R` triggers Atuin's fuzzy history search rather than zsh's default:
@@ -1771,6 +1897,7 @@ bindkey -M vicmd '^R' atuin-search-vicmd
 A tmux configuration specifically optimized for NTM and multi-agent workflows:
 
 **Key Bindings:**
+
 ```
 Prefix: Ctrl+a (not Ctrl+b - more ergonomic)
 Split horizontal: |  (preserves working directory)
@@ -1782,6 +1909,7 @@ New window: c (preserves working directory)
 ```
 
 **Copy Mode (vim-style):**
+
 ```
 Enter copy mode: prefix + [
 Begin selection: v
@@ -1791,16 +1919,17 @@ Copy and exit: y
 
 **Agent Workflow Optimizations:**
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `history-limit` | 50,000 | Extended scrollback for long agent sessions |
-| `escape-time` | 10ms | Faster key response (reduced from default 500ms) |
-| `focus-events` | on | Enables vim/neovim autoread in agent windows |
-| `detach-on-destroy` | off | NTM compatibility—don't detach when session ends |
-| `monitor-activity` | on | Track agent window activity |
-| `visual-activity` | off | Silent monitoring (no bell) |
+| Setting             | Value  | Purpose                                          |
+| ------------------- | ------ | ------------------------------------------------ |
+| `history-limit`     | 50,000 | Extended scrollback for long agent sessions      |
+| `escape-time`       | 10ms   | Faster key response (reduced from default 500ms) |
+| `focus-events`      | on     | Enables vim/neovim autoread in agent windows     |
+| `detach-on-destroy` | off    | NTM compatibility—don't detach when session ends |
+| `monitor-activity`  | on     | Track agent window activity                      |
+| `visual-activity`   | off    | Silent monitoring (no bell)                      |
 
 **Catppuccin-Inspired Theme:**
+
 ```bash
 # Status bar (top position, less intrusive)
 status-style: bg=#1e1e2e, fg=#cdd6f4
@@ -1923,6 +2052,7 @@ has_errors                          # Boolean check for any errors
 ```
 
 Features:
+
 - Collects errors without aborting execution
 - Associates errors with phase and step context
 - Generates end-of-run summary reports
@@ -1954,6 +2084,7 @@ acfs_check_contract                 # Non-fatal contract check
 ```
 
 Validates that required environment variables and functions exist before execution:
+
 - `TARGET_USER`, `TARGET_HOME`, `MODE`
 - `ACFS_BOOTSTRAP_DIR`, `ACFS_LIB_DIR`
 - Logging functions: `log_detail`, `log_success`, etc.
@@ -1967,17 +2098,20 @@ run_smoke_test                      # Execute all smoke tests
 ```
 
 **Critical Checks** (must pass):
+
 - Running as ubuntu user
 - Passwordless sudo enabled
 - Zsh is default shell
 - Core tools accessible (bun, uv, cargo)
 
 **Non-Critical Checks** (warnings only):
+
 - Agent authentication configured
 - Cloud CLIs authenticated
 - Optional tools installed
 
 Example output:
+
 ```
 [Smoke Test]
   ✅ Running as ubuntu user
@@ -2003,7 +2137,7 @@ Implements the **Session Export Schema** for cross-agent sharing:
 ```typescript
 interface SessionExport {
   schema_version: 1;
-  exported_at: string;              // ISO8601
+  exported_at: string; // ISO8601
   session_id: string;
   agent: "claude-code" | "codex" | "gemini";
   model: string;
@@ -2020,7 +2154,7 @@ interface SessionExport {
     path?: string;
     description: string;
   }>;
-  key_prompts: string[];            // Notable prompts for learning
+  key_prompts: string[]; // Notable prompts for learning
   sanitized_transcript: Array<{
     role: "user" | "assistant";
     content: string;
@@ -2040,6 +2174,7 @@ tailscale_status                    # Get connection status
 ```
 
 Tailscale provides:
+
 - **Secure mesh networking** between your devices
 - **SSH over Tailscale** for firewall-free access
 - **MagicDNS** for hostname-based addressing
@@ -2058,6 +2193,7 @@ resume_upgrade_after_reboot         # Continue after reboot
 ```
 
 Handles the complex multi-step Ubuntu upgrade process:
+
 1. Detects current version
 2. Calculates upgrade path (e.g., 24.04 → 25.04 → 25.10)
 3. Performs sequential `do-release-upgrade` operations
@@ -2081,6 +2217,7 @@ ACFS includes integration with **MCP Agent Mail** for multi-agent coordination:
 ### Core Patterns
 
 **1. Register Identity:**
+
 ```bash
 # In your agent, call:
 mcp.ensure_project(project_key="/data/projects/my-project")
@@ -2088,6 +2225,7 @@ mcp.register_agent(project_key=..., program="claude-code", model="opus-4.5")
 ```
 
 **2. Reserve Files Before Editing:**
+
 ```bash
 mcp.file_reservation_paths(
     project_key=...,
@@ -2099,6 +2237,7 @@ mcp.file_reservation_paths(
 ```
 
 **3. Communicate:**
+
 ```bash
 mcp.send_message(
     project_key=...,
@@ -2132,19 +2271,20 @@ On December 17, 2025, an AI agent ran `git checkout --` on files containing hour
 
 ### What Gets Blocked
 
-| Category | Commands |
-|----------|----------|
-| **Git Reset** | `git reset --hard`, `git reset --merge` |
-| **File Discard** | `git checkout -- <files>`, `git restore <files>` |
-| **Force Push** | `git push --force` / `-f` (allows `--force-with-lease`) |
-| **Clean** | `git clean -f` (allows `-n` dry-run) |
-| **Branch Delete** | `git branch -D` (allows `-d`) |
-| **Stash Loss** | `git stash drop`, `git stash clear` |
-| **Filesystem** | `rm -rf` (except temp directories) |
+| Category          | Commands                                                |
+| ----------------- | ------------------------------------------------------- |
+| **Git Reset**     | `git reset --hard`, `git reset --merge`                 |
+| **File Discard**  | `git checkout -- <files>`, `git restore <files>`        |
+| **Force Push**    | `git push --force` / `-f` (allows `--force-with-lease`) |
+| **Clean**         | `git clean -f` (allows `-n` dry-run)                    |
+| **Branch Delete** | `git branch -D` (allows `-d`)                           |
+| **Stash Loss**    | `git stash drop`, `git stash clear`                     |
+| **Filesystem**    | `rm -rf` (except temp directories)                      |
 
 ### What Gets Allowed
 
 Safe variants are allowlisted:
+
 - `git checkout -b <branch>` — Creates branch, doesn't touch files
 - `git restore --staged` — Only unstages, doesn't discard
 - `git clean -n` — Dry-run preview
@@ -2166,7 +2306,7 @@ Add to `~/.claude/settings.json`:
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "hooks": [{"type": "command", "command": "dcg"}]
+        "hooks": [{ "type": "command", "command": "dcg" }]
       }
     ]
   }
@@ -2237,6 +2377,7 @@ ru agent-sweep --with-release
 ```
 
 **Three-Phase Workflow:**
+
 1. **Planning**: Claude Code analyzes changes, generates commit message
 2. **Commit**: Validates plan, stages files, runs quality gates
 3. **Release**: (Optional) Creates version tag and GitHub release
@@ -2252,6 +2393,7 @@ PARALLEL=4
 ```
 
 **Repo list format** (`~/.config/ru/repos.d/public.txt`):
+
 ```
 owner/repo
 owner/repo@develop            # Pin to branch
@@ -2266,12 +2408,12 @@ owner/repo as custom-name     # Custom directory name
 
 ### Supported Platforms
 
-| Platform | Method | Speed |
-|----------|--------|-------|
-| **iCloud** | 4-tier capture strategy | 5-15s |
-| **Dropbox** | Direct curl download | 1-2s |
-| **Google Photos** | Network interception | 5-15s |
-| **Google Drive** | Multi-tier with auth detection | 5-15s |
+| Platform          | Method                         | Speed |
+| ----------------- | ------------------------------ | ----- |
+| **iCloud**        | 4-tier capture strategy        | 5-15s |
+| **Dropbox**       | Direct curl download           | 1-2s  |
+| **Google Photos** | Network interception           | 5-15s |
+| **Google Drive**  | Multi-tier with auth detection | 5-15s |
 
 ### Usage
 
@@ -2313,12 +2455,12 @@ curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/giil/main/instal
 
 ### Supported Providers
 
-| Provider | URL Pattern |
-|----------|------------|
-| **ChatGPT** | `chatgpt.com/share/*` |
-| **Gemini** | `gemini.google.com/share/*` |
-| **Grok** | `grok.com/share/*` |
-| **Claude** | `claude.ai/share/*` |
+| Provider    | URL Pattern                 |
+| ----------- | --------------------------- |
+| **ChatGPT** | `chatgpt.com/share/*`       |
+| **Gemini**  | `gemini.google.com/share/*` |
+| **Grok**    | `grok.com/share/*`          |
+| **Claude**  | `claude.ai/share/*`         |
 
 ### Usage
 
@@ -2409,19 +2551,23 @@ triggers:
 5. **Alert**: For non-trusted tools, creates GitHub issue for manual review
 
 **Trusted Tools (Auto-Update Enabled):**
+
 - Dicklesworthstone stack tools (ntm, cass, cm, ubs, slb, dcg, caam, bv, agent-mail, ru)
 - These are maintained by the same author, so upstream changes are implicitly trusted
 
 **Non-Trusted Tools (Manual Review Required):**
+
 - Third-party installers (bun, uv, rust, oh-my-zsh, atuin, zoxide, nvm)
 - Changes trigger a GitHub issue with diff details for human review
 
 This ensures:
+
 - **Security**: Third-party changes are reviewed before deployment
 - **Velocity**: Internal tool updates are deployed automatically
 - **Auditability**: All changes tracked via git commits
 
 **Upstream Repo Dispatch (Fast Path):**
+
 - ACFS-owned tool repos emit a `repository_dispatch` event (`upstream-changed`) when their `install.sh` changes or a release is published.
 - Requires a PAT secret named `ACFS_REPO_DISPATCH_TOKEN` in each tool repo (repo scope for this org/user).
 - If dispatch fails, the 2-hour scheduled monitor still catches drift (but slower).
@@ -2482,10 +2628,10 @@ ACFS works on any Ubuntu VPS with SSH key login. Here are recommended providers 
 
 ### Contabo (Best Value — Top Pick)
 
-| Plan | RAM | vCPU | Storage | Price | Notes |
-|------|-----|------|---------|-------|-------|
-| **Cloud VPS 50** | 64GB | 16 | 400GB NVMe | ~$56/mo (US) | **Recommended** — Best for serious multi-agent work |
-| Cloud VPS 40 | 48GB | 12 | 300GB NVMe | ~$36/mo (US) | Budget option, still comfortable |
+| Plan             | RAM  | vCPU | Storage    | Price        | Notes                                               |
+| ---------------- | ---- | ---- | ---------- | ------------ | --------------------------------------------------- |
+| **Cloud VPS 50** | 64GB | 16   | 400GB NVMe | ~$56/mo (US) | **Recommended** — Best for serious multi-agent work |
+| Cloud VPS 40     | 48GB | 12   | 300GB NVMe | ~$36/mo (US) | Budget option, still comfortable                    |
 
 - Best specs-to-price ratio on the market
 - Month-to-month pricing, no commitment required
@@ -2493,10 +2639,10 @@ ACFS works on any Ubuntu VPS with SSH key login. Here are recommended providers 
 
 ### OVH (Great Alternative)
 
-| Plan | RAM | vCore | Storage | Price | Notes |
-|------|-----|-------|---------|-------|-------|
-| **VPS-5** | 64GB | 16 | 320GB NVMe | ~$40/mo | **Recommended** — Great EU and US datacenters |
-| VPS-4 | 48GB | 12 | 240GB NVMe | ~$26/mo | Budget option |
+| Plan      | RAM  | vCore | Storage    | Price   | Notes                                         |
+| --------- | ---- | ----- | ---------- | ------- | --------------------------------------------- |
+| **VPS-5** | 64GB | 16    | 320GB NVMe | ~$40/mo | **Recommended** — Great EU and US datacenters |
+| VPS-4     | 48GB | 12    | 240GB NVMe | ~$26/mo | Budget option                                 |
 
 - Anti-DDoS included
 - Month-to-month, 5-15% discount for longer commitments
@@ -2504,13 +2650,13 @@ ACFS works on any Ubuntu VPS with SSH key login. Here are recommended providers 
 
 ### Requirements
 
-| Requirement | Minimum | Recommended |
-|-------------|---------|-------------|
-| **OS** | Ubuntu 22.04+ (auto-upgraded) | Ubuntu 25.10 |
-| **RAM** | 32GB (tight) | 48-64GB |
-| **Storage** | 250GB NVMe SSD | 300GB+ NVMe SSD |
-| **CPU** | 12 vCPU | 16 vCPU |
-| **Price** | ~$26/mo | ~$40-56/mo |
+| Requirement | Minimum                       | Recommended     |
+| ----------- | ----------------------------- | --------------- |
+| **OS**      | Ubuntu 22.04+ (auto-upgraded) | Ubuntu 25.10    |
+| **RAM**     | 32GB (tight)                  | 48-64GB         |
+| **Storage** | 250GB NVMe SSD                | 300GB+ NVMe SSD |
+| **CPU**     | 12 vCPU                       | 16 vCPU         |
+| **Price**   | ~$26/mo                       | ~$40-56/mo      |
 
 ### Other Providers
 
@@ -2520,13 +2666,14 @@ Any provider with Ubuntu VPS and SSH key login works. The wizard at [agent-flywh
 
 ACFS includes detailed step-by-step guides for each supported provider in `scripts/providers/`:
 
-| Provider | Guide | Key Sections |
-|----------|-------|--------------|
+| Provider    | Guide        | Key Sections                                                        |
+| ----------- | ------------ | ------------------------------------------------------------------- |
 | **Contabo** | `contabo.md` | Account creation, plan selection, data center choice, SSH key setup |
-| **OVH** | `ovh.md` | Control panel navigation, instance configuration, networking |
-| **Hetzner** | `hetzner.md` | Project setup, firewall rules, console access |
+| **OVH**     | `ovh.md`     | Control panel navigation, instance configuration, networking        |
+| **Hetzner** | `hetzner.md` | Project setup, firewall rules, console access                       |
 
 Each guide includes:
+
 - **Screenshots** for every step (in `scripts/providers/screenshots/`)
 - **Pricing breakdowns** with recommendations
 - **Region selection** guidance (latency, privacy)
@@ -2535,15 +2682,16 @@ Each guide includes:
 
 **Provider Comparison:**
 
-| Aspect | Contabo | OVH | Hetzner |
-|--------|---------|-----|---------|
-| Best For | Maximum value | EU data residency | German engineering |
-| Provisioning | 1-3 hours | 5-30 minutes | 2-10 minutes |
-| Support | Email only | Phone + chat | 24/7 ticket system |
-| Data Centers | EU, US, Asia | Global | EU only |
-| Payment | Monthly | Hourly or monthly | Hourly or monthly |
+| Aspect       | Contabo       | OVH               | Hetzner            |
+| ------------ | ------------- | ----------------- | ------------------ |
+| Best For     | Maximum value | EU data residency | German engineering |
+| Provisioning | 1-3 hours     | 5-30 minutes      | 2-10 minutes       |
+| Support      | Email only    | Phone + chat      | 24/7 ticket system |
+| Data Centers | EU, US, Asia  | Global            | EU only            |
+| Payment      | Monthly       | Hourly or monthly | Hourly or monthly  |
 
 **Recommendation Flow:**
+
 1. **Budget**: Contabo (best specs per dollar)
 2. **Speed**: Hetzner (instant provisioning)
 3. **Support**: OVH (phone support available)
@@ -2683,16 +2831,17 @@ The manifest parser includes comprehensive validation beyond basic schema checki
 
 **Validation Error Codes:**
 
-| Code | Description |
-|------|-------------|
-| `MISSING_DEPENDENCY` | Module references non-existent dependency |
-| `DEPENDENCY_CYCLE` | Circular dependency detected (A→B→C→A) |
-| `PHASE_VIOLATION` | Module runs before its dependencies |
-| `FUNCTION_NAME_COLLISION` | Two modules generate same bash function |
-| `RESERVED_NAME_COLLISION` | Module uses reserved identifier |
-| `INVALID_VERIFIED_INSTALLER_RUNNER` | Runner not in allowlist (bash/sh only) |
+| Code                                | Description                               |
+| ----------------------------------- | ----------------------------------------- |
+| `MISSING_DEPENDENCY`                | Module references non-existent dependency |
+| `DEPENDENCY_CYCLE`                  | Circular dependency detected (A→B→C→A)    |
+| `PHASE_VIOLATION`                   | Module runs before its dependencies       |
+| `FUNCTION_NAME_COLLISION`           | Two modules generate same bash function   |
+| `RESERVED_NAME_COLLISION`           | Module uses reserved identifier           |
+| `INVALID_VERIFIED_INSTALLER_RUNNER` | Runner not in allowlist (bash/sh only)    |
 
 **Running Validation:**
+
 ```bash
 cd packages/manifest
 bun run validate              # Full validation
@@ -2700,6 +2849,7 @@ bun run validate --verbose    # Show all checks
 ```
 
 **Cycle Detection Algorithm:**
+
 ```
 Tarjan's strongly connected components (SCC):
 1. DFS with discovery/low-link tracking
@@ -2735,16 +2885,17 @@ harness_summary  # Outputs: 15 passed, 0 failed, 2 skipped
 
 **Test Files:**
 
-| Test | Purpose |
-|------|---------|
-| `test_install_ubuntu.sh` | Full Docker-based installation |
-| `test_acfs_update.sh` | Update mechanism validation |
-| `bootstrap_offline_checks.sh` | Offline system readiness |
-| `resume_checks.sh` | State resume validation |
-| `selection_checks.sh` | Module selection unit tests |
-| `selection_e2e.sh` | End-to-end selection flow |
+| Test                          | Purpose                        |
+| ----------------------------- | ------------------------------ |
+| `test_install_ubuntu.sh`      | Full Docker-based installation |
+| `test_acfs_update.sh`         | Update mechanism validation    |
+| `bootstrap_offline_checks.sh` | Offline system readiness       |
+| `resume_checks.sh`            | State resume validation        |
+| `selection_checks.sh`         | Module selection unit tests    |
+| `selection_e2e.sh`            | End-to-end selection flow      |
 
 **Running Tests:**
+
 ```bash
 # Full Docker integration test
 ./tests/vm/test_install_ubuntu.sh
@@ -2770,8 +2921,8 @@ Sync scripts keep ACFS documentation aligned with upstream projects:
 
 **Current Sync Sources:**
 
-| Script | Source | Destination |
-|--------|--------|-------------|
+| Script                | Source                        | Destination              |
+| --------------------- | ----------------------------- | ------------------------ |
 | `sync_ntm_palette.sh` | NTM repo `command_palette.md` | `acfs/onboard/docs/ntm/` |
 
 All sync scripts use the security library for HTTPS enforcement and content hashing.
@@ -2781,6 +2932,7 @@ All sync scripts use the security library for HTTPS enforcement and content hash
 The website uses a comprehensive design system (`apps/web/lib/design-tokens.ts`):
 
 **Color Tokens (OKLCH Color Space):**
+
 ```typescript
 // Perceptually uniform colors
 colors: {
@@ -2794,6 +2946,7 @@ colors: {
 ```
 
 **Shadow Tokens:**
+
 ```typescript
 shadows: {
   cardHover: "0 20px 40px -12px oklch(0.75 0.18 195 / 0.15)",
@@ -2803,6 +2956,7 @@ shadows: {
 ```
 
 **Animation Presets:**
+
 ```typescript
 animations: {
   hover: { scale: 1.02, transition: { duration: 0.2 } },
@@ -2812,6 +2966,7 @@ animations: {
 ```
 
 **Accessibility:**
+
 - Reduced motion support via `useReducedMotion` hook
 - Semantic HTML structure
 - ARIA labels on interactive elements
@@ -2830,6 +2985,7 @@ animations: {
 ### Why "Vibe Mode"?
 
 Vibe mode is designed for **throwaway VPS environments** where velocity matters more than safety:
+
 - Passwordless sudo eliminates friction
 - Agent dangerous flags skip confirmation dialogs
 - Pre-configured aliases for maximum speed
@@ -2838,7 +2994,8 @@ Vibe mode is designed for **throwaway VPS environments** where velocity matters 
 
 ### Can I use this on my local machine?
 
-ACFS is designed for fresh Ubuntu VPS instances. While you *could* run it locally:
+ACFS is designed for fresh Ubuntu VPS instances. While you _could_ run it locally:
+
 - It may conflict with existing configurations
 - It assumes root/sudo access
 - It's not designed for macOS or Windows
@@ -2848,6 +3005,7 @@ For local development, use the individual tools directly.
 ### What if the installer fails?
 
 The installer is **checkpointed**. Simply re-run it:
+
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/main/install.sh?$(date +%s)" | bash -s -- --yes --mode vibe
 ```
@@ -2857,6 +3015,7 @@ It will skip already-completed phases and resume where it left off.
 ### How do I update tools?
 
 Use the built-in update command:
+
 ```bash
 acfs update                  # Update all standard components
 acfs update --stack          # Include Dicklesworthstone stack
@@ -2866,6 +3025,7 @@ acfs update --agents-only    # Just update AI agents
 ### How do I uninstall?
 
 There's no uninstall script. To reset:
+
 1. Delete the VPS instance
 2. Create a new one
 3. Run the installer fresh
@@ -2875,6 +3035,7 @@ This is intentional—ACFS is designed for ephemeral VPS environments.
 ### Can I customize which tools are installed?
 
 Currently, ACFS installs the full suite. Future versions will support:
+
 - Manifest-based tool selection
 - Interactive mode for choosing components
 - Modular installation scripts
@@ -2916,7 +3077,7 @@ The rise of AI coding agents (Claude Code, Codex CLI, Gemini CLI, Amp CLI) has c
 
 ### The Deeper Problem: Beginners Can't Start
 
-For experienced developers, the setup is tedious but doable. For beginners—the people who would benefit *most* from AI coding assistance—it's an insurmountable wall:
+For experienced developers, the setup is tedious but doable. For beginners—the people who would benefit _most_ from AI coding assistance—it's an insurmountable wall:
 
 - What's SSH? How do I generate keys?
 - What's a VPS? How do I rent one?
@@ -2968,22 +3129,23 @@ ACFS isn't just a collection of tools—it's a **carefully curated system** wher
 
 Every tool in ACFS earns its place through **concrete productivity gains**:
 
-| Tool | Individual Value | Synergy Value |
-|------|-----------------|---------------|
-| **tmux** | Persistent sessions | Agents can work while you're disconnected |
-| **NTM** | Organized sessions | One command spawns 10 agents in named windows |
-| **Agent Mail** | Message passing | Agents coordinate without conflicts |
-| **SLB** | Two-person rule | Dangerous operations require confirmation |
-| **DCG** | Command guardrails | Blocks destructive commands before execution |
-| **Beads Viewer** | Task tracking | Agents can see project state, avoid rework |
-| **atuin** | Shell history | Search commands across sessions, share patterns |
-| **zoxide** | Smart cd | `z proj` beats `cd ~/projects/my-long-name` |
-| **ripgrep** | Fast search | Agents find code 100x faster than grep |
-| **fzf** | Fuzzy finding | Interactive selection instead of typing paths |
+| Tool             | Individual Value    | Synergy Value                                   |
+| ---------------- | ------------------- | ----------------------------------------------- |
+| **tmux**         | Persistent sessions | Agents can work while you're disconnected       |
+| **NTM**          | Organized sessions  | One command spawns 10 agents in named windows   |
+| **Agent Mail**   | Message passing     | Agents coordinate without conflicts             |
+| **SLB**          | Two-person rule     | Dangerous operations require confirmation       |
+| **DCG**          | Command guardrails  | Blocks destructive commands before execution    |
+| **Beads Viewer** | Task tracking       | Agents can see project state, avoid rework      |
+| **atuin**        | Shell history       | Search commands across sessions, share patterns |
+| **zoxide**       | Smart cd            | `z proj` beats `cd ~/projects/my-long-name`     |
+| **ripgrep**      | Fast search         | Agents find code 100x faster than grep          |
+| **fzf**          | Fuzzy finding       | Interactive selection instead of typing paths   |
 
 ### The Compounding Effect
 
 A single agent with basic tooling is useful. Three agents with:
+
 - A shared project structure
 - Coordination via Agent Mail
 - Orchestration via NTM
@@ -3027,6 +3189,7 @@ install_tool() {
 ```
 
 This guarantees:
+
 1. **Safe re-runs** — Running the installer twice doesn't break anything
 2. **Resume capability** — Failures don't require starting over
 3. **Declarative intent** — The end state is defined, not the transition
@@ -3067,9 +3230,10 @@ This ensures the manifest is the **single source of truth**—no drift between d
 The manifest generator (`packages/manifest/src/generate.ts`) is a sophisticated TypeScript program that transforms YAML into bash:
 
 **Input Processing:**
+
 ```typescript
 // 1. Parse YAML with validation
-const manifest = parseManifestFile(MANIFEST_PATH);  // Zod-validated
+const manifest = parseManifestFile(MANIFEST_PATH); // Zod-validated
 
 // 2. Load checksums for verified installers
 const checksums = parseYaml(readFileSync(CHECKSUMS_PATH));
@@ -3079,6 +3243,7 @@ const sorted = sortModulesByInstallOrder(manifest.modules);
 ```
 
 **Security-First Code Generation:**
+
 ```typescript
 // Shell-safe quoting (prevents command injection)
 function shellQuote(s: string): string {
@@ -3086,15 +3251,19 @@ function shellQuote(s: string): string {
 }
 
 // Allowlisted runners only (belt-and-suspenders)
-const ALLOWED_RUNNERS = ['bash', 'sh'] as const;
+const ALLOWED_RUNNERS = ["bash", "sh"] as const;
 
 // Verified installer pipe construction
-function buildVerifiedInstallerPipe(module: Module, checksums: Checksums): string {
+function buildVerifiedInstallerPipe(
+  module: Module,
+  checksums: Checksums,
+): string {
   // Generates: curl -fsSL "$URL" | verify_checksum "$SHA256" | bash
 }
 ```
 
 **Output Structure:**
+
 ```
 scripts/generated/
 ├── install_base.sh        # Base system packages (apt)
@@ -3116,6 +3285,7 @@ scripts/generated/
 ```
 
 **Generated Script Structure:**
+
 ```bash
 #!/usr/bin/env bash
 # AUTO-GENERATED FROM acfs.manifest.yaml - DO NOT EDIT
@@ -3138,6 +3308,7 @@ install_module_id() {
 ```
 
 **Regeneration:**
+
 ```bash
 cd packages/manifest
 bun run generate           # Full regeneration
@@ -3149,6 +3320,7 @@ bun run generate:dry       # Preview without writing
 The generator produces `manifest_index.sh`, a comprehensive bash metadata file that provides programmatic access to manifest data at runtime:
 
 **Associative Arrays:**
+
 ```bash
 # Module metadata lookup
 declare -A ACFS_MODULE_DESCRIPTION
@@ -3180,6 +3352,7 @@ ACFS_MODULE_DEFAULT["db.postgres18"]="true"
 ```
 
 **Runtime Query Functions:**
+
 ```bash
 # Get all modules in a category
 get_modules_by_category "agents"  # Returns: agents.claude agents.codex agents.gemini agents.amp
@@ -3192,6 +3365,7 @@ get_module_phase "stack.ntm"      # Returns: 6
 ```
 
 **Use Cases:**
+
 - `acfs doctor` queries module metadata for health checks
 - `install.sh --list-modules` displays available modules
 - `--skip <module>` validates module existence before skipping
@@ -3232,6 +3406,7 @@ ACFS is designed for **multi-agent workflows** where several AI coding agents wo
 ### The Coordination Problem
 
 Without coordination, multiple agents cause chaos:
+
 - **File conflicts** — Two agents edit the same file
 - **Duplicated work** — Agents solve the same problem independently
 - **Communication gaps** — No visibility into what others are doing
@@ -3266,12 +3441,14 @@ Without coordination, multiple agents cause chaos:
 ### Agent Communication Patterns
 
 **1. Direct Messaging (Agent Mail)**
+
 ```
 Agent A → Agent B: "I finished the auth module, ready for API integration"
 Agent B → Agent A: "ACK, starting API integration with auth dependency"
 ```
 
 **2. Broadcast Updates (Thread Summaries)**
+
 ```
 Thread: "Sprint 23 Tasks"
 ├── Agent A: "Claimed user-registration feature"
@@ -3281,6 +3458,7 @@ Thread: "Sprint 23 Tasks"
 ```
 
 **3. File Reservations (Conflict Prevention)**
+
 ```
 Agent A: reserve_paths(["src/auth/*"], exclusive=true, ttl=3600)
 Agent B: reserve_paths(["src/auth/*"]) → CONFLICT: held by Agent A
@@ -3300,6 +3478,7 @@ ntm spawn \
 ```
 
 Result:
+
 ```
 tmux session: acfs-swarm
 ├── agent-1: Claude working on auth
@@ -3377,6 +3556,7 @@ Vibe:        Describe → Generate → Verify → Ship → Iterate
 **2. Throwaway Environments Enable Boldness**
 
 The magic of vibe coding happens on **ephemeral VPS instances**. When your environment is disposable:
+
 - You can experiment without fear
 - Catastrophic failures are just "rebuild the VPS"
 - Agents can have dangerous permissions (they can't break what's disposable)
@@ -3389,6 +3569,7 @@ This is why ACFS's "vibe mode" enables passwordless sudo and dangerous agent fla
 One agent is useful. Three agents working in parallel are transformative.
 
 Vibe coding assumes you'll run multiple agents simultaneously:
+
 - Claude for complex reasoning and architecture
 - Codex for rapid prototyping and refactoring
 - Gemini for documentation and research
@@ -3398,6 +3579,7 @@ ACFS provides the coordination layer (Agent Mail, NTM, SLB) that makes this prac
 ### The Anti-Patterns
 
 Vibe coding is **NOT**:
+
 - Blindly accepting agent output without review
 - Abandoning tests and quality standards
 - Ignoring security on production systems
@@ -3510,18 +3692,19 @@ This ensures the state file is never partially written, even if the process is k
 
 ### Recovery from Common Failures
 
-| Failure Type | Detection | Recovery |
-|--------------|-----------|----------|
-| Network timeout | curl exit code 28 | Retry with exponential backoff |
-| APT lock held | `/var/lib/dpkg/lock` exists | Wait and retry up to 60s |
-| Disk full | df check before write | Abort with clear error |
-| Out of memory | OOM killer | Resume picks up from last phase |
-| SSH disconnect | N/A (session dies) | Resume on reconnect |
-| Ctrl+C | Trap handler | Clean exit, state preserved |
+| Failure Type    | Detection                   | Recovery                        |
+| --------------- | --------------------------- | ------------------------------- |
+| Network timeout | curl exit code 28           | Retry with exponential backoff  |
+| APT lock held   | `/var/lib/dpkg/lock` exists | Wait and retry up to 60s        |
+| Disk full       | df check before write       | Abort with clear error          |
+| Out of memory   | OOM killer                  | Resume picks up from last phase |
+| SSH disconnect  | N/A (session dies)          | Resume on reconnect             |
+| Ctrl+C          | Trap handler                | Clean exit, state preserved     |
 
 ### Phase Timings & Performance
 
 The state file tracks how long each phase takes. This enables:
+
 - Accurate progress estimation ("Phase 4/9, ~3 minutes remaining")
 - Performance regression detection across ACFS versions
 - Identifying slow phases that need optimization
@@ -3541,6 +3724,7 @@ try_step "Installing ripgrep" install_ripgrep
 ```
 
 This pattern provides:
+
 - **Context tracking**: Errors include step name, not just exit code
 - **Graceful continuation**: Non-critical failures don't abort the whole install
 - **Structured reporting**: Failures are collected and reported at the end
@@ -3652,12 +3836,12 @@ This section covers common issues and their solutions. For quick debugging, star
 
 **Common Causes & Solutions**:
 
-| Cause | Detection | Fix |
-|-------|-----------|-----|
-| Not running as root | "Permission denied" | `sudo bash` or use `sudo` in curl command |
-| Not Ubuntu | "Unsupported OS" | ACFS only supports Ubuntu 22.04+ |
-| No internet | "curl: (6) Could not resolve host" | Check DNS, try `ping google.com` |
-| Old bash | Syntax errors | Upgrade to bash 4+ |
+| Cause               | Detection                          | Fix                                       |
+| ------------------- | ---------------------------------- | ----------------------------------------- |
+| Not running as root | "Permission denied"                | `sudo bash` or use `sudo` in curl command |
+| Not Ubuntu          | "Unsupported OS"                   | ACFS only supports Ubuntu 22.04+          |
+| No internet         | "curl: (6) Could not resolve host" | Check DNS, try `ping google.com`          |
+| Old bash            | Syntax errors                      | Upgrade to bash 4+                        |
 
 ### Installation Failure Recovery
 
@@ -3684,16 +3868,17 @@ To debug:
 
 **Key features of the resume hint:**
 
-| Feature | Description |
-|---------|-------------|
-| **Pinned commit** | Uses exact SHA from original run for reproducibility |
-| **Preserved flags** | Includes all original flags (--skip-*, --mode, --strict) |
-| **Automatic detection** | Reads failed phase/step from `~/.acfs/state.json` |
-| **Copyable command** | Ready to paste and run immediately |
+| Feature                 | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
+| **Pinned commit**       | Uses exact SHA from original run for reproducibility      |
+| **Preserved flags**     | Includes all original flags (--skip-\*, --mode, --strict) |
+| **Automatic detection** | Reads failed phase/step from `~/.acfs/state.json`         |
+| **Copyable command**    | Ready to paste and run immediately                        |
 
 **Manual recovery steps:**
 
 1. **Review the error**:
+
    ```bash
    # Check the full log
    cat /var/log/acfs/install.log | tail -50
@@ -3703,6 +3888,7 @@ To debug:
    ```
 
 2. **Run diagnostics**:
+
    ```bash
    # As the target user (ubuntu)
    acfs doctor
@@ -3712,6 +3898,7 @@ To debug:
    ```
 
 3. **Resume installation**:
+
    ```bash
    # Use the exact command from the failure output
    # Or use the generic resume command:
@@ -3719,6 +3906,7 @@ To debug:
    ```
 
 4. **Check state file** (advanced):
+
    ```bash
    # View current installation state
    cat ~/.acfs/state.json | jq .
@@ -3729,13 +3917,13 @@ To debug:
 
 **Common failure scenarios:**
 
-| Scenario | Typical Cause | Recovery |
-|----------|---------------|----------|
-| Network timeout | Transient connectivity | Wait, then resume |
-| APT lock held | Unattended-upgrades | Wait 2-3 min, resume |
-| Disk full | Insufficient space | Free space, resume |
-| SSH disconnect | Session timeout | Reconnect, resume |
-| Tool install failed | Upstream unavailable | Check status, resume |
+| Scenario            | Typical Cause          | Recovery             |
+| ------------------- | ---------------------- | -------------------- |
+| Network timeout     | Transient connectivity | Wait, then resume    |
+| APT lock held       | Unattended-upgrades    | Wait 2-3 min, resume |
+| Disk full           | Insufficient space     | Free space, resume   |
+| SSH disconnect      | Session timeout        | Reconnect, resume    |
+| Tool install failed | Upstream unavailable   | Check status, resume |
 
 ### APT Lock Errors
 
@@ -3744,6 +3932,7 @@ To debug:
 **Solutions**:
 
 1. **Wait for unattended-upgrades** (most common on fresh VPS):
+
    ```bash
    # Check what's holding the lock
    sudo lsof /var/lib/dpkg/lock-frontend
@@ -3764,28 +3953,32 @@ To debug:
 Every ACFS install run produces two artifacts for debugging and tooling:
 
 **Log File Location:**
+
 ```
 ~/.acfs/logs/install-YYYYMMDD_HHMMSS.log
 ```
 
 The log file captures all stderr output from the installer, with:
+
 - Header containing version, date, and mode
 - All progress messages and errors
 - ANSI colors stripped after completion
 - Footer with completion timestamp
 
 **Summary JSON Location:**
+
 ```
 ~/.acfs/logs/install_summary_YYYYMMDD_HHMMSS.json
 ```
 
 **Summary JSON Schema (v1):**
+
 ```json
 {
   "schema_version": 1,
-  "status": "success",           // "success" or "failure"
+  "status": "success", // "success" or "failure"
   "timestamp": "2026-01-27T...", // ISO 8601
-  "total_seconds": 1200,         // Wall clock time
+  "total_seconds": 1200, // Wall clock time
   "environment": {
     "acfs_version": "0.9.0",
     "mode": "vibe",
@@ -3794,11 +3987,11 @@ The log file captures all stderr output from the installer, with:
     "target_home": "/home/ubuntu"
   },
   "phases": [
-    {"id": "phase_0", "duration_seconds": 5},
-    {"id": "phase_1", "duration_seconds": 45},
+    { "id": "phase_0", "duration_seconds": 5 },
+    { "id": "phase_1", "duration_seconds": 45 }
     // ... completed phases in order
   ],
-  "failure": null,               // null on success, or:
+  "failure": null, // null on success, or:
   // "failure": {
   //   "phase": "phase_9",
   //   "step": "install_stack",
@@ -3810,6 +4003,7 @@ The log file captures all stderr output from the installer, with:
 ```
 
 **Accessing logs:**
+
 ```bash
 # Find the latest log
 ls -lt ~/.acfs/logs/install-*.log | head -1
@@ -3843,20 +4037,22 @@ cat ~/.acfs/logs/install_summary_*.json | tail -1  # Latest summary
 The `acfs support-bundle` command collects all diagnostic data into a single archive for troubleshooting.
 
 **Usage:**
+
 ```bash
 acfs support-bundle [options]
 ```
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--verbose, -v` | Show detailed output during collection |
-| `--output, -o DIR` | Output directory (default: `~/.acfs/support`) |
-| `--no-redact` | Disable secret redaction (WARNING: bundle may contain secrets) |
-| `--help, -h` | Show help |
+| Option             | Description                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| `--verbose, -v`    | Show detailed output during collection                         |
+| `--output, -o DIR` | Output directory (default: `~/.acfs/support`)                  |
+| `--no-redact`      | Disable secret redaction (WARNING: bundle may contain secrets) |
+| `--help, -h`       | Show help                                                      |
 
 **Output files:**
+
 ```
 ~/.acfs/support/<timestamp>/          # Unpacked bundle directory
 ~/.acfs/support/<timestamp>.tar.gz    # Compressed archive (shareable)
@@ -3865,34 +4061,34 @@ acfs support-bundle [options]
 
 **What's collected:**
 
-| File | Description |
-|------|-------------|
-| `state.json` | Installation state and checkpoints |
-| `VERSION` | ACFS version |
-| `checksums.yaml` | Upstream verification checksums |
-| `logs/install-*.log` | Recent install logs (up to 10) |
-| `logs/install_summary_*.json` | Recent install summaries |
-| `doctor.json` | Health check results |
-| `versions.json` | Installed tool versions |
-| `environment.json` | OS, memory, disk, user info |
-| `os-release` | Linux distribution info |
-| `journal-acfs.log` | Systemd journal for ACFS services |
-| `config/.zshrc` | Shell configuration |
+| File                          | Description                        |
+| ----------------------------- | ---------------------------------- |
+| `state.json`                  | Installation state and checkpoints |
+| `VERSION`                     | ACFS version                       |
+| `checksums.yaml`              | Upstream verification checksums    |
+| `logs/install-*.log`          | Recent install logs (up to 10)     |
+| `logs/install_summary_*.json` | Recent install summaries           |
+| `doctor.json`                 | Health check results               |
+| `versions.json`               | Installed tool versions            |
+| `environment.json`            | OS, memory, disk, user info        |
+| `os-release`                  | Linux distribution info            |
+| `journal-acfs.log`            | Systemd journal for ACFS services  |
+| `config/.zshrc`               | Shell configuration                |
 
 **Security & Redaction:**
 
 By default, sensitive data is automatically redacted:
 
-| Pattern | Example | Redacted To |
-|---------|---------|-------------|
-| OpenAI API keys | `sk-abc123...` | `<REDACTED:api_key>` |
-| AWS keys | `AKIAIOSFODNN...` | `<REDACTED:aws_key>` |
-| GitHub tokens | `ghp_xxxx...` | `<REDACTED:github_token>` |
-| Vault tokens | `hvs.xxxx...` | `<REDACTED:vault_token>` |
-| Slack tokens | `xoxb-xxxx...` | `<REDACTED:slack_token>` |
-| Bearer tokens | `Bearer xxx...` | `Bearer <REDACTED:bearer>` |
-| JWTs | `eyJhbGc...` | `<REDACTED:jwt>` |
-| Passwords | `"password": "..."` | `"password": "<REDACTED:password>"` |
+| Pattern         | Example             | Redacted To                         |
+| --------------- | ------------------- | ----------------------------------- |
+| OpenAI API keys | `sk-abc123...`      | `<REDACTED:api_key>`                |
+| AWS keys        | `AKIAIOSFODNN...`   | `<REDACTED:aws_key>`                |
+| GitHub tokens   | `ghp_xxxx...`       | `<REDACTED:github_token>`           |
+| Vault tokens    | `hvs.xxxx...`       | `<REDACTED:vault_token>`            |
+| Slack tokens    | `xoxb-xxxx...`      | `<REDACTED:slack_token>`            |
+| Bearer tokens   | `Bearer xxx...`     | `Bearer <REDACTED:bearer>`          |
+| JWTs            | `eyJhbGc...`        | `<REDACTED:jwt>`                    |
+| Passwords       | `"password": "..."` | `"password": "<REDACTED:password>"` |
 
 **Example workflow:**
 
@@ -3907,12 +4103,14 @@ acfs support-bundle
 ```
 
 **Disable redaction (use with caution):**
+
 ```bash
 # WARNING: Bundle may contain API keys, tokens, and passwords
 acfs support-bundle --no-redact
 ```
 
 **When to use:**
+
 - Installation failed and you need to share logs
 - Filing a GitHub issue about ACFS
 - Diagnosing tool installation problems
@@ -3927,6 +4125,7 @@ acfs support-bundle --no-redact
 1. **Log out and back in** (the change happens at next login)
 
 2. **Manually set shell**:
+
    ```bash
    chsh -s $(which zsh)
    # Then log out and back in
@@ -3941,6 +4140,7 @@ acfs support-bundle --no-redact
 ### Agent Authentication Issues
 
 **Claude Code**:
+
 ```bash
 # Check auth status
 claude --version
@@ -3951,6 +4151,7 @@ cc  # Follow prompts (or run `claude` if cc isn't available)
 ```
 
 **Codex CLI**:
+
 ```bash
 # Check auth status
 codex --version
@@ -3960,6 +4161,7 @@ codex login
 ```
 
 **Gemini CLI**:
+
 ```bash
 # Check auth status
 gemini --version
@@ -3975,6 +4177,7 @@ gemini  # Follow Google login flow
 **Solutions**:
 
 1. **Reload shell config**:
+
    ```bash
    source ~/.zshrc
    # Or start a new shell
@@ -3982,6 +4185,7 @@ gemini  # Follow Google login flow
    ```
 
 2. **Check PATH**:
+
    ```bash
    echo $PATH | tr ':' '\n' | grep -E "(bun|local|cargo)"
    # Should include: ~/.bun/bin, ~/.local/bin, ~/.cargo/bin
@@ -4008,6 +4212,7 @@ Doctor checks are generated directly from the manifest, so they verify the exact
 **Solutions**:
 
 1. **Re-run the specific module** (use the fix suggestion):
+
    ```bash
    acfs install --only tools.lazygit   # Install just that tool
    acfs install --only lang.go         # Install a language runtime
@@ -4015,6 +4220,7 @@ Doctor checks are generated directly from the manifest, so they verify the exact
    ```
 
 2. **Re-run an entire phase** (for multiple failures in one category):
+
    ```bash
    acfs install --only-phase 4   # Re-run Phase 4: Tools
    acfs install --only-phase 8   # Re-run Phase 8: Stack
@@ -4035,12 +4241,14 @@ Doctor checks are generated directly from the manifest, so they verify the exact
 **Solutions**:
 
 1. **Check syntax**:
+
    ```bash
    tmux source-file ~/.tmux.conf
    # Will show line number of any errors
    ```
 
 2. **Reset to ACFS defaults**:
+
    ```bash
    cp ~/.acfs/tmux/tmux.conf ~/.tmux.conf
    ```
@@ -4058,11 +4266,13 @@ Doctor checks are generated directly from the manifest, so they verify the exact
 **Solutions**:
 
 1. **Reinstall stack**:
+
    ```bash
    acfs update --stack --force
    ```
 
 2. **Check cargo install worked**:
+
    ```bash
    ls ~/.cargo/bin/  # Should contain ntm, slb, ru, etc.
    ls ~/.local/bin/  # dcg often installs here
@@ -4080,16 +4290,19 @@ Doctor checks are generated directly from the manifest, so they verify the exact
 **Solutions**:
 
 1. **Run the built-in health check**:
+
    ```bash
    dcg doctor
    ```
 
 2. **Re-register the hook**:
+
    ```bash
    dcg install --force
    ```
 
 3. **Verify hook registration**:
+
    ```bash
    grep -n dcg ~/.claude/settings.json ~/.config/claude/settings.json
    ```
@@ -4129,39 +4342,42 @@ ACFS takes security seriously while acknowledging the inherent risks of `curl | 
 
 ### What We Protect Against
 
-| Threat | Mitigation |
-|--------|------------|
-| **Man-in-the-middle (MITM)** | HTTPS enforcement for all downloads |
-| **Compromised upstream scripts** | SHA256 checksum verification |
-| **Malicious package injection** | Official package sources only (apt, cargo, bun) |
-| **Credential exposure** | No credentials stored in scripts or configs |
-| **Privilege escalation** | Minimal sudo usage, explicit permission grants |
-| **Persistent backdoors** | Ephemeral VPS model; start fresh if concerned |
+| Threat                           | Mitigation                                      |
+| -------------------------------- | ----------------------------------------------- |
+| **Man-in-the-middle (MITM)**     | HTTPS enforcement for all downloads             |
+| **Compromised upstream scripts** | SHA256 checksum verification                    |
+| **Malicious package injection**  | Official package sources only (apt, cargo, bun) |
+| **Credential exposure**          | No credentials stored in scripts or configs     |
+| **Privilege escalation**         | Minimal sudo usage, explicit permission grants  |
+| **Persistent backdoors**         | Ephemeral VPS model; start fresh if concerned   |
 
 ### What We Don't Protect Against
 
-| Threat | Why Not | Mitigation |
-|--------|---------|------------|
-| **Compromised GitHub** | Would require GitHub-level breach | Use release tags, verify commits |
-| **Compromised upstream maintainers** | Can't verify humans | Trust + checksum verification |
-| **Zero-day in installed tools** | Beyond our control | Keep tools updated, follow CVEs |
-| **Physical VPS access** | Provider responsibility | Choose reputable providers |
-| **Vibe mode abuse** | By design for throwaway VPS | Use safe mode on important systems |
+| Threat                               | Why Not                           | Mitigation                         |
+| ------------------------------------ | --------------------------------- | ---------------------------------- |
+| **Compromised GitHub**               | Would require GitHub-level breach | Use release tags, verify commits   |
+| **Compromised upstream maintainers** | Can't verify humans               | Trust + checksum verification      |
+| **Zero-day in installed tools**      | Beyond our control                | Keep tools updated, follow CVEs    |
+| **Physical VPS access**              | Provider responsibility           | Choose reputable providers         |
+| **Vibe mode abuse**                  | By design for throwaway VPS       | Use safe mode on important systems |
 
 ### The `curl | bash` Debate
 
 The `curl | bash` pattern is controversial. Critics argue:
+
 - You're executing arbitrary code from the internet
 - The download could be swapped mid-stream
 - You can't audit before executing
 
 Our response:
+
 1. **HTTPS** prevents mid-stream swapping
 2. **Checksums** verify content matches known-good versions
 3. **Ephemeral environments** limit blast radius
 4. **Open source** allows pre-audit of install.sh
 
 For maximum security, you can:
+
 ```bash
 curl -fsSL "https://..." -o install.sh
 less install.sh
@@ -4193,10 +4409,12 @@ The verification process:
 ```
 
 A mismatch could mean:
+
 - Upstream released a new version (common, usually safe)
 - Upstream was compromised (rare, investigate before updating)
 
 Our update process:
+
 1. Monitor upstream releases
 2. Review changes in new installer versions
 3. Update checksums only after manual review
@@ -4205,17 +4423,20 @@ Our update process:
 ### Vibe Mode Security Implications
 
 Vibe mode (`--mode vibe`) enables:
+
 - Passwordless sudo for ubuntu user
 - `--dangerously-skip-permissions` for Claude
 - `--dangerously-bypass-approvals-and-sandbox` for Codex
 - `--yolo` for Gemini
 
 This is **intentionally insecure for velocity**. Use only on:
+
 - Throwaway VPS you don't care about
 - Non-production environments
 - Personal experimentation
 
 Never on:
+
 - Production servers
 - Shared team infrastructure
 - Systems with sensitive data
@@ -4229,64 +4450,65 @@ How does ACFS compare to other ways of setting up a development environment?
 
 ### vs. Manual Setup
 
-| Aspect | Manual | ACFS |
-|--------|--------|------|
-| Time | 3-7 hours | 30 minutes |
-| Consistency | Varies | Identical every time |
-| Documentation | Your memory | This README |
-| Resume on failure | Start over | Automatic |
-| Updates | Manual each tool | `acfs update` |
+| Aspect            | Manual           | ACFS                 |
+| ----------------- | ---------------- | -------------------- |
+| Time              | 3-7 hours        | 30 minutes           |
+| Consistency       | Varies           | Identical every time |
+| Documentation     | Your memory      | This README          |
+| Resume on failure | Start over       | Automatic            |
+| Updates           | Manual each tool | `acfs update`        |
 
 **When to use manual**: When you need to understand every detail, or have highly specific requirements.
 
 ### vs. Dotfiles Repos
 
-| Aspect | Dotfiles | ACFS |
-|--------|----------|------|
-| Scope | Configs only | Full tool installation |
-| Portability | Mac/Linux | Ubuntu-focused |
-| Maintenance | DIY | Maintained project |
-| Agent focus | None | Core feature |
+| Aspect      | Dotfiles     | ACFS                   |
+| ----------- | ------------ | ---------------------- |
+| Scope       | Configs only | Full tool installation |
+| Portability | Mac/Linux    | Ubuntu-focused         |
+| Maintenance | DIY          | Maintained project     |
+| Agent focus | None         | Core feature           |
 
 **When to use dotfiles**: When you already have tools installed and just want configs.
 
 ### vs. Nix/NixOS
 
-| Aspect | Nix | ACFS |
-|--------|-----|------|
-| Reproducibility | Perfect | Good |
-| Learning curve | Steep | Gentle |
-| Rollback | Native | Manual |
-| Complexity | High | Low |
-| Adoption | Growing | Easy |
+| Aspect          | Nix     | ACFS   |
+| --------------- | ------- | ------ |
+| Reproducibility | Perfect | Good   |
+| Learning curve  | Steep   | Gentle |
+| Rollback        | Native  | Manual |
+| Complexity      | High    | Low    |
+| Adoption        | Growing | Easy   |
 
 **When to use Nix**: When you need perfect reproducibility and are willing to invest in learning Nix.
 
 ### vs. DevContainers
 
-| Aspect | DevContainers | ACFS |
-|--------|--------------|------|
-| Isolation | Container | Full VPS |
-| Resource overhead | Container runtime | None |
-| IDE integration | VSCode-centric | Terminal-native |
-| Agent experience | Limited | Native |
+| Aspect            | DevContainers     | ACFS            |
+| ----------------- | ----------------- | --------------- |
+| Isolation         | Container         | Full VPS        |
+| Resource overhead | Container runtime | None            |
+| IDE integration   | VSCode-centric    | Terminal-native |
+| Agent experience  | Limited           | Native          |
 
 **When to use DevContainers**: When you want isolated project environments within an existing machine.
 
 ### vs. Ansible/Terraform
 
-| Aspect | Ansible/TF | ACFS |
-|--------|------------|------|
-| Scope | Infrastructure | Development env |
-| Complexity | High | Low |
-| Audience | DevOps | Developers |
-| Learning curve | Steep | Gentle |
+| Aspect         | Ansible/TF     | ACFS            |
+| -------------- | -------------- | --------------- |
+| Scope          | Infrastructure | Development env |
+| Complexity     | High           | Low             |
+| Audience       | DevOps         | Developers      |
+| Learning curve | Steep          | Gentle          |
 
 **When to use Ansible/Terraform**: When you're managing fleets of servers, not individual dev environments.
 
 ### The ACFS Sweet Spot
 
 ACFS is optimal when you need:
+
 - **Fast setup** of a complete agentic coding environment
 - **Fresh Ubuntu VPS** as your target
 - **AI coding agents** as primary tools
@@ -4318,25 +4540,25 @@ Running multiple AI coding agents simultaneously surfaces problems that don't ex
 
 Each tool in the stack addresses specific problems:
 
-| # | Tool | Problem Solved | Philosophy |
-|---|------|----------------|------------|
-| 1 | **NTM** | Session chaos | Named sessions create order from chaos |
-| 2 | **Agent Mail** | No communication + file conflicts | Message-passing + file reservations |
-| 3 | **UBS** | Dangerous commands | Guardrails with intelligence |
-| 4 | **Beads Viewer** | No task visibility | Graph-based task dependencies |
-| 5 | **CASS** | History fragmentation | Unified search across all agents |
-| 6 | **CM** | Lost context | Procedural memory for agents |
-| 7 | **CAAM** | Auth switching | One command to switch identities |
-| 8 | **SLB** | Dangerous commands | Two-person rule for nuclear options |
-| 9 | **DCG** | Dangerous git/fs commands | Sub-millisecond Claude Code hook blocks destructive operations |
-| 10 | **RU** | Repo sprawl | Sync repos + AI-driven commit automation across dirty repos |
+| #   | Tool             | Problem Solved                    | Philosophy                                                     |
+| --- | ---------------- | --------------------------------- | -------------------------------------------------------------- |
+| 1   | **NTM**          | Session chaos                     | Named sessions create order from chaos                         |
+| 2   | **Agent Mail**   | No communication + file conflicts | Message-passing + file reservations                            |
+| 3   | **UBS**          | Dangerous commands                | Guardrails with intelligence                                   |
+| 4   | **Beads Viewer** | No task visibility                | Graph-based task dependencies                                  |
+| 5   | **CASS**         | History fragmentation             | Unified search across all agents                               |
+| 6   | **CM**           | Lost context                      | Procedural memory for agents                                   |
+| 7   | **CAAM**         | Auth switching                    | One command to switch identities                               |
+| 8   | **SLB**          | Dangerous commands                | Two-person rule for nuclear options                            |
+| 9   | **DCG**          | Dangerous git/fs commands         | Sub-millisecond Claude Code hook blocks destructive operations |
+| 10  | **RU**           | Repo sprawl                       | Sync repos + AI-driven commit automation across dirty repos    |
 
 **Bundled Utilities:**
 
-| Tool | Problem Solved | Philosophy |
-|------|----------------|------------|
-| **giil** | Visual debugging gaps | Download cloud images (iCloud, Dropbox, Google Photos) to terminal |
-| **csctf** | Knowledge capture | Convert AI chat shares to searchable Markdown/HTML archives |
+| Tool      | Problem Solved        | Philosophy                                                         |
+| --------- | --------------------- | ------------------------------------------------------------------ |
+| **giil**  | Visual debugging gaps | Download cloud images (iCloud, Dropbox, Google Photos) to terminal |
+| **csctf** | Knowledge capture     | Convert AI chat shares to searchable Markdown/HTML archives        |
 
 ### The Synergy Effect
 
@@ -4375,16 +4597,17 @@ ACFS supports various configuration mechanisms for advanced users.
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ACFS_HOME` | `~/.acfs` | Configuration directory |
-| `ACFS_REF` | `main` | Git ref to install from (tag, branch, or commit SHA) |
-| `ACFS_CHECKSUMS_REF` | `main` (when pinned) / `ACFS_REF` (when branch) | Ref used to fetch `checksums.yaml` |
-| `ACFS_LOG_DIR` | `/var/log/acfs` | Log directory |
-| `TARGET_USER` | `ubuntu` | User to configure |
-| `TARGET_HOME` | `/home/$TARGET_USER` | User home directory |
+| Variable             | Default                                         | Description                                          |
+| -------------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `ACFS_HOME`          | `~/.acfs`                                       | Configuration directory                              |
+| `ACFS_REF`           | `main`                                          | Git ref to install from (tag, branch, or commit SHA) |
+| `ACFS_CHECKSUMS_REF` | `main` (when pinned) / `ACFS_REF` (when branch) | Ref used to fetch `checksums.yaml`                   |
+| `ACFS_LOG_DIR`       | `/var/log/acfs`                                 | Log directory                                        |
+| `TARGET_USER`        | `ubuntu`                                        | User to configure                                    |
+| `TARGET_HOME`        | `/home/$TARGET_USER`                            | User home directory                                  |
 
 **Examples:**
+
 ```bash
 # Install from a tagged release (recommended for production)
 ACFS_REF=v0.1.0 curl -fsSL "https://raw.githubusercontent.com/deepakdgupta1/agentic-coding/v0.1.0/install.sh" | bash -s -- --yes --mode vibe
@@ -4407,6 +4630,7 @@ ACFS_REF=v0.5.0 ACFS_CHECKSUMS_REF=main curl -fsSL "https://raw.githubuserconten
 The installer supports extensive command-line customization:
 
 **Execution Control:**
+
 ```bash
 --yes, -y              # Skip all prompts (non-interactive)
 --dry-run              # Simulate without making changes
@@ -4418,6 +4642,7 @@ The installer supports extensive command-line customization:
 ```
 
 **Resume & State:**
+
 ```bash
 --resume               # Resume from last checkpoint
 --force-reinstall      # Ignore state, reinstall everything
@@ -4425,6 +4650,7 @@ The installer supports extensive command-line customization:
 ```
 
 **Ubuntu Upgrade:**
+
 ```bash
 --skip-ubuntu-upgrade           # Don't upgrade Ubuntu version
 --target-ubuntu=25.10           # Specify target Ubuntu version
@@ -4432,6 +4658,7 @@ The installer supports extensive command-line customization:
 ```
 
 **Skip Flags:**
+
 ```bash
 --skip-postgres        # Skip PostgreSQL 18
 --skip-vault           # Skip HashiCorp Vault
@@ -4453,6 +4680,7 @@ Fine-grained control over what gets installed using manifest-driven selection:
 ```
 
 **Key behaviors:**
+
 - **Dependency closure:** `--only` automatically includes required dependencies (safe by default)
 - **Skip safety:** `--skip` fails early if it would break a required dependency chain
 - **Deterministic:** `--print-plan` shows exactly what will run, in what order
@@ -4542,28 +4770,28 @@ Installation times vary by VPS provider and network conditions. Here are typical
 
 ### Installation Time by Phase
 
-| Phase | Typical Duration | Notes |
-|-------|-----------------|-------|
-| User Setup | 10-15s | Fast, mostly checks |
-| Filesystem | 5-10s | Creating directories |
-| Shell Setup | 2-4 min | Oh-My-Zsh clone is slow |
-| CLI Tools | 3-5 min | Many apt packages |
-| Languages | 3-5 min | Rust compile takes longest |
-| Agents | 1-2 min | Fast bun installs |
-| Cloud | 1-2 min | Fast bun installs |
-| Stack | 4-6 min | Cargo installs |
-| Finalize | 30-60s | Config deployment |
-| **Total** | **15-25 min** | **Typical full install** |
+| Phase       | Typical Duration | Notes                      |
+| ----------- | ---------------- | -------------------------- |
+| User Setup  | 10-15s           | Fast, mostly checks        |
+| Filesystem  | 5-10s            | Creating directories       |
+| Shell Setup | 2-4 min          | Oh-My-Zsh clone is slow    |
+| CLI Tools   | 3-5 min          | Many apt packages          |
+| Languages   | 3-5 min          | Rust compile takes longest |
+| Agents      | 1-2 min          | Fast bun installs          |
+| Cloud       | 1-2 min          | Fast bun installs          |
+| Stack       | 4-6 min          | Cargo installs             |
+| Finalize    | 30-60s           | Config deployment          |
+| **Total**   | **15-25 min**    | **Typical full install**   |
 
 ### Factors Affecting Speed
 
-| Factor | Impact | Optimization |
-|--------|--------|--------------|
-| Network latency | High | Choose VPS close to package mirrors |
-| Disk I/O | Medium | SSD/NVMe preferred |
-| CPU cores | Medium | More cores = faster compilation |
-| RAM | Low | 4GB is sufficient |
-| Provider | Variable | OVH and Contabo offer excellent value |
+| Factor          | Impact   | Optimization                          |
+| --------------- | -------- | ------------------------------------- |
+| Network latency | High     | Choose VPS close to package mirrors   |
+| Disk I/O        | Medium   | SSD/NVMe preferred                    |
+| CPU cores       | Medium   | More cores = faster compilation       |
+| RAM             | Low      | 4GB is sufficient                     |
+| Provider        | Variable | OVH and Contabo offer excellent value |
 
 ### Resume Performance
 
