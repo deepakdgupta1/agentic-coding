@@ -1,24 +1,13 @@
 name: Production Smoke Tests
 
 on:
-  # Run after website changes are pushed (Vercel auto-deploys on main)
-  push:
-    branches: [main]
-    paths:
-      - 'apps/web/**'
-
-  # Run daily to catch issues early
-  schedule:
-    - cron: '0 6 * * *'  # 6 AM UTC daily
-
-  # Allow manual triggering
   workflow_dispatch:
 
 jobs:
   wait-for-deploy:
-    name: Wait for Vercel Deploy
+    name: Wait for Vercel Deploy (Compatibility)
     runs-on: ubuntu-latest
-    # Only wait on push events (schedule/dispatch test current production)
+    # Retained for compatibility if push triggers are restored later.
     if: github.event_name == 'push'
     steps:
       - name: Wait for Vercel deployment
@@ -29,7 +18,7 @@ jobs:
     name: Production Smoke Tests
     runs-on: ubuntu-latest
     needs: [wait-for-deploy]
-    # Run even if wait job was skipped (schedule/dispatch)
+    # Run even when the compatibility wait job is skipped.
     if: ${{ !cancelled() && (needs.wait-for-deploy.result == 'success' || needs.wait-for-deploy.result == 'skipped') }}
     timeout-minutes: 15
 

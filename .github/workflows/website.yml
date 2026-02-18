@@ -1,20 +1,7 @@
 name: Website CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/web/**'
-      - 'packages/manifest/**'
-      - 'acfs.manifest.yaml'
-      - '.github/workflows/website.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'apps/web/**'
-      - 'packages/manifest/**'
-      - 'acfs.manifest.yaml'
-      - '.github/workflows/website.yml'
+  workflow_dispatch:
 
 jobs:
   verify-generated:

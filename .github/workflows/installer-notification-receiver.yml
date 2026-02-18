@@ -28,6 +28,7 @@ concurrency:
 env:
   CHECKSUMS_FILE: checksums.yaml
   AUDIT_LOG_FILE: .github/audit/installer-updates.jsonl
+  TARGET_BRANCH: local-desktop-installation-support
 
 permissions:
   contents: write
@@ -50,6 +51,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Install yq
         run: |
@@ -164,6 +166,8 @@ jobs:
       current_sha256: ${{ steps.compare.outputs.current }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Install yq
         run: |
@@ -301,6 +305,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Install yq
         run: |
@@ -423,6 +428,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Create Pull Request
         env:
@@ -432,10 +439,11 @@ jobs:
           BRANCH_NAME="${{ needs.update-checksums.outputs.branch_name }}"
           SHORT_SHA="${{ needs.verify-checksum.outputs.computed_sha256 }}"
           SHORT_SHA=${SHORT_SHA:0:8}
+          TARGET_BRANCH="${{ env.TARGET_BRANCH }}"
 
           # Create PR
           gh pr create \
-            --base main \
+            --base "$TARGET_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "chore(checksums): Update $TOOL_NAME to $SHORT_SHA" \
             --body "${{ needs.update-checksums.outputs.pr_body }}" \
@@ -459,6 +467,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Install yq
         run: |
@@ -490,6 +500,7 @@ jobs:
         run: |
           TOOL_NAME="${{ needs.validate-dispatch.outputs.tool_name }}"
           SOURCE_REPO="${{ needs.validate-dispatch.outputs.source_repo }}"
+          TARGET_BRANCH="${{ env.TARGET_BRANCH }}"
 
           cat > /tmp/removal-pr-body.md << 'PREOF'
           ## Tool Removal: $TOOL_NAME
@@ -512,7 +523,7 @@ jobs:
           sed -i "s|\$SOURCE_REPO|$SOURCE_REPO|g" /tmp/removal-pr-body.md
 
           gh pr create \
-            --base main \
+            --base "$TARGET_BRANCH" \
             --head "auto/remove-${TOOL_NAME}" \
             --title "chore(checksums): Remove $TOOL_NAME" \
             --body-file /tmp/removal-pr-body.md \
