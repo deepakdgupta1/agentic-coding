@@ -224,6 +224,7 @@ log "Manifest SHA256 now matches: $ACTUAL_NOW"
 if [[ -f "$INTERNAL_CHECKSUMS_FILE" ]] && [[ "$INTERNAL_DRIFT_COUNT" -gt 0 ]]; then
     log "Verifying internal script checksums after regeneration..."
     unset ACFS_INTERNAL_CHECKSUMS
+    # shellcheck source=scripts/generated/internal_checksums.sh
     source "$INTERNAL_CHECKSUMS_FILE"
     post_fix_drift=0
     for rel_path in "${!ACFS_INTERNAL_CHECKSUMS[@]}"; do
