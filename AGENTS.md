@@ -334,17 +334,22 @@ These are installed on target VPS (not development machine).
 - **Supabase CLI** — Supabase management
 - **Vercel CLI** — Vercel deployment
 
-**Dicklesworthstone Stack (10 tools + utilities):**
+**Dicklesworthstone Stack (15 tools + utilities):**
 1. **ntm** — Named Tmux Manager (agent cockpit)
 2. **mcp_agent_mail** — Agent coordination via mail-like messaging
-3. **ultimate_bug_scanner** (`ubs`) — Bug scanning with guardrails
-4. **beads_viewer** (`bv`) — Task management TUI
-5. **coding_agent_session_search** (`cass`) — Unified agent history search
-6. **cass_memory_system** (`cm`) — Procedural memory for agents
-7. **coding_agent_account_manager** (`caam`) — Agent auth switching
-8. **simultaneous_launch_button** (`slb`) — Two-person rule for dangerous commands
-9. **destructive_command_guard** (`dcg`) — Claude Code hook blocking dangerous commands
-10. **repo_updater** (`ru`) — Multi-repo sync + AI-driven commit automation
+3. **meta_skill** (`ms`) — Local-first knowledge management
+4. **automated_plan_reviser** (`apr`) — Iterative spec refinement
+5. **jeffreysprompts** (`jfp`) — System prompt library
+6. **process_triage** (`pt`) — Intelligent process termination
+7. **ultimate_bug_scanner** (`ubs`) — Bug scanning with guardrails
+8. **beads_rust** (`br`) — Dependency-aware issue tracking
+9. **beads_viewer** (`bv`) — Graph-aware task management TUI
+10. **simultaneous_launch_button** (`slb`) — Two-person rule for dangerous commands
+11. **destructive_command_guard** (`dcg`) — Claude Code hook blocking dangerous commands
+12. **coding_agent_session_search** (`cass`) — Unified agent history search
+13. **cass_memory_system** (`cm`) — Procedural memory for agents
+14. **coding_agent_account_manager** (`caam`) — Agent auth switching
+15. **repo_updater** (`ru`) — Multi-repo sync + AI-driven commit automation
 
 **Utilities:**
 - **giil** — Download cloud images (iCloud, Dropbox, Google Photos) for visual debugging

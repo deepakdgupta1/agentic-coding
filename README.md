@@ -1310,7 +1310,7 @@ Vault is installed by default (skip with `--skip-vault`). ACFS installs the Vaul
 
 Supabase networking note: some Supabase projects expose the **direct Postgres host over IPv6-only** (often on free tiers). If your VPS/network is **IPv4-only**, use the Supabase **pooler** connection string instead (or upgrade/configure networking for direct IPv4).
 
-### Dicklesworthstone Stack (10 Tools)
+### Dicklesworthstone Stack (15 Tools)
 
 The complete suite of tools for professional agentic workflows:
 
@@ -1318,14 +1318,19 @@ The complete suite of tools for professional agentic workflows:
 |---|------|---------|-------------|
 | 1 | **Named Tmux Manager** | `ntm` | Agent cockpit—spawn, orchestrate, monitor tmux sessions |
 | 2 | **MCP Agent Mail** | - | Agent coordination via mail-like messaging |
-| 3 | **Ultimate Bug Scanner** | `ubs` | Bug scanning with guardrails |
-| 4 | **Beads Viewer** | `bv` | Task management TUI with graph analysis |
-| 5 | **Coding Agent Session Search** | `cass` | Unified agent history search |
-| 6 | **CASS Memory System** | `cm` | Procedural memory for agents |
-| 7 | **Coding Agent Account Manager** | `caam` | Agent auth switching |
-| 8 | **Simultaneous Launch Button** | `slb` | Two-person rule for dangerous commands |
-| 9 | **Destructive Command Guard** | `dcg` | Claude Code hook blocking dangerous git/fs commands |
-| 10 | **Repo Updater** | `ru` | Multi-repo sync + AI-driven commit automation |
+| 3 | **Meta Skill** | `ms` | Local-first skill management with MCP integration |
+| 4 | **Automated Plan Reviser** | `apr` | Iterative spec refinement with AI reasoning |
+| 5 | **JeffreysPrompts** | `jfp` | System prompt library and skill installation |
+| 6 | **Process Triage** | `pt` | Intelligent process termination with scoring |
+| 7 | **Ultimate Bug Scanner** | `ubs` | Bug scanning with guardrails |
+| 8 | **beads_rust** | `br` | Dependency-aware issue tracking |
+| 9 | **Beads Viewer** | `bv` | Task management TUI with graph analysis |
+| 10 | **Simultaneous Launch Button** | `slb` | Two-person rule for dangerous commands |
+| 11 | **Destructive Command Guard** | `dcg` | Claude Code hook blocking dangerous git/fs commands |
+| 12 | **Coding Agent Session Search** | `cass` | Unified agent history search |
+| 13 | **CASS Memory System** | `cm` | Procedural memory for agents |
+| 14 | **Coding Agent Account Manager** | `caam` | Agent auth switching |
+| 15 | **Repo Updater** | `ru` | Multi-repo sync + AI-driven commit automation |
 
 ### Bundled Utilities
 
